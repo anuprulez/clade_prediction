@@ -18,9 +18,10 @@ KMER_SIZE = 3
 
 
 def read_files():
-    preprocess_sequences.get_samples_clades(PATH_SEQ_CLADE)
-    #preprocess_sequences.preprocess_seq(PATH_SEQ, KMER_SIZE)
-  
+    samples_clades = preprocess_sequences.get_samples_clades(PATH_SEQ_CLADE)
+    
+    preprocess_sequences.preprocess_seq(PATH_SEQ, samples_clades, KMER_SIZE)
+
 if __name__ == "__main__":
     start_time = time.time()
     read_files()
