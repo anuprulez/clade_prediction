@@ -5,7 +5,7 @@ import json
 def make_kmers(seq, size):
     kmers = [seq[x:x+size] for x in range(len(seq) - size + 1)]
     # remove all letters other than A,C,G and T
-    fil_kmers = list(filter(lambda ch: ch in 'ACGT', kmers))
+    fil_kmers = kmers #list(filter(lambda ch: ch in 'ACGT', kmers))
     return fil_kmers
 
 
