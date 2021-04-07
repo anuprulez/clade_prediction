@@ -28,3 +28,7 @@ def read_json(path):
     with open(path, 'r') as fp:
         f_content = json.loads(fp.readline())
         return f_content
+        
+
+def format_clade_name(c_name):
+    return c_name.replace("/", "_")

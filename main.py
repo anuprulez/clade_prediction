@@ -8,6 +8,7 @@ import numpy as np
 import logging
 
 import preprocess_sequences
+import utils
 
 
 PATH_PRE = "data/ncov_global/"
@@ -20,7 +21,13 @@ KMER_SIZE = 3
 def read_files():
     samples_clades = preprocess_sequences.get_samples_clades(PATH_SEQ_CLADE)
     
-    preprocess_sequences.preprocess_seq(PATH_SEQ, samples_clades, KMER_SIZE)
+    clades_in_clades_out = utils.read_json(PATH_CLADES)
+    
+    print("Preprocessing sequences...")
+    encoded_sequence_df = preprocess_sequences.preprocess_seq(PATH_SEQ, samples_clades, KMER_SIZE)
+    
+    print("Generating cross product...")
+    preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df)
 
 if __name__ == "__main__":
     start_time = time.time()
