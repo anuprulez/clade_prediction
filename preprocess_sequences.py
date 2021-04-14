@@ -102,22 +102,17 @@ def transform_encoded_samples(train_size=0.8):
         clade_df = clade_df.sample(frac=1)
         train_df = clade_df.sample(frac=train_size, random_state=200)
         test_df = clade_df.drop(train_df.index)
-        
         print(len(train_df.index))
         print(len(test_df.index))
-        
         train_file_path = "data/train/{}.csv".format(file_name_w_ext)
         test_file_path = "data/test/{}.csv".format(file_name_w_ext)
-
         #train_df = train_df.drop(["SampleName_x", "Clade_x", "SampleName_y", "Clade_y"], axis=1)
         #test_df = test_df.drop(["SampleName_x", "Clade_x", "SampleName_y", "Clade_y"], axis=1)
-
         train_df.to_csv(train_file_path, sep="\t", index=None)
         test_df.to_csv(test_file_path, sep="\t", index=None)
-        
         print()
         
-   
+
 #def generate_uniform_batch(file_dir, batch_size=100):
     
 
