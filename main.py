@@ -9,6 +9,7 @@ import logging
 
 import preprocess_sequences
 import utils
+import neural_network
 
 
 PATH_PRE = "data/ncov_global/"
@@ -31,6 +32,44 @@ def read_files():
     
     print("Transforming generated samples...")
     preprocess_sequences.transform_encoded_samples()
+    
+    print("Reading in/out sequences...")
+    train_samples = preprocess_sequences.read_in_out_sequences()
+    
+    print("Creating neural network...")
+    generator = make_generator_model()
+
+    noise = tf.random.normal([1, 100])
+    generated_image = generator(noise, training=False)
+    
+    discriminator = make_discriminator_model()
+    decision = discriminator(generated_image)
+    print (decision)
+    
+    cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
+    
+    generator_optimizer = tf.keras.optimizers.Adam(1e-4)
+    discriminator_optimizer = tf.keras.optimizers.Adam(1e-4)
+    
+    checkpoint = tf.train.Checkpoint(generator_optimizer=generator_optimizer,
+                                 discriminator_optimizer=discriminator_optimizer,
+                                 generator=generator,
+                                 discriminator=discriminator)
+                                 
+    EPOCHS = 50
+    noise_dim = 100
+    num_examples_to_generate = 16
+    
+    print("Training neural network...")
+    neural_network.train(train_samples, EPOCHS)
+    
+    # Generate after the final epoch
+    display.clear_output(wait=True)
+    generate_and_save_images(generator,
+                           epochs,
+                           seed)
+    
+    
     
     #print("Creating train data...")
     #preprocess_sequences.generate_batches()

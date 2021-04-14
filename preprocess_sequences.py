@@ -44,17 +44,17 @@ def preprocess_seq(fasta_file, samples_clades, kmer_size):
             kmers = utils.make_kmers(sequence, size=kmer_size)
             #print(len(kmers))
             indices_kmers = [str(r_word_dictionaries[i]) for i in kmers]
-            print(len(indices_kmers))
-            print(sequence)
+            #print(len(indices_kmers))
+            #print(sequence)
             zeros = np.repeat('0', max_seq_size - len(indices_kmers))
             
             indices_kmers = np.hstack([indices_kmers, zeros])
-            print(len(indices_kmers), len(zeros))
-            print(indices_kmers)
+            #print(len(indices_kmers), len(zeros))
+            #print(indices_kmers)
             joined_indices_kmers = ','.join(indices_kmers)
             row.append(joined_indices_kmers)
             encoded_samples.append(row)
-            print()
+            #print()
     sample_clade_sequence_df = pd.DataFrame(encoded_samples, columns=["SampleName", "Clade", "Sequence"])
     sample_clade_sequence_df.to_csv("data/generated_files/sample_clade_sequence_df.csv", index=None)
     utils.save_as_json("data/generated_files/f_word_dictionaries.json", f_word_dictionaries)
@@ -84,6 +84,7 @@ def make_cross_product(clade_in_clade_out, dataframe):
             total_samples += merged_size
             file_name = "data/merged_clades/{}_{}.csv".format(in_clade, out_clade)
             cross_joined_df.to_csv(file_name, sep="\t", index=None)
+            break
         break
     print()
     print("Total number of samples: {}".format(str(total_samples)))
@@ -92,26 +93,28 @@ def make_cross_product(clade_in_clade_out, dataframe):
 def transform_encoded_samples(train_size=0.8):
     clade_files = glob.glob('data/merged_clades/*.csv')
     for name in clade_files:
-        print(name)
         file_path_w_ext = os.path.splitext(name)[0]
         file_name_w_ext = os.path.basename(file_path_w_ext)
-        print(file_name_w_ext)
         clade_df = pd.read_csv(name, sep="\t")
-        print(clade_df)
         # randomize rows
         clade_df = clade_df.sample(frac=1)
         train_df = clade_df.sample(frac=train_size, random_state=200)
         test_df = clade_df.drop(train_df.index)
-        print(len(train_df.index))
-        print(len(test_df.index))
         train_file_path = "data/train/{}.csv".format(file_name_w_ext)
         test_file_path = "data/test/{}.csv".format(file_name_w_ext)
         #train_df = train_df.drop(["SampleName_x", "Clade_x", "SampleName_y", "Clade_y"], axis=1)
         #test_df = test_df.drop(["SampleName_x", "Clade_x", "SampleName_y", "Clade_y"], axis=1)
         train_df.to_csv(train_file_path, sep="\t", index=None)
         test_df.to_csv(test_file_path, sep="\t", index=None)
-        print()
-        
+
+
+def read_in_out_sequences():
+    train_file_path = "data/train/19A_19B.csv"
+    data_df = pd.read_csv(train_file_path, sep="\t")
+    train_samples = data_df[['Sequence_x', 'Sequence_y']]
+    train_samples["Sequence_x"] = train_samples["Sequence_x"].str.split(",")
+    train_samples["Sequence_y"] = train_samples["Sequence_y"].str.split(",")
+    return train_samples
 
 #def generate_uniform_batch(file_dir, batch_size=100):
     
