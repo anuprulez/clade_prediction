@@ -32,3 +32,7 @@ def read_json(path):
 
 def format_clade_name(c_name):
     return c_name.replace("/", "_")
+    
+    
+def embedding_info(dict_json, X):
+    return len(dict_json) + 1, len(X.loc[0]["Sequence_x"])

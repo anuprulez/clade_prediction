@@ -18,26 +18,37 @@ PATH_SEQ_CLADE = PATH_PRE + "ncov_global.tsv"
 PATH_CLADES = "data/clade_in_clade_out.json"
 
 
-def embedding():
-    embed = tf.keras.layers.Embedding(1000, 64, input_length=10)
+def embedding(vocab_size, out_dim, seq_len):
+    embed = tf.keras.layers.Embedding(vocab_size, out_dim, input_length=seq_len, mask_zero=True)
     return embed
 
 
-def make_generator_model(X):
+def make_generator_model(X, v_size, out_size, seq_len):
     model = tf.keras.Sequential()
-    model.add(embedding())
-    model.add(tf.keras.layers.GRU(256, input_shape=(X.shape[1], X.shape[2]), return_sequences=True))
-    model.add(tf.keras.layers.Dropout(0.2))
-    model.add(tf.keras.layers.GRU(256))
-    model.add(tf.keras.layers.Dropout(0.2))
-    model.add(tf.keras.layers.Dense(y.shape[1], activation='softmax'))
+    model.add(embedding(v_size, out_size, seq_len))
+    model.add(tf.keras.layers.GRU(64, return_sequences=False, activation="elu"))
+    #model.add(tf.keras.layers.Dropout(0.2))
+    #model.add(tf.keras.layers.GRU(64))
+    #model.add(tf.keras.layers.Dropout(0.2))
+    model.add(tf.keras.layers.Dense(seq_len, activation='softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='adam')
 
     return model
 
 
 def make_discriminator_model():
-    
+    model = tf.keras.Sequential()
+    model.add(layers.Conv2D(64, (5, 5), strides=(2, 2), padding='same',
+                                     input_shape=[28, 28, 1]))
+    model.add(layers.LeakyReLU())
+    model.add(layers.Dropout(0.3))
+
+    model.add(layers.Conv2D(128, (5, 5), strides=(2, 2), padding='same'))
+    model.add(layers.LeakyReLU())
+    model.add(layers.Dropout(0.3))
+
+    model.add(layers.Flatten())
+    model.add(layers.Dense(1))
 
     return model
     

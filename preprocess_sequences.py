@@ -59,7 +59,7 @@ def preprocess_seq(fasta_file, samples_clades, kmer_size):
     sample_clade_sequence_df.to_csv("data/generated_files/sample_clade_sequence_df.csv", index=None)
     utils.save_as_json("data/generated_files/f_word_dictionaries.json", f_word_dictionaries)
     utils.save_as_json("data/generated_files/r_word_dictionaries.json", r_word_dictionaries)
-    return sample_clade_sequence_df
+    return sample_clade_sequence_df, f_word_dictionaries, r_word_dictionaries
 
 
 def make_cross_product(clade_in_clade_out, dataframe):
