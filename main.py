@@ -10,7 +10,8 @@ import tensorflow as tf
 
 import preprocess_sequences
 import utils
-import neural_network
+#import neural_network
+import sequence_to_sequence
 
 
 PATH_PRE = "data/ncov_global/"
@@ -20,12 +21,14 @@ PATH_CLADES = "data/clade_in_clade_out.json"
 KMER_SIZE = 3
 EMBED_DIM = 4
 
+# https://www.tensorflow.org/text/tutorials/nmt_with_attention
+
 
 def read_files():
     samples_clades = preprocess_sequences.get_samples_clades(PATH_SEQ_CLADE)
     
     clades_in_clades_out = utils.read_json(PATH_CLADES)
-    
+
     print("Preprocessing sequences...")
     encoded_sequence_df, forward_dict, _ = preprocess_sequences.preprocess_seq(PATH_SEQ, samples_clades, KMER_SIZE)
     
@@ -41,48 +44,16 @@ def read_files():
     vocab_size, seq_len = utils.embedding_info(forward_dict, train_samples)
     
     print("Creating neural network...")
-    generator = neural_network.make_generator_model(train_samples, vocab_size, EMBED_DIM, seq_len)
-    
-    print(generator.summary())
 
-    #noise = tf.random.normal([1, 100])
-    noise = tf.random.uniform(
-        [seq_len], minval=1, maxval=vocab_size, dtype=tf.dtypes.int32, seed=None, name=None
-    )
-    print(noise)
-    noise = np.random.randint(vocab_size, size=(1, seq_len))
-    print(noise)
-    generated_sequence = generator(noise, training=False)
-    
-    print(generated_sequence)
+    sample_input = [np.random.randint(vocab_size) for i in range(seq_len)]
+    noise = np.zeros((seq_len, vocab_size))
+    noise[np.arange(seq_len), sample_input] = 1
+    noise = noise.reshape((1, noise.shape[0], noise.shape[1]))
 
-    '''discriminator = neural_network.make_discriminator_model()
-    decision = discriminator(generated_image)
-    print (decision)
-
-    cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
-    
-    generator_optimizer = tf.keras.optimizers.Adam(1e-4)
-    discriminator_optimizer = tf.keras.optimizers.Adam(1e-4)
-
-    checkpoint = tf.train.Checkpoint(generator_optimizer=generator_optimizer,
-                                 discriminator_optimizer=discriminator_optimizer,
-                                 generator=generator,
-                                 discriminator=discriminator)
-
-    EPOCHS = 50
-    noise_dim = 100
-    num_examples_to_generate = 16
-    
-    print("Training neural network...")
-    neural_network.train(train_samples, EPOCHS)
-    
-    # Generate after the final epoch
-    display.clear_output(wait=True)
-    generate_and_save_images(generator,
-                           epochs,
-                           seed)'''
-    
+    embedding_dim = 4
+    units = 16
+    encoder = sequence_to_sequence.Encoder(vocab_size, embedding_dim, units)
+    example_enc_output, example_enc_state = encoder(noise)
     
     
     #print("Creating train data...")
