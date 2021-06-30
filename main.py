@@ -8,10 +8,13 @@ import numpy as np
 import logging
 import tensorflow as tf
 
+import matplotlib.pyplot as plt
+
 import preprocess_sequences
 import utils
 #import neural_network
 import sequence_to_sequence
+import container_classes
 
 
 PATH_PRE = "data/ncov_global/"
@@ -45,19 +48,44 @@ def read_files():
     
     print("Creating neural network...")
 
-    sample_input = [np.random.randint(vocab_size) for i in range(seq_len)]
-    noise = np.zeros((seq_len, vocab_size))
-    noise[np.arange(seq_len), sample_input] = 1
-    noise = noise.reshape((1, noise.shape[0], noise.shape[1]))
+    sample_input = [[np.random.randint(vocab_size)] for i in range(seq_len)]
+    sample_input = np.array(sample_input)
+    #sample_input = sample_input.reshape((1, seq_len))
+    print(sample_input)
+    print(sample_input.shape)
+    
+    sample_output = [[np.random.randint(vocab_size)] for i in range(seq_len)]
+    sample_output = np.array(sample_output)
+    #sample_input = sample_input.reshape((1, seq_len))
+    print(sample_output)
+    print(sample_output.shape)
+    #noise = np.zeros((seq_len, vocab_size))
+    #noise[np.arange(seq_len), sample_input] = 1
+    #noise = noise.reshape((1, noise.shape[0], noise.shape[1]))
 
     embedding_dim = 4
     units = 16
     encoder = sequence_to_sequence.Encoder(vocab_size, embedding_dim, units)
-    example_enc_output, example_enc_state = encoder(noise)
+    enc_output, enc_state = encoder(sample_input)
+    
+    print(enc_output, enc_output.shape)
+    print()
+    print(enc_state, enc_state.shape)
     
     
-    #print("Creating train data...")
-    #preprocess_sequences.generate_batches()
+    decoder = sequence_to_sequence.Decoder(vocab_size, embedding_dim, units)
+    
+    start_index = 0 #output_text_processor._index_lookup_layer('[START]').numpy()
+    first_token = tf.constant([[start_index]] * sample_output.shape[0])
+    print(first_token)
+    
+    dec_output, dec_state = decoder(
+        inputs = container_classes.DecoderInput(new_tokens=first_token, enc_output=enc_output, mask=(sample_input != 0)), state = enc_state
+    )
+
+    print(dec_output.logits.shape)
+    print()
+    print(dec_state.shape)
 
 if __name__ == "__main__":
     start_time = time.time()

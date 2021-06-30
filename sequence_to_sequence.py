@@ -7,10 +7,14 @@ import pandas as pd
 import numpy as np
 import logging
 import tensorflow as tf
+import typing
+from typing import Any, Tuple
 
 import preprocess_sequences
 import utils
 import shape_check
+import battention
+import container_classes
 
 
 PATH_PRE = "data/ncov_global/"
@@ -55,7 +59,7 @@ class Encoder(tf.keras.layers.Layer):
     return output, state
 
 
-'''class Decoder(tf.keras.layers.Layer):
+class Decoder(tf.keras.layers.Layer):
   def __init__(self, output_vocab_size, embedding_dim, dec_units):
     super(Decoder, self).__init__()
     self.dec_units = dec_units
@@ -73,7 +77,7 @@ class Encoder(tf.keras.layers.Layer):
                                    recurrent_initializer='glorot_uniform')
 
     # For step 3. The RNN output will be the query for the attention layer.
-    self.attention = BahdanauAttention(self.dec_units)
+    self.attention = battention.BahdanauAttention(self.dec_units)
 
     # For step 4. Eqn. (3): converting `ct` to `at`
     self.Wc = tf.keras.layers.Dense(dec_units, activation=tf.math.tanh,
@@ -82,11 +86,12 @@ class Encoder(tf.keras.layers.Layer):
     # For step 5. This fully connected layer produces the logits for each
     # output token.
     self.fc = tf.keras.layers.Dense(self.output_vocab_size)
-    
-  def call(self,
-         inputs: DecoderInput,
-         state=None) -> Tuple[DecoderOutput, tf.Tensor]:
-    shape_checker = ShapeChecker()
+
+   
+def call(self,
+         inputs: container_classes.DecoderInput,
+         state=None) -> Tuple[container_classes.DecoderOutput, tf.Tensor]:
+    shape_checker = shape_check.ShapeChecker()
     shape_checker(inputs.new_tokens, ('batch', 't'))
     shape_checker(inputs.enc_output, ('batch', 's', 'enc_units'))
     shape_checker(inputs.mask, ('batch', 's'))
@@ -123,4 +128,6 @@ class Encoder(tf.keras.layers.Layer):
     logits = self.fc(attention_vector)
     shape_checker(logits, ('batch', 't', 'output_vocab_size'))
 
-  return DecoderOutput(logits, attention_weights), state'''
+    return container_classes.DecoderOutput(logits, attention_weights), state
+  
+Decoder.call = call

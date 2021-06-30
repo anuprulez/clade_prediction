@@ -10,6 +10,7 @@ import tensorflow as tf
 
 import preprocess_sequences
 import utils
+import shape_check
 
 
 PATH_PRE = "data/ncov_global/"
@@ -28,7 +29,7 @@ class BahdanauAttention(tf.keras.layers.Layer):
     self.attention = tf.keras.layers.AdditiveAttention()
 
   def call(self, query, value, mask):
-    shape_checker = ShapeChecker()
+    shape_checker = shape_check.ShapeChecker()
     shape_checker(query, ('batch', 't', 'query_units'))
     shape_checker(value, ('batch', 's', 'value_units'))
     shape_checker(mask, ('batch', 's'))
