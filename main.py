@@ -75,14 +75,14 @@ def read_files():
     
     decoder = sequence_to_sequence.Decoder(vocab_size, embedding_dim, units)
     
-    start_index = 0 #output_text_processor._index_lookup_layer('[START]').numpy()
-    first_token = tf.constant([[start_index]] * sample_output.shape[0])
-    print(first_token)
+    #start_index = 0 #output_text_processor._index_lookup_layer('[START]').numpy()
+    #first_token = tf.constant([[start_index]] * sample_output.shape[0])
+    #print(first_token)
     
     dec_output, dec_state = decoder(
-        inputs = container_classes.DecoderInput(new_tokens=first_token, enc_output=enc_output, mask=(sample_input != 0)), state = enc_state
+        inputs = container_classes.DecoderInput(new_tokens=sample_output, enc_output=enc_output, mask=(sample_input != 0)), state = enc_state
     )
-
+    #print(dec_output.logits)
     print(dec_output.logits.shape)
     print()
     print(dec_state.shape)
