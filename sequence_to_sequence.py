@@ -87,7 +87,7 @@ class Decoder(tf.keras.layers.Layer):
     # output token.
     self.fc = tf.keras.layers.Dense(self.output_vocab_size)
 
-   
+
 def call(self,
          inputs: container_classes.DecoderInput,
          state=None) -> Tuple[container_classes.DecoderOutput, tf.Tensor]:
@@ -130,5 +130,5 @@ def call(self,
     #shape_checker(logits, ('batch', 't', 'output_vocab_size'))
 
     return container_classes.DecoderOutput(logits, attention_weights), state
-  
+
 Decoder.call = call

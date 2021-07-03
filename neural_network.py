@@ -17,26 +17,31 @@ PATH_SEQ = PATH_PRE + "spike_protein.fasta" #"ncov_global.fasta"
 PATH_SEQ_CLADE = PATH_PRE + "ncov_global.tsv"
 PATH_CLADES = "data/clade_in_clade_out.json"
 
+v_size = 17000
+embedding_dim = 8
+seq_len = 1275
+
 
 def embedding(vocab_size, out_dim, seq_len):
     embed = tf.keras.layers.Embedding(vocab_size, out_dim, mask_zero=True)
     return embed
 
 
-def make_generator_model(X, v_size, out_size, seq_len):
+def make_generator_model(v_size, seq_len):
     model = tf.keras.Sequential()
     #model.add(embedding(v_size, out_size, seq_len))
-    #model.add(tf.keras.layers.Embedding(v_size, out_size, input_length=seq_len, mask_zero=True))
-    model.add(tf.keras.layers.InputLayer(input_shape=(seq_len, v_size)))
-    model.add(tf.keras.layers.GRU(64, return_sequences=False, activation="elu"))
+    #model.add(tf.keras.layers.Embedding(v_size, embedding_dim))
+    #model.add(tf.keras.layers.InputLayer(input_shape=(seq_len, v_size)))
+    #model.add(tf.keras.layers.GRU(64, return_sequences=False, activation="elu"))
     #model.add(tf.keras.layers.GRU(64, return_sequences=True, activation="elu"))
-    #model.add(tf.keras.layers.Dense(64, activation="elu"))
+    model.add(tf.keras.layers.Dense(64, activation="elu"))
+    model.add(tf.keras.layers.Reshape((seq_len, 1, v_size)))
+    #assert model.output_shape == (None, seq_len, 1, v_size)
     #model.add(tf.keras.layers.Dropout(0.2))
     #model.add(tf.keras.layers.GRU(64))
     #model.add(tf.keras.layers.Dropout(0.2))
-    model.add(tf.keras.layers.Dense(seq_len, activation='sigmoid'))
-    model.add(tf.keras.layers.Dense(v_size, activation='sigmoid'))
-    model.compile(loss='binary_crossentropy', optimizer='adam')
+    #model.add(tf.keras.layers.Dense(v_size, activation='sigmoid'))
+    #model.compile(loss='binary_crossentropy', optimizer='adam')
 
     return model
 

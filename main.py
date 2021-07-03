@@ -12,9 +12,11 @@ import matplotlib.pyplot as plt
 
 import preprocess_sequences
 import utils
-#import neural_network
+import neural_network
 import sequence_to_sequence
 import container_classes
+import train_model
+import masked_loss
 
 
 PATH_PRE = "data/ncov_global/"
@@ -48,37 +50,45 @@ def read_files():
     
     print("Creating neural network...")
 
-    sample_input = [[np.random.randint(vocab_size)] for i in range(seq_len)]
-    sample_input = np.array(sample_input)
-    #sample_input = sample_input.reshape((1, seq_len))
-    print(sample_input)
-    print(sample_input.shape)
+    embedding_dim = 4
+    units = 16
+    batch_size = 8
+    seq_len = 1275
+    vocab_size = 17577
     
-    sample_output = [[np.random.randint(vocab_size)] for i in range(seq_len)]
-    sample_output = np.array(sample_output)
+    sample_input = [np.random.randint(vocab_size, size=seq_len) for i in range(batch_size)]
+    sample_input = np.array(sample_input)
+    print(sample_input.shape)
+    print(sample_input)
+
+    #sample_input = [[np.random.randint(vocab_size, size=(batch_size, embedding_dim))] for i in range(seq_len)]
+    #sample_input = np.array(sample_input)
     #sample_input = sample_input.reshape((1, seq_len))
+    #print(sample_input)
+    #print(sample_input.shape)
+
+    sample_output = [np.random.randint(vocab_size, size=seq_len) for i in range(batch_size)]
+    sample_output = np.array(sample_output)
+    #sample_output = sample_output.reshape((1, seq_len))
     print(sample_output)
     print(sample_output.shape)
     #noise = np.zeros((seq_len, vocab_size))
     #noise[np.arange(seq_len), sample_input] = 1
     #noise = noise.reshape((1, noise.shape[0], noise.shape[1]))
 
-    embedding_dim = 4
-    units = 16
     encoder = sequence_to_sequence.Encoder(vocab_size, embedding_dim, units)
     enc_output, enc_state = encoder(sample_input)
-    
+
     print(enc_output, enc_output.shape)
     print()
     print(enc_state, enc_state.shape)
-    
-    
+
     decoder = sequence_to_sequence.Decoder(vocab_size, embedding_dim, units)
-    
+
     #start_index = 0 #output_text_processor._index_lookup_layer('[START]').numpy()
     #first_token = tf.constant([[start_index]] * sample_output.shape[0])
     #print(first_token)
-    
+
     dec_output, dec_state = decoder(
         inputs = container_classes.DecoderInput(new_tokens=sample_output, enc_output=enc_output, mask=(sample_input != 0)), state = enc_state
     )
@@ -86,6 +96,24 @@ def read_files():
     print(dec_output.logits.shape)
     print()
     print(dec_state.shape)
+
+    translator = train_model.TrainModel(
+        embedding_dim, units,
+        input_text_processor=input_text_processor,
+        output_text_processor=output_text_processor,
+        use_tf_function=False
+    )
+
+    # Configure the loss and optimizer
+    translator.compile(
+        optimizer=tf.optimizers.Adam(),
+        loss=MaskedLoss(),
+    )
+
+    for n in range(10):
+        print(translator.train_step([example_input_batch, example_target_batch]))
+        print()
+
 
 if __name__ == "__main__":
     start_time = time.time()
