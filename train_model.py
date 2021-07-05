@@ -10,6 +10,8 @@ import tensorflow as tf
 
 import preprocess_sequences
 import utils
+import sequence_to_sequence
+import container_classes
 
 
 class TrainModel(tf.keras.Model):
@@ -17,13 +19,13 @@ class TrainModel(tf.keras.Model):
                vocab_size,
                input_tokens,
                output_tokens,
-               input_text_processor,
-               output_text_processor, 
+               #input_text_processor,
+               #output_text_processor, 
                use_tf_function=True):
     super().__init__()
     # Build the encoder and decoder
-    encoder = Encoder(vocab_size, embedding_dim, units)
-    decoder = Decoder(vocab_size, embedding_dim, units)
+    encoder = sequence_to_sequence.Encoder(vocab_size, embedding_dim, units)
+    decoder = sequence_to_sequence.Decoder(vocab_size, embedding_dim, units)
 
     self.input_tokens = input_tokens
     self.output_tokens = output_tokens
@@ -75,8 +77,8 @@ def _train_step(self, inputs):
   with tf.GradientTape() as tape:
     # Encode the input
     enc_output, enc_state = self.encoder(input_tokens)
-    self.shape_checker(enc_output, ('batch', 's', 'enc_units'))
-    self.shape_checker(enc_state, ('batch', 'enc_units'))
+    #self.shape_checker(enc_output, ('batch', 's', 'enc_units'))
+    #self.shape_checker(enc_state, ('batch', 'enc_units'))
 
     # Initialize the decoder's state to the encoder's final state.
     # This only works if the encoder and decoder have the same number of
@@ -109,14 +111,14 @@ def _loop_step(self, new_tokens, input_mask, enc_output, dec_state):
   input_token, target_token = new_tokens[:, 0:1], new_tokens[:, 1:2]
 
   # Run the decoder one step.
-  decoder_input = DecoderInput(new_tokens=input_token,
+  decoder_input = container_classes.DecoderInput(new_tokens=input_token,
                                enc_output=enc_output,
                                mask=input_mask)
 
   dec_result, dec_state = self.decoder(decoder_input, state=dec_state)
-  self.shape_checker(dec_result.logits, ('batch', 't1', 'logits'))
-  self.shape_checker(dec_result.attention_weights, ('batch', 't1', 's'))
-  self.shape_checker(dec_state, ('batch', 'dec_units'))
+  #self.shape_checker(dec_result.logits, ('batch', 't1', 'logits'))
+  #self.shape_checker(dec_result.attention_weights, ('batch', 't1', 's'))
+  #self.shape_checker(dec_state, ('batch', 'dec_units'))
 
   # `self.loss` returns the total for non-padded tokens
   y = target_token

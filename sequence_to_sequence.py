@@ -100,7 +100,7 @@ def call(self,
     #  shape_checker(state, ('batch', 'dec_units'))
 
     # Step 1. Lookup the embeddings
-    print(inputs.new_tokens)
+    #print(inputs.new_tokens)
     vectors = self.embedding(inputs.new_tokens)
     #shape_checker(vectors, ('batch', 't', 'embedding_dim'))
 

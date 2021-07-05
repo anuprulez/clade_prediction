@@ -30,7 +30,7 @@ EMBED_DIM = 4
 
 
 def read_files():
-    samples_clades = preprocess_sequences.get_samples_clades(PATH_SEQ_CLADE)
+    '''samples_clades = preprocess_sequences.get_samples_clades(PATH_SEQ_CLADE)
     
     clades_in_clades_out = utils.read_json(PATH_CLADES)
 
@@ -46,15 +46,15 @@ def read_files():
     print("Reading in/out sequences...")
     train_samples = preprocess_sequences.read_in_out_sequences()
     
-    vocab_size, seq_len = utils.embedding_info(forward_dict, train_samples)
+    vocab_size, seq_len = utils.embedding_info(forward_dict, train_samples)'''
     
     print("Creating neural network...")
 
     embedding_dim = 4
     units = 16
     batch_size = 8
-    seq_len = 1275
-    vocab_size = 17577
+    seq_len = 50
+    vocab_size = 250
     
     sample_input = [np.random.randint(vocab_size, size=seq_len) for i in range(batch_size)]
     sample_input = np.array(sample_input)
@@ -99,19 +99,24 @@ def read_files():
 
     translator = train_model.TrainModel(
         embedding_dim, units,
-        input_text_processor=input_text_processor,
-        output_text_processor=output_text_processor,
+        vocab_size,
+        #input_text_processor=input_text_processor,
+        #output_text_processor=output_text_processor,
+        input_tokens=sample_input,
+        output_tokens=sample_output,
         use_tf_function=False
     )
 
     # Configure the loss and optimizer
     translator.compile(
         optimizer=tf.optimizers.Adam(),
-        loss=MaskedLoss(),
+        loss=masked_loss.MaskedLoss(),
     )
-
-    for n in range(10):
-        print(translator.train_step([example_input_batch, example_target_batch]))
+    
+    for n in range(5):
+        print("Loss after training step: {}".format(str(n+1)))
+        batch_learning = translator.train_step([sample_input, sample_output])
+        print(batch_learning["batch_loss"].numpy())
         print()
 
 
