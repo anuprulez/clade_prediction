@@ -72,31 +72,35 @@ def _train_step(self, inputs):
   (input_tokens, input_mask,
    target_tokens, target_mask) = self._preprocess(input_text, target_text)
 
-  max_target_length = tf.shape(target_tokens)[1]
+  #max_target_length = 50 #tf.shape(target_tokens)[1]
+  
+  for step, (x_batch_train, y_batch_train) in enumerate(zip(input_tokens, target_tokens)):
+      max_target_length = x_batch_train.shape[1]
+      #print(x_batch_train, y_batch_train)
+      with tf.GradientTape() as tape:
+      # Encode the input
+          enc_output, enc_state = self.encoder(x_batch_train)
+          print(enc_output.shape, enc_state.shape, max_target_length)
+          #self.shape_checker(enc_output, ('batch', 's', 'enc_units'))
+          #self.shape_checker(enc_state, ('batch', 'enc_units'))
 
-  with tf.GradientTape() as tape:
-    # Encode the input
-    enc_output, enc_state = self.encoder(input_tokens)
-    #self.shape_checker(enc_output, ('batch', 's', 'enc_units'))
-    #self.shape_checker(enc_state, ('batch', 'enc_units'))
-
-    # Initialize the decoder's state to the encoder's final state.
-    # This only works if the encoder and decoder have the same number of
-    # units.
-    dec_state = enc_state
-    loss = tf.constant(0.0)
-
-    for t in tf.range(max_target_length-1):
-      # Pass in two tokens from the target sequence:
-      # 1. The current input to the decoder.
-      # 2. The target the target for the decoder's next prediction.
-      new_tokens = target_tokens[:, t:t+2]
-      step_loss, dec_state = self._loop_step(new_tokens, input_mask,
+          # Initialize the decoder's state to the encoder's final state.
+          # This only works if the encoder and decoder have the same number of
+          # units.
+          dec_state = enc_state
+          loss = tf.constant(0.0)
+        
+          for t in tf.range(max_target_length-1):
+              # Pass in two tokens from the target sequence:
+              # 1. The current input to the decoder.
+              # 2. The target for the decoder's next prediction.
+              new_tokens = y_batch_train[:, t:t+2]
+              step_loss, dec_state = self._loop_step(new_tokens, input_mask,
                                              enc_output, dec_state)
-      loss = loss + step_loss
+              loss = loss + step_loss
 
-    # Average the loss over all non padding tokens.
-    average_loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
+          # Average the loss over all non padding tokens.
+          average_loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
 
   # Apply an optimization step
   variables = self.trainable_variables 

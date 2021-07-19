@@ -25,6 +25,7 @@ PATH_SEQ_CLADE = PATH_PRE + "ncov_global.tsv"
 PATH_CLADES = "data/clade_in_clade_out.json"
 KMER_SIZE = 3
 EMBED_DIM = 4
+BATCH_SIZE = 16
 
 # https://www.tensorflow.org/text/tutorials/nmt_with_attention
 
@@ -46,79 +47,84 @@ def read_files():
     print("Reading in/out sequences...")
     train_samples = preprocess_sequences.read_in_out_sequences()
     
-    vocab_size, seq_len = utils.embedding_info(forward_dict, train_samples)'''
+    vocab_size, seq_len = utils.embedding_info(forward_dict, train_samples)
     
-    print("Creating neural network...")
+    train_x = train_samples["Sequence_x"].to_numpy()
+    train_y = train_samples["Sequence_y"].to_numpy()
 
+    train_x = [list(map(int, lst)) for lst in train_x]
+    train_y = [list(map(int, lst)) for lst in train_y]
+    '''
+    print("Creating neural network...")
+    
     embedding_dim = 4
     units = 16
     batch_size = 8
     seq_len = 50
     vocab_size = 250
     
-    sample_input = [np.random.randint(vocab_size, size=seq_len) for i in range(batch_size)]
+    sample_input = [np.random.randint(vocab_size, size=seq_len) for i in range(3 * batch_size)]
     sample_input = np.array(sample_input)
     print(sample_input.shape)
-    print(sample_input)
-
-    #sample_input = [[np.random.randint(vocab_size, size=(batch_size, embedding_dim))] for i in range(seq_len)]
-    #sample_input = np.array(sample_input)
-    #sample_input = sample_input.reshape((1, seq_len))
-    #print(sample_input)
-    #print(sample_input.shape)
-
-    sample_output = [np.random.randint(vocab_size, size=seq_len) for i in range(batch_size)]
+    
+    sample_output = [np.random.randint(vocab_size, size=seq_len) for i in range(3 * batch_size)]
     sample_output = np.array(sample_output)
-    #sample_output = sample_output.reshape((1, seq_len))
-    print(sample_output)
     print(sample_output.shape)
-    #noise = np.zeros((seq_len, vocab_size))
-    #noise[np.arange(seq_len), sample_input] = 1
-    #noise = noise.reshape((1, noise.shape[0], noise.shape[1]))
+    
+    dataset_in = tf.data.Dataset.from_tensor_slices((sample_input)).batch(batch_size)
+    dataset_out = tf.data.Dataset.from_tensor_slices((sample_output)).batch(batch_size)
+    #dataset = dataset.batch(batch_size)
 
-    encoder = sequence_to_sequence.Encoder(vocab_size, embedding_dim, units)
+    '''print(dataset.take(1))
+    
+    for input_batch, output_batch in dataset.take(1):
+        #print(input_batch[:5])
+        print()
+        #print(output_batch[:5])
+        break'''
+    #print(dataset_in.shape, dataset_out.shape)
+    start_training(dataset_in, dataset_out, embedding_dim, units, batch_size, seq_len, vocab_size)
+
+def start_training(input_batch, output_batch, embedding_dim, units, batch_size, seq_len, vocab_size):
+
+    '''encoder = sequence_to_sequence.Encoder(vocab_size, embedding_dim, units)
     enc_output, enc_state = encoder(sample_input)
-
-    print(enc_output, enc_output.shape)
+    print("Encoder output:")
+    print(enc_output.shape, enc_state.shape)
     print()
-    print(enc_state, enc_state.shape)
 
     decoder = sequence_to_sequence.Decoder(vocab_size, embedding_dim, units)
 
-    #start_index = 0 #output_text_processor._index_lookup_layer('[START]').numpy()
-    #first_token = tf.constant([[start_index]] * sample_output.shape[0])
-    #print(first_token)
-
     dec_output, dec_state = decoder(
-        inputs = container_classes.DecoderInput(new_tokens=sample_output, enc_output=enc_output, mask=(sample_input != 0)), state = enc_state
+        inputs = container_classes.DecoderInput(new_tokens=input_batch, enc_output=enc_output, mask=(input_batch != 0)), state = enc_state
     )
-    #print(dec_output.logits)
-    print(dec_output.logits.shape)
-    print()
-    print(dec_state.shape)
-
-    translator = train_model.TrainModel(
+    print("Decoder output:")
+    print(dec_output.logits.shape, dec_state.shape)
+    print()'''
+    
+    model = train_model.TrainModel(
         embedding_dim, units,
         vocab_size,
-        #input_text_processor=input_text_processor,
-        #output_text_processor=output_text_processor,
-        input_tokens=sample_input,
-        output_tokens=sample_output,
+        input_tokens=input_batch,
+        output_tokens=output_batch,
         use_tf_function=False
     )
 
     # Configure the loss and optimizer
-    translator.compile(
+    model.compile(
         optimizer=tf.optimizers.Adam(),
         loss=masked_loss.MaskedLoss(),
     )
     
-    for n in range(5):
+    print("Start training ...")
+    
+    epochs = 20
+    
+    for n in range(epochs):
         print("Loss after training step: {}".format(str(n+1)))
-        batch_learning = translator.train_step([sample_input, sample_output])
+        batch_learning = model.train_step([input_batch, output_batch])
         print(batch_learning["batch_loss"].numpy())
         print()
-
 
 if __name__ == "__main__":
     start_time = time.time()
