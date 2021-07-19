@@ -73,16 +73,7 @@ def read_files():
     
     dataset_in = tf.data.Dataset.from_tensor_slices((sample_input)).batch(batch_size)
     dataset_out = tf.data.Dataset.from_tensor_slices((sample_output)).batch(batch_size)
-    #dataset = dataset.batch(batch_size)
 
-    '''print(dataset.take(1))
-    
-    for input_batch, output_batch in dataset.take(1):
-        #print(input_batch[:5])
-        print()
-        #print(output_batch[:5])
-        break'''
-    #print(dataset_in.shape, dataset_out.shape)
     start_training(dataset_in, dataset_out, embedding_dim, units, batch_size, seq_len, vocab_size)
 
 def start_training(input_batch, output_batch, embedding_dim, units, batch_size, seq_len, vocab_size):
@@ -105,8 +96,6 @@ def start_training(input_batch, output_batch, embedding_dim, units, batch_size, 
     model = train_model.TrainModel(
         embedding_dim, units,
         vocab_size,
-        #input_tokens=input_batch,
-        #output_tokens=output_batch,
         use_tf_function=False
     )
 
@@ -123,7 +112,7 @@ def start_training(input_batch, output_batch, embedding_dim, units, batch_size, 
     for n in range(epochs):
         print("Loss after training step: {}".format(str(n+1)))
         batch_learning = model.train_step([input_batch, output_batch])
-        print(batch_learning["epo_loss"])
+        print(np.round(batch_learning["epo_loss"], 4))
         print()
 
 if __name__ == "__main__":

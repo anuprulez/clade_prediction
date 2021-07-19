@@ -29,10 +29,6 @@ class BahdanauAttention(tf.keras.layers.Layer):
     self.attention = tf.keras.layers.AdditiveAttention()
 
   def call(self, query, value, mask):
-    #shape_checker = shape_check.ShapeChecker()
-    #shape_checker(query, ('batch', 't', 'query_units'))
-    #shape_checker(value, ('batch', 's', 'value_units'))
-    #shape_checker(mask, ('batch', 's'))
 
     # From Eqn. (4), `W1@ht`.
     w1_query = self.W1(query)
@@ -40,7 +36,6 @@ class BahdanauAttention(tf.keras.layers.Layer):
 
     # From Eqn. (4), `W2@hs`.
     w2_key = self.W2(value)
-    #shape_checker(w2_key, ('batch', 's', 'attn_units'))
 
     query_mask = tf.ones(tf.shape(query)[:-1], dtype=bool)
     value_mask = mask
@@ -50,8 +45,6 @@ class BahdanauAttention(tf.keras.layers.Layer):
         mask=[query_mask, value_mask],
         return_attention_scores = True,
     )
-    #shape_checker(context_vector, ('batch', 't', 'value_units'))
-    #shape_checker(attention_weights, ('batch', 't', 's'))
 
     return context_vector, attention_weights
 
