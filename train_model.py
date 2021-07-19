@@ -52,7 +52,7 @@ def _train_step(self, inputs):
       max_target_length = x_batch_train.shape[1]
       
       with tf.GradientTape() as tape:
-      # Encode the input
+          # Encode the input
           enc_output, enc_state = self.encoder(x_batch_train)
           # Initialize the decoder's state to the encoder's final state.
           # This only works if the encoder and decoder have the same number of
@@ -72,6 +72,8 @@ def _train_step(self, inputs):
           # Average the loss over all non padding tokens.
           average_loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
           
+          #pred_tokens = tf.argmax(dec_result.logits, axis=-1)
+          
           # Apply an optimization step
           variables = self.trainable_variables 
           gradients = tape.gradient(average_loss, variables)
@@ -82,7 +84,7 @@ def _train_step(self, inputs):
   return {'epo_loss': epo_avg_loss / (step + 1) }
   
 
-def _loop_step(self, new_tokens, input_mask, enc_output, dec_state):
+'''def _loop_step(self, new_tokens, input_mask, enc_output, dec_state):
   input_token, target_token = new_tokens[:, 0:1], new_tokens[:, 1:2]
 
   # Run the decoder one step.
@@ -97,8 +99,8 @@ def _loop_step(self, new_tokens, input_mask, enc_output, dec_state):
   y_pred = dec_result.logits
   step_loss = self.loss(y, y_pred)
 
-  return step_loss, dec_state
+  return step_loss, dec_state'''
 
 TrainModel._preprocess = _preprocess
 TrainModel._train_step = _train_step
-TrainModel._loop_step = _loop_step
+#TrainModel._loop_step = _loop_step
