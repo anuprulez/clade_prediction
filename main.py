@@ -32,7 +32,7 @@ units = 16
 
 
 def read_files():
-    samples_clades = preprocess_sequences.get_samples_clades(PATH_SEQ_CLADE)
+    '''samples_clades = preprocess_sequences.get_samples_clades(PATH_SEQ_CLADE)
     
     clades_in_clades_out = utils.read_json(PATH_CLADES)
 
@@ -56,10 +56,8 @@ def read_files():
     train_y = train_samples["Sequence_y"].to_numpy()
 
     train_x = [list(map(int, lst)) for lst in train_x]
-    train_y = [list(map(int, lst)) for lst in train_y]
-    
-    print(train_x)
-    
+    train_y = [list(map(int, lst)) for lst in train_y]'''
+
     print("Creating neural network...")
     
     seq_len = 50
@@ -68,8 +66,6 @@ def read_files():
     train_x = [np.random.randint(vocab_size, size=seq_len) for i in range(3 * batch_size)]
     train_x = np.array(train_x)
     print(train_x.shape)
-
-    print(train_x)
 
     train_y = [np.random.randint(vocab_size, size=seq_len) for i in range(3 * batch_size)]
     train_y = np.array(train_y)

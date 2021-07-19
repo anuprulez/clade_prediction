@@ -29,10 +29,7 @@ class TrainModel(tf.keras.Model):
     self.use_tf_function = use_tf_function
 
   def train_step(self, inputs):
-    if self.use_tf_function:
-      return self._tf_train_step(inputs)
-    else:
-      return self._train_step(inputs)
+    return self._train_step(inputs)
       
       
 def _preprocess(self, input_text, target_text):
