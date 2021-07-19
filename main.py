@@ -24,7 +24,7 @@ PATH_SEQ = PATH_PRE + "spike_protein.fasta" #"ncov_global.fasta"
 PATH_SEQ_CLADE = PATH_PRE + "ncov_global.tsv"
 PATH_CLADES = "data/clade_in_clade_out.json"
 KMER_SIZE = 3
-EMBED_DIM = 4
+embedding_dim = 4
 batch_size = 16
 units = 16
 
@@ -50,32 +50,35 @@ def read_files():
     
     vocab_size, seq_len = utils.embedding_info(forward_dict, train_samples)
     
+    
+    
     train_x = train_samples["Sequence_x"].to_numpy()
     train_y = train_samples["Sequence_y"].to_numpy()
 
     train_x = [list(map(int, lst)) for lst in train_x]
     train_y = [list(map(int, lst)) for lst in train_y]
     
+    print(train_x)
+    
     print("Creating neural network...")
     
-    '''embedding_dim = 4
-    units = 16
-    batch_size = 8
     seq_len = 50
     vocab_size = 250
     
-    sample_input = [np.random.randint(vocab_size, size=seq_len) for i in range(3 * batch_size)]
-    sample_input = np.array(sample_input)
-    print(sample_input.shape)
-    
-    sample_output = [np.random.randint(vocab_size, size=seq_len) for i in range(3 * batch_size)]
-    sample_output = np.array(sample_output)
-    print(sample_output.shape)'''
+    train_x = [np.random.randint(vocab_size, size=seq_len) for i in range(3 * batch_size)]
+    train_x = np.array(train_x)
+    print(train_x.shape)
+
+    print(train_x)
+
+    train_y = [np.random.randint(vocab_size, size=seq_len) for i in range(3 * batch_size)]
+    train_y = np.array(train_y)
+    print(train_y.shape)
     
     dataset_in = tf.data.Dataset.from_tensor_slices((train_x)).batch(batch_size)
     dataset_out = tf.data.Dataset.from_tensor_slices((train_y)).batch(batch_size)
 
-    #start_training(dataset_in, dataset_out, embedding_dim, units, batch_size, seq_len, vocab_size)
+    start_training(dataset_in, dataset_out, embedding_dim, units, batch_size, seq_len, vocab_size)
 
 def start_training(input_batch, output_batch, embedding_dim, units, batch_size, seq_len, vocab_size):
 
