@@ -105,8 +105,8 @@ def start_training(input_batch, output_batch, embedding_dim, units, batch_size, 
     model = train_model.TrainModel(
         embedding_dim, units,
         vocab_size,
-        input_tokens=input_batch,
-        output_tokens=output_batch,
+        #input_tokens=input_batch,
+        #output_tokens=output_batch,
         use_tf_function=False
     )
 
@@ -123,7 +123,7 @@ def start_training(input_batch, output_batch, embedding_dim, units, batch_size, 
     for n in range(epochs):
         print("Loss after training step: {}".format(str(n+1)))
         batch_learning = model.train_step([input_batch, output_batch])
-        print(batch_learning["batch_loss"].numpy())
+        print(batch_learning["epo_loss"])
         print()
 
 if __name__ == "__main__":
