@@ -32,12 +32,12 @@ units = 16
 
 
 def read_files():
-    '''samples_clades = preprocess_sequences.get_samples_clades(PATH_SEQ_CLADE)
+    samples_clades = preprocess_sequences.get_samples_clades(PATH_SEQ_CLADE)
     
     clades_in_clades_out = utils.read_json(PATH_CLADES)
 
     print("Preprocessing sequences...")
-    encoded_sequence_df, forward_dict, _ = preprocess_sequences.preprocess_seq(PATH_SEQ, samples_clades, KMER_SIZE)
+    encoded_sequence_df, forward_dict, rev_dict = preprocess_sequences.preprocess_seq(PATH_SEQ, samples_clades, KMER_SIZE)
     
     print("Generating cross product...")
     preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df)
@@ -50,15 +50,13 @@ def read_files():
     
     vocab_size, seq_len = utils.embedding_info(forward_dict, train_samples)
     
-    
-    
     train_x = train_samples["Sequence_x"].to_numpy()
     train_y = train_samples["Sequence_y"].to_numpy()
 
     train_x = [list(map(int, lst)) for lst in train_x]
-    train_y = [list(map(int, lst)) for lst in train_y]'''
+    train_y = [list(map(int, lst)) for lst in train_y]
 
-    print("Creating neural network...")
+    '''print("Creating neural network...")
     
     seq_len = 50
     vocab_size = 250
@@ -72,7 +70,7 @@ def read_files():
     print(train_y.shape)
     
     dataset_in = tf.data.Dataset.from_tensor_slices((train_x)).batch(batch_size)
-    dataset_out = tf.data.Dataset.from_tensor_slices((train_y)).batch(batch_size)
+    dataset_out = tf.data.Dataset.from_tensor_slices((train_y)).batch(batch_size)'''
 
     start_training(dataset_in, dataset_out, embedding_dim, units, batch_size, seq_len, vocab_size)
 
@@ -114,6 +112,7 @@ def start_training(input_batch, output_batch, embedding_dim, units, batch_size, 
         batch_learning = model.train_step([input_batch, output_batch])
         print(np.round(batch_learning["epo_loss"], 4))
         print()
+        
 
 if __name__ == "__main__":
     start_time = time.time()

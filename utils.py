@@ -3,10 +3,19 @@ import json
 
 
 def make_kmers(seq, size):
-    kmers = [seq[x:x+size] for x in range(len(seq) - size + 1)]
     # remove all letters other than A,C,G and T
-    fil_kmers = kmers #list(filter(lambda ch: ch in 'ACGT', kmers))
-    return fil_kmers
+    #list(filter(lambda ch: ch in 'ACGT', kmers))
+    return [seq[x:x+size] for x in range(len(seq) - size + 1)]
+
+
+def reconstruct_seq(kmers):
+    reconstructed_seq = []
+    for i, km in enumerate(kmers):
+         if i < len(kmers) - 1:
+             reconstructed_seq.append(km[0])
+         else:
+             reconstructed_seq.append(km)
+    return "".join(reconstructed_seq)
 
 
 def get_all_possible_words(kmer_size=3, vocab="AGCT"):
