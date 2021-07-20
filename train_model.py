@@ -64,6 +64,7 @@ def _train_step(self, inputs):
           
           y = y_batch_train
           y_pred = dec_result.logits
+          print(y.shape, y_pred.shape)
           loss = self.loss(y, y_pred)
 
           # Average the loss over all non padding tokens.
