@@ -1,5 +1,7 @@
 import itertools
 import json
+import pandas as pd
+import numpy as np
 
 
 def make_kmers(seq, size):
@@ -21,6 +23,18 @@ def reconstruct_seq(kmers):
 def get_all_possible_words(kmer_size=3, vocab="AGCT"):
     return [''.join(x) for x in itertools.product(vocab, repeat=kmer_size)]
 
+
+def convert_to_array(df_series):
+    f_list = df_series.str.split(",")
+    return np.array([list(map(int, lst)) for lst in f_list])
+    
+
+def read_in_out(path):
+    data_df = pd.read_csv(path, sep="\t")
+    samples = data_df[['Sequence_x', 'Sequence_y']]
+    samples["Sequence_x"] = samples["Sequence_x"].str.split(",")
+    samples["Sequence_y"] = samples["Sequence_y"].str.split(",")
+    return samples
 
 def get_words_indices(word_list):
     forward_dictionary = {i + 1: word_list[i] for i in range(0, len(word_list))}
