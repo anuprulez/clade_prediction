@@ -26,12 +26,10 @@ PATH_SEQ = PATH_PRE + "spike_protein.fasta" #"ncov_global.fasta"
 PATH_SEQ_CLADE = PATH_PRE + "ncov_global.tsv"
 PATH_CLADES = "data/clade_in_clade_out_19A_20A.json" #"data/clade_in_clade_out.json"
 KMER_SIZE = 3
-embedding_dim = 4
+embedding_dim = 64
 batch_size = 32
-units = 8
+units = 64
 epochs = 20
-seq_len = 50
-vocab_size = 250
 LEN_AA = 1275
 
 # https://www.tensorflow.org/text/tutorials/nmt_with_attention
