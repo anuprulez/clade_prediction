@@ -6,6 +6,7 @@ import random
 import pandas as pd
 import numpy as np
 import logging
+import glob
 import tensorflow as tf
 
 import matplotlib.pyplot as plt
@@ -19,10 +20,11 @@ import train_model
 import masked_loss
 
 
+
 PATH_PRE = "data/ncov_global/"
 PATH_SEQ = PATH_PRE + "spike_protein.fasta" #"ncov_global.fasta"
 PATH_SEQ_CLADE = PATH_PRE + "ncov_global.tsv"
-PATH_CLADES = "data/clade_in_clade_out.json"
+PATH_CLADES = "data/clade_in_clade_out_19A_20A.json" #"data/clade_in_clade_out.json"
 KMER_SIZE = 3
 embedding_dim = 4
 batch_size = 32
@@ -30,6 +32,7 @@ units = 8
 epochs = 20
 seq_len = 50
 vocab_size = 250
+LEN_AA = 1275
 
 # https://www.tensorflow.org/text/tutorials/nmt_with_attention
 
@@ -44,6 +47,8 @@ def read_files():
     
     print("Generating cross product...")
     preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df)
+    
+    vocab_size = utils.embedding_info(forward_dict)
     
     #print("Transforming generated samples...")
     #train_x, train_y, test_x, test_y = preprocess_sequences.transform_encoded_samples()
@@ -94,11 +99,11 @@ def read_files():
     print(train_y.shape)
     
     dataset_in = tf.data.Dataset.from_tensor_slices((train_x)).batch(batch_size)
-    dataset_out = tf.data.Dataset.from_tensor_slices((train_y)).batch(batch_size)
+    dataset_out = tf.data.Dataset.from_tensor_slices((train_y)).batch(batch_size)'''
 
-    start_training(dataset_in, dataset_out, embedding_dim, units, batch_size, seq_len, vocab_size)'''
+    start_training(embedding_dim, units, batch_size, vocab_size)
 
-def start_training(input_batch, output_batch, embedding_dim, units, batch_size, seq_len, vocab_size):
+def start_training(embedding_dim, units, batch_size, vocab_size):
     
     model = train_model.TrainModel(
         embedding_dim, units,
@@ -112,7 +117,7 @@ def start_training(input_batch, output_batch, embedding_dim, units, batch_size, 
         loss=masked_loss.MaskedLoss(),
     )
   
-    te_factor = 1
+    '''te_factor = 1
     te_batch_size = 1
 
     print("Generating test data...")
@@ -121,17 +126,30 @@ def start_training(input_batch, output_batch, embedding_dim, units, batch_size, 
 
     test_y = [np.random.randint(vocab_size, size=seq_len) for i in range(te_factor * te_batch_size)]
     test_y = np.array(test_y)
-    print(test_x.shape, test_y.shape)
-
+    print(test_x.shape, test_y.shape)'''
+    
     print("Start training ...")  
+    
+    tr_clade_files = glob.glob('data/train/*.csv')
+    print(tr_clade_files)
+    for name in tr_clade_files:
+        clade_df = pd.read_csv(name, sep="\t")
+        X = clade_df["X"]
+        y = clade_df["Y"]
+        print(clade_df.shape)
+        dataset_in = tf.data.Dataset.from_tensor_slices((X)).batch(batch_size)
+        dataset_out = tf.data.Dataset.from_tensor_slices((y)).batch(batch_size)
+        print(dataset_in)
+        print(dataset_out)
 
-    for n in range(epochs):
+        for n in range(epochs):
 
-        batch_learning = model.train_step([input_batch, output_batch])
-        print("Training loss at step {}: {}".format(str(n+1), str(np.round(batch_learning["epo_loss"], 4))))
-        predict_sequence(test_x, test_y, model, seq_len, vocab_size, te_batch_size)
+            batch_learning = model.train_step([dataset_in, dataset_out])
+            print("Training loss at step {}: {}".format(str(n+1), str(np.round(batch_learning["epo_loss"], 4))))
+            #predict_sequence(test_x, test_y, model, seq_len, vocab_size, te_batch_size)
 
 
+'''
 def predict_sequence(test_x, test_y, model, seq_len, vocab_size, batch_size):
     avg_test_loss = []
     test_dataset_in = tf.data.Dataset.from_tensor_slices((test_x)).batch(batch_size)
@@ -166,9 +184,11 @@ def plot_attention(attention_stack):
     #_ = plt.bar(range(len(a[0, :])), a[0, :])
     #plt.imshow(np.array(a), vmin=0.0)
     #plt.show()
+'''
 
 if __name__ == "__main__":
     start_time = time.time()
     read_files()
     end_time = time.time()
     print("Program finished in {} seconds".format(str(np.round(end_time - start_time, 2))))
+

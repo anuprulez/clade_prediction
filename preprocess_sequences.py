@@ -65,9 +65,6 @@ def preprocess_seq(fasta_file, samples_clades, kmer_size):
 
 def make_cross_product(clade_in_clade_out, dataframe):
     total_samples = 0
-    #train_h5f = h5py.File('data/train/train_data.h5', 'w')
-    #test_h5f = h5py.File('data/test/test_data.h5', 'w')
-    
     merged_train_df = None
     merged_test_df = None
     
@@ -90,8 +87,6 @@ def make_cross_product(clade_in_clade_out, dataframe):
             print()
             total_samples += merged_size
             file_name = "data/merged_clades/{}_{}.csv".format(in_clade, out_clade)
-            print(file_name)
-            print(cross_joined_df)
             train_size = 0.8
             cross_joined_df = cross_joined_df.sample(frac=1)
 
@@ -99,52 +94,23 @@ def make_cross_product(clade_in_clade_out, dataframe):
             
             print("Converting to array...")
             
-            train_x = train_df["Sequence_x"].tolist() #utils.convert_to_array(train_df["Sequence_x"])
-            train_y = train_df["Sequence_y"].tolist() #utils.convert_to_array(train_df["Sequence_y"])
+            train_x = train_df["Sequence_x"].tolist()
+            train_y = train_df["Sequence_y"].tolist()
             print(train_df.shape)
             test_df = cross_joined_df.drop(train_df.index)
             print(test_df.shape)
-            test_x = test_df["Sequence_x"].tolist() #utils.convert_to_array(test_df["Sequence_x"])
-            test_y = test_df["Sequence_y"].tolist() #utils.convert_to_array(test_df["Sequence_y"])
-            
-            if merged_train_df is None:
-                merged_train_df = pd.DataFrame(list(zip(train_x, train_y)), columns=["X", "Y"])
-            else:
-               new_df = pd.DataFrame(list(zip(train_x, train_y)), columns=["X", "Y"])
-               merged_train_df = pd.concat([merged_train_df, new_df], ignore_index=True, axis=0)
+            test_x = test_df["Sequence_x"].tolist()
+            test_y = test_df["Sequence_y"].tolist()
+            merged_train_df = pd.DataFrame(list(zip(train_x, train_y)), columns=["X", "Y"])          
             print(merged_train_df)
-            #print(test_df["Sequence_x"].tolist())
-            #print(train_x[0])
-            #print()
-            #print(train_y[0])
+            tr_filename = "data/train/{}_{}.csv".format(in_clade, out_clade)
+            merged_train_df.to_csv(tr_filename, sep="\t", index=None)
             
-            print("Stacking...")
+            te_filename = "data/test/{}_{}.csv".format(in_clade, out_clade)
+            merged_test_df = pd.DataFrame(list(zip(test_x, test_y)), columns=["X", "Y"])
+            merged_test_df.to_csv(te_filename, sep="\t", index=None)
 
-            #train_data = np.array([train_x, train_x])
-            '''train_data = np.column_stack((train_x, train_y))
-            test_data = np.column_stack((test_x, test_y))
-            
-            dataset_name = "{}_{}.csv".format(in_clade, out_clade)
-            
-            print("Writing to HDF5 store...")
-            #dt = h5py.string_dtype(encoding='utf-8')
-            train_h5f.create_dataset(dataset_name, data=train_data)
-            test_h5f.create_dataset(dataset_name, data=test_data)'''
-            
-            #print(train_data.shape)
-            
-            #print(train_data[0,:LEN_AA])
-            #print()
-            #print(train_data[0, LEN_AA:])
-
-            #cross_joined_df.to_csv(file_name, sep="\t", index=None)
-            #break
-        #break
     print()
-    print(merged_train_df)
-    merged_train_df.to_csv("data/train/train_df.csv", sep="\t", index=None)
-    #train_h5f.close()
-    #test_h5f.close()
     print("Total number of samples: {}".format(str(total_samples)))
     
     

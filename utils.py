@@ -2,6 +2,7 @@ import itertools
 import json
 import pandas as pd
 import numpy as np
+import tensorflow as tf
 
 
 def make_kmers(seq, size):
@@ -24,9 +25,13 @@ def get_all_possible_words(kmer_size=3, vocab="AGCT"):
     return [''.join(x) for x in itertools.product(vocab, repeat=kmer_size)]
 
 
-def convert_to_array(df_series):
-    f_list = df_series.str.split(",")
-    return np.array([list(map(int, lst)) for lst in f_list])
+def convert_to_array(str_data):
+    shp = str_data.shape[0]
+    tolst = str_data.numpy()
+    f_list =  [item.decode("utf-8").split(",") for item in tolst]
+    toarray = np.array([list(map(int, lst)) for lst in f_list])
+    tensor = tf.convert_to_tensor(toarray, dtype=tf.int32)
+    return tensor
     
 
 def read_in_out(path):
@@ -57,5 +62,5 @@ def format_clade_name(c_name):
     return c_name.replace("/", "_")
     
     
-def embedding_info(dict_json, X):
-    return len(dict_json) + 1, len(X.loc[0]["Sequence_x"])
+def embedding_info(dict_json):
+    return len(dict_json) + 1

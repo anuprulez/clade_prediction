@@ -42,15 +42,16 @@ def _preprocess(self, input_text, target_text):
 
 def _train_step(self, inputs):
   input_tokens, target_tokens = inputs  
-
   epo_avg_loss = 0.0
   for step, (x_batch_train, y_batch_train) in enumerate(zip(input_tokens, target_tokens)):
-      (_, input_mask, _, target_mask) = self._preprocess(x_batch_train, y_batch_train)
-      max_target_length = x_batch_train.shape[1]
+      unrolled_x = utils.convert_to_array(x_batch_train)
+      unrolled_y = utils.convert_to_array(y_batch_train)
+      (_, input_mask, _, target_mask) = self._preprocess(unrolled_x, unrolled_y)
+      max_target_length = unrolled_x.shape[1]
       
       with tf.GradientTape() as tape:
           # Encode the input
-          enc_output, enc_state = self.encoder(x_batch_train)
+          enc_output, enc_state = self.encoder(unrolled_x)
           # Initialize the decoder's state to the encoder's final state.
           # This only works if the encoder and decoder have the same number of
           # units.
@@ -58,11 +59,11 @@ def _train_step(self, inputs):
           loss = tf.constant(0.0)
           
           # Run the decoder one step.
-          decoder_input = container_classes.DecoderInput(new_tokens=y_batch_train, enc_output=enc_output, mask=input_mask)
+          decoder_input = container_classes.DecoderInput(new_tokens=unrolled_y, enc_output=enc_output, mask=input_mask)
 
           dec_result, dec_state = self.decoder(decoder_input, state=enc_state)
           
-          y = y_batch_train
+          y = unrolled_y
           y_pred = dec_result.logits
           #print(y.shape, y_pred.shape)
           loss = self.loss(y, y_pred)
