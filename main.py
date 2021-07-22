@@ -143,7 +143,7 @@ def start_training(embedding_dim, units, batch_size, vocab_size):
         print(dataset_out)
 
         for n in range(epochs):
-
+            print("Training epoch {}...".format(str(n)))
             batch_learning = model.train_step([dataset_in, dataset_out])
             print("Training loss at step {}: {}".format(str(n+1), str(np.round(batch_learning["epo_loss"], 4))))
             #predict_sequence(test_x, test_y, model, seq_len, vocab_size, te_batch_size)

@@ -71,6 +71,8 @@ def _train_step(self, inputs):
           # Average the loss over all non padding tokens.
           average_loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
           
+          print("Batch {} loss: {}".format(str(step), str(average_loss.numpy())))
+
           #pred_tokens = tf.argmax(dec_result.logits, axis=-1)
           
           # Apply an optimization step
