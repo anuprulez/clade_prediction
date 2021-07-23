@@ -128,7 +128,10 @@ def start_training(embedding_dim, units, batch_size, vocab_size):
     print("Start training ...")  
     
     tr_clade_files = glob.glob('data/train/*.csv')
-    print(tr_clade_files)
+     = glob.glob('data/test/*.csv')
+    
+    
+    
     for name in tr_clade_files:
         clade_df = pd.read_csv(name, sep="\t")
         X = clade_df["X"]
@@ -143,10 +146,14 @@ def start_training(embedding_dim, units, batch_size, vocab_size):
             print("Training epoch {}...".format(str(n)))
             batch_learning = model.train_step([dataset_in, dataset_out])
             print("Training loss at step {}: {}".format(str(n+1), str(np.round(batch_learning["epo_loss"], 4))))
-            #predict_sequence(test_x, test_y, model, seq_len, vocab_size, te_batch_size)
+            for te_name in te_clade_files:
+                te_clade_df = pd.read_csv(te_name, sep="\t")
+                te_X = clade_df["X"]
+                te_y = clade_df["Y"]
+                print(te_clade_df.shape)
+                
+                predict_sequence(te_X, te_y, model, LEN_AA, vocab_size, te_batch_size)
 
-
-'''
 def predict_sequence(test_x, test_y, model, seq_len, vocab_size, batch_size):
     avg_test_loss = []
     test_dataset_in = tf.data.Dataset.from_tensor_slices((test_x)).batch(batch_size)
@@ -172,16 +179,8 @@ def predict_sequence(test_x, test_y, model, seq_len, vocab_size, batch_size):
     attention_stack = tf.concat(attention, axis=1)
     
     print("Total test loss: {}".format(str(np.mean(avg_test_loss))))
-    print()
-    plot_attention(attention_stack)
-    
-def plot_attention(attention_stack):
-    a = attention_stack[0]
-    print(np.sum(a, axis=-1))
-    #_ = plt.bar(range(len(a[0, :])), a[0, :])
-    #plt.imshow(np.array(a), vmin=0.0)
-    #plt.show()
-'''
+
+
 
 if __name__ == "__main__":
     start_time = time.time()
