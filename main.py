@@ -166,34 +166,36 @@ def predict_sequence(test_x, test_y, model, seq_len, vocab_size, batch_size):
         
         print(batch_x_test.shape, batch_y_test.shape)
         
-        enc_output, enc_state = model.encoder(batch_x_test)
+        if batch_x_test.shape[0] == batch_size:
         
-        print(enc_output.shape)
+            enc_output, enc_state = model.encoder(batch_x_test)
         
-        input_mask = batch_x_test != 0
-        target_mask = batch_y_test != 0
-        new_tokens = tf.fill([batch_size, seq_len], 0)
+            print(enc_output.shape)
+        
+            input_mask = batch_x_test != 0
+            target_mask = batch_y_test != 0
+            new_tokens = tf.fill([batch_size, seq_len], 0)
 
-        print(new_tokens.shape)
+            print(new_tokens.shape)
 
-        decoder_input = container_classes.DecoderInput(new_tokens=new_tokens, enc_output=enc_output, mask=input_mask)
-        dec_result, dec_state = model.decoder(decoder_input, state=enc_state)
+            decoder_input = container_classes.DecoderInput(new_tokens=new_tokens, enc_output=enc_output, mask=input_mask)
+            dec_result, dec_state = model.decoder(decoder_input, state=enc_state)
         
-        print(dec_result.logits.shape, dec_state.shape)
+            print(dec_result.logits.shape, dec_state.shape)
         
-        # compute loss
-        y = batch_y_test
-        y_pred = dec_result.logits
-        pred_tokens = tf.argmax(y_pred, axis=-1)
-        loss = model.loss(y, y_pred)
+            # compute loss
+            y = batch_y_test
+            y_pred = dec_result.logits
+            pred_tokens = tf.argmax(y_pred, axis=-1)
+            loss = model.loss(y, y_pred)
         
         
-        average_loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
+            average_loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
         
-        real_loss = average_loss.numpy()
-        print("Batch {} loss: {}".format(str(i), str(real_loss)))
-        avg_test_loss.append(real_loss)
-        i += 1
+            real_loss = average_loss.numpy()
+            print("Batch {} loss: {}".format(str(i), str(real_loss)))
+            avg_test_loss.append(real_loss)
+            i += 1
     print("Total test loss: {}".format(str(np.mean(avg_test_loss))))
 
 
