@@ -128,7 +128,7 @@ def start_training(embedding_dim, units, batch_size, vocab_size):
     print("Start training ...")  
     
     tr_clade_files = glob.glob('data/train/*.csv')
-     = glob.glob('data/test/*.csv')
+    te_clade_files = glob.glob('data/test/*.csv')
     
     
     
@@ -151,15 +151,17 @@ def start_training(embedding_dim, units, batch_size, vocab_size):
                 te_X = clade_df["X"]
                 te_y = clade_df["Y"]
                 print(te_clade_df.shape)
-                
-                predict_sequence(te_X, te_y, model, LEN_AA, vocab_size, te_batch_size)
+                predict_sequence(te_X, te_y, model, LEN_AA, vocab_size, batch_size)
 
 def predict_sequence(test_x, test_y, model, seq_len, vocab_size, batch_size):
     avg_test_loss = []
     test_dataset_in = tf.data.Dataset.from_tensor_slices((test_x)).batch(batch_size)
     test_dataset_out = tf.data.Dataset.from_tensor_slices((test_y)).batch(batch_size)
-    attention = []
-    for batch_x_test, batch_y_test in zip(test_dataset_in, test_dataset_out):
+
+    for x, y in zip(test_dataset_in, test_dataset_out):
+        batch_x_test = utils.convert_to_array(x)
+        batch_y_test = utils.convert_to_array(y)
+        
         enc_output, enc_state = model.encoder(batch_x_test)
         input_mask = batch_x_test != 0
         target_mask = batch_y_test != 0
@@ -167,7 +169,6 @@ def predict_sequence(test_x, test_y, model, seq_len, vocab_size, batch_size):
 
         decoder_input = container_classes.DecoderInput(new_tokens=new_tokens, enc_output=enc_output, mask=input_mask)
         dec_result, dec_state = model.decoder(decoder_input, state=enc_state)
-        attention.append(dec_result.attention_weights)
         # compute loss
         y = batch_y_test
         y_pred = dec_result.logits
@@ -176,8 +177,7 @@ def predict_sequence(test_x, test_y, model, seq_len, vocab_size, batch_size):
         average_loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
         real_loss = average_loss.numpy()
         avg_test_loss.append(real_loss)
-    attention_stack = tf.concat(attention, axis=1)
-    
+
     print("Total test loss: {}".format(str(np.mean(avg_test_loss))))
 
 
