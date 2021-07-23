@@ -90,16 +90,16 @@ def call(self,
 
     # Step 3. Use the RNN output as the query for the attention over the
     # encoder output.
-    context_vector, attention_weights = self.attention(
-      query=rnn_output, value=inputs.enc_output, mask=inputs.mask)
+    #context_vector, attention_weights = self.attention(query=rnn_output, value=inputs.enc_output, mask=inputs.mask)
 
     # Step 4. Eqn. (3): Join the context_vector and rnn_output
     #     [ct; ht] shape: (batch t, value_units + query_units)
-    context_and_rnn_output = tf.concat([context_vector, rnn_output], axis=-1)
+    #context_and_rnn_output = tf.concat([context_vector, rnn_output], axis=-1)
 
     # Step 4. Eqn. (3): `at = tanh(Wc@[ct; ht])`
-    attention_vector = self.Wc(context_and_rnn_output)
-
+    #attention_vector = self.Wc(context_and_rnn_output)
+    attention_vector = self.Wc(rnn_output)
+    attention_weights = None
     # Step 5. Generate logit predictions:
     logits = self.fc(attention_vector)
 
