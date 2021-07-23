@@ -21,9 +21,8 @@ def reconstruct_seq(kmers):
     return "".join(reconstructed_seq)
 
 
-def get_all_possible_words(kmer_size=3, vocab="AGCT"):
-    return [''.join(x) for x in itertools.product(vocab, repeat=kmer_size)]
-
+def get_all_possible_words(vocab):
+    return [char for char in vocab]
 
 def convert_to_array(str_data):
     shp = str_data.shape[0]
@@ -33,6 +32,31 @@ def convert_to_array(str_data):
     tensor = tf.convert_to_tensor(toarray, dtype=tf.int32)
     return tensor
     
+    
+def one_hot_encoding():
+    encoded_seq = list()
+    for char in sequence:
+        one_hot = np.zeros(len(aa_chars))
+        one_hot[int(r_word_dictionaries[char]) - 1] = 1
+        encoded_seq.append(one_hot)
+        
+    print(encoded_seq)
+    #print(len(indices_kmers))
+    #print(sequence)
+    #print(np.zeros(len(aa_chars)))
+    #zeros = np.repeat(np.zeros(len(aa_chars)), (LEN_AA - len(sequence) + 1))
+    #print(zeros)
+    print()
+    trailing_zeros = list()
+    for i in range(LEN_AA - len(sequence)):
+        trailing_zeros.append(np.zeros(len(aa_chars)))
+    print(trailing_zeros)
+    
+    encoded_seq.extend(trailing_zeros)
+    print()
+    print(encoded_seq)
+    encoded_seq = np.array(encoded_seq)
+    print(encoded_seq.shape)
 
 def read_in_out(path):
     data_df = pd.read_csv(path, sep="\t")

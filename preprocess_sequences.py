@@ -25,12 +25,12 @@ def get_samples_clades(path_seq_clades):
     return samples_clades
 
 
-def preprocess_seq(fasta_file, samples_clades, kmer_size):
+def preprocess_seq(fasta_file, samples_clades):
     encoded_samples = list()
     amino_acid_codes = "ARNDCQEGHILKMFPOSUTWYVBZXJ"
-    max_seq_size = LEN_AA #LEN_AA - kmer_size + 1
-    possible_words = utils.get_all_possible_words(kmer_size, amino_acid_codes)
-    f_word_dictionaries, r_word_dictionaries = utils.get_words_indices(possible_words)
+    max_seq_size = LEN_AA
+    aa_chars = utils.get_all_possible_words(amino_acid_codes)
+    f_word_dictionaries, r_word_dictionaries = utils.get_words_indices(aa_chars)
     for sequence in SeqIO.parse(fasta_file, "fasta"):
         row = list()
         seq_id = sequence.id.split("|")[1]
@@ -40,22 +40,15 @@ def preprocess_seq(fasta_file, samples_clades, kmer_size):
             row.append(seq_id)
             clade_name = samples_clades[seq_id]
             clade_name = utils.format_clade_name(clade_name)
-            #print(clade_name)
             row.append(clade_name)
-            kmers = utils.make_kmers(sequence, size=kmer_size)
-            #print(len(kmers))
-            indices_kmers = [str(r_word_dictionaries[i]) for i in kmers]
-            #print(len(indices_kmers))
-            #print(sequence)
-            zeros = np.repeat('0', max_seq_size - len(indices_kmers))
-            
-            indices_kmers = np.hstack([indices_kmers, zeros])
-            #print(len(indices_kmers), len(zeros))
-            #print(indices_kmers)
-            joined_indices_kmers = ','.join(indices_kmers)
-            row.append(joined_indices_kmers)
-            encoded_samples.append(row)
-            #print()
+            seq_chars = [char for char in sequence]
+            indices_chars = [str(r_word_dictionaries[i]) for i in seq_chars]
+            if len(sequence) <= LEN_AA:
+                zeros = np.repeat('0', (LEN_AA - len(sequence)))
+                indices_kmers = np.hstack([indices_chars, zeros])
+                joined_indices_kmers = ','.join(indices_kmers)
+                row.append(joined_indices_kmers)
+                encoded_samples.append(row)
     sample_clade_sequence_df = pd.DataFrame(encoded_samples, columns=["SampleName", "Clade", "Sequence"])
     sample_clade_sequence_df.to_csv("data/generated_files/sample_clade_sequence_df.csv", index=None)
     utils.save_as_json("data/generated_files/f_word_dictionaries.json", f_word_dictionaries)
