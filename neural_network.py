@@ -7,9 +7,12 @@ import pandas as pd
 import numpy as np
 import logging
 import tensorflow as tf
+from numpy.random import randn
 
 import preprocess_sequences
 import utils
+import masked_loss
+import sequence_to_sequence
 
 
 PATH_PRE = "data/ncov_global/"
@@ -22,43 +25,111 @@ embedding_dim = 8
 seq_len = 1275
 
 
-def embedding(vocab_size, out_dim, seq_len):
+class Generator(tf.keras.Model):
+
+  def __init__(self, vocab_size, embed_dim, enc_units, seq_len):
+    super(Generator, self).__init__()
+    self.vocab_size = vocab_size
+    self.embed_dim = embed_dim
+    self.enc_units = enc_units
+    self.seq_len = seq_len
+    self.embed = tf.keras.layers.Embedding(vocab_size, embed_dim)
+    self.gru1 = tf.keras.layers.GRU(enc_units,
+                                   # Return the sequence and state
+                                   return_sequences=True,
+                                   return_state=True,
+                                   recurrent_initializer='glorot_uniform')
+    self.gru2 = tf.keras.layers.GRU(enc_units,
+                                   return_sequences=True,
+                                   return_state=True,
+                                   recurrent_initializer='glorot_uniform')                              
+    self.fc1 = tf.keras.layers.Dense(enc_units, activation=tf.math.tanh,
+                                    use_bias=False)
+    
+    self.fc = tf.keras.layers.Dense(vocab_size)
+                    
+
+  def call(self, inputs, n_samples, training=False):
+      print(inputs.shape)
+      vectors = self.embed(inputs)
+      print(vectors.shape)
+      enc_output, enc_state = self.gru1(vectors, initial_state=None)
+      print(enc_output.shape)
+      fake_output = randn(n_samples * self.seq_len * self.vocab_size)
+      fake_output = fake_output.reshape(n_samples, self.seq_len, self.vocab_size)
+      print(fake_output.shape)
+      fake_seq = tf.argmax(fake_output, axis=-1)
+      # generate random output seq
+      random_vector = self.embed(fake_seq)
+      print(random_vector.shape)
+      # Step 2. Process one step with the RNN
+      # TODO Check decoder RNN
+      rnn_output, dec_state = self.gru2(random_vector, initial_state=enc_state)
+      print(rnn_output.shape)
+      fc1_vector = self.fc1(rnn_output)
+      print(fc1_vector.shape)
+      logits = self.fc(fc1_vector)
+      print(logits.shape)
+      return logits, dec_state
+
+      
+
+def make_generator_model(vocab_size, embed_dim, units, seq_len):
+    model = Generator(vocab_size, embed_dim, units, seq_len)
+    return model
+    
+
+    
+    # Step 1. Lookup the embeddings
+    vectors = self.embedding(inputs.new_tokens)
+
+    # Step 2. Process one step with the RNN
+    rnn_output, state = self.gru(vectors, initial_state=state)
+
+'''def embedding(vocab_size, out_dim, seq_len):
     embed = tf.keras.layers.Embedding(vocab_size, out_dim, mask_zero=True)
     return embed
 
 
-def make_generator_model(v_size, seq_len):
+def make_generator_model(seq_len, v_size, latent_dim=100):
     model = tf.keras.Sequential()
     #model.add(embedding(v_size, out_size, seq_len))
     #model.add(tf.keras.layers.Embedding(v_size, embedding_dim))
-    #model.add(tf.keras.layers.InputLayer(input_shape=(seq_len, v_size)))
+    model.add(tf.keras.layers.InputLayer(input_shape=latent_dim))
     #model.add(tf.keras.layers.GRU(64, return_sequences=False, activation="elu"))
     #model.add(tf.keras.layers.GRU(64, return_sequences=True, activation="elu"))
-    model.add(tf.keras.layers.Dense(64, activation="elu"))
-    model.add(tf.keras.layers.Reshape((seq_len, 1, v_size)))
+    model.add(tf.keras.layers.Dense(64))
+    #model.add(tf.keras.layers.Dense(64, activation="elu"))
+    #model.add(tf.keras.layers.Reshape((seq_len, v_size)))
+    
     #assert model.output_shape == (None, seq_len, 1, v_size)
     #model.add(tf.keras.layers.Dropout(0.2))
     #model.add(tf.keras.layers.GRU(64))
     #model.add(tf.keras.layers.Dropout(0.2))
-    #model.add(tf.keras.layers.Dense(v_size, activation='sigmoid'))
-    #model.compile(loss='binary_crossentropy', optimizer='adam')
+    model.add(tf.keras.layers.Dense(v_size, activation='sigmoid'))
+    optimizer = tf.optimizers.Adam()
+    loss = masked_loss.MaskedLoss(),
+    model.compile(loss=loss, optimizer=optimizer)
 
     return model
 
 
-def make_discriminator_model():
+def make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units):
+
     model = tf.keras.Sequential()
-    model.add(layers.Conv2D(64, (5, 5), strides=(2, 2), padding='same',
-                                     input_shape=[28, 28, 1]))
-    model.add(layers.LeakyReLU())
-    model.add(layers.Dropout(0.3))
-
-    model.add(layers.Conv2D(128, (5, 5), strides=(2, 2), padding='same'))
-    model.add(layers.LeakyReLU())
-    model.add(layers.Dropout(0.3))
-
-    model.add(layers.Flatten())
-    model.add(layers.Dense(1))
+    
+    embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
+    gru_1 = tf.keras.layers.GRU(enc_units, return_sequences=False, return_state=False, recurrent_initializer='glorot_uniform')
+    fc_1 = tf.keras.layers.Dense(enc_units, activation=tf.math.tanh, use_bias=False)
+    fc = tf.keras.layers.Dense(1)
+    
+    model.add(embedding)
+    model.add(gru_1)
+    model.add(fc_1)
+    model.add(fc)
+    optimizer = tf.optimizers.Adam()
+    loss = 'binary_crossentropy' #masked_loss.MaskedLoss(),
+    model.compile(loss=loss, optimizer=optimizer)
 
     return model
     
@@ -90,7 +161,7 @@ def train_step(images):
     gradients_of_discriminator = disc_tape.gradient(disc_loss, discriminator.trainable_variables)
 
     generator_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
-    discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
+    discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))'''
     
     
 def train(dataset, epochs):

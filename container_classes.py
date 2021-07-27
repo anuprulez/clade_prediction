@@ -22,4 +22,3 @@ class DecoderInput(typing.NamedTuple):
 
 class DecoderOutput(typing.NamedTuple):
   logits: Any
-  attention_weights: Any

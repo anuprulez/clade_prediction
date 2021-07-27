@@ -5,6 +5,7 @@ import os
 import random
 import pandas as pd
 import numpy as np
+from numpy.random import randn
 import logging
 import glob
 import tensorflow as tf
@@ -25,7 +26,7 @@ PATH_PRE = "data/ncov_global/"
 PATH_SEQ = PATH_PRE + "spike_protein.fasta" #"ncov_global.fasta"
 PATH_SEQ_CLADE = PATH_PRE + "ncov_global.tsv"
 PATH_CLADES = "data/clade_in_clade_out_19A_20A.json" #"data/clade_in_clade_out.json"
-embedding_dim = 64
+embedding_dim = 8
 batch_size = 64
 units = 128
 epochs = 20
@@ -35,7 +36,7 @@ LEN_AA = 1275
 
 
 def read_files():
-    samples_clades = preprocess_sequences.get_samples_clades(PATH_SEQ_CLADE)
+    '''samples_clades = preprocess_sequences.get_samples_clades(PATH_SEQ_CLADE)
     
     clades_in_clades_out = utils.read_json(PATH_CLADES)
 
@@ -52,7 +53,7 @@ def read_files():
     
     #print(train_x.shape, train_y.shape, test_x.shape, test_y.shape)
     
-    '''train_x = np.array([list(map(int, lst)) for lst in train_x])
+    train_x = np.array([list(map(int, lst)) for lst in train_x])
     train_y = [list(map(int, lst)) for lst in train_y]
 
     test_x = [list(map(int, lst)) for lst in test_x]
@@ -78,8 +79,8 @@ def read_files():
     test_x = test_samples["Sequence_x"].to_numpy()
     test_y = test_samples["Sequence_y"].to_numpy()
 
-    test_x = [list(map(int, lst)) for lst in test_x]
-    test_y = [list(map(int, lst)) for lst in test_y]
+    #test_x = [list(map(int, lst)) for lst in test_x]
+    #test_y = [list(map(int, lst)) for lst in test_y]
     
     print(test_x, test_y)
 
@@ -96,9 +97,181 @@ def read_files():
     print(train_y.shape)
     
     dataset_in = tf.data.Dataset.from_tensor_slices((train_x)).batch(batch_size)
-    dataset_out = tf.data.Dataset.from_tensor_slices((train_y)).batch(batch_size)'''
+    dataset_out = tf.data.Dataset.from_tensor_slices((train_y)).batch(batch_size)
+    #start_training(embedding_dim, units, batch_size, vocab_size)
+    '''
+    
+    '''seq_len = 50
+    vocab_size = 20
+    latent_dim = 100
+    batch_size = 32
+    embedding_dim = 16
+    enc_units = 16
+    factor = 2
+    
+    n_samples = factor * batch_size
+    
+    train_real_x = [np.random.randint(vocab_size, size=seq_len) for i in range(n_samples)]
+    train_real_x = np.array(train_real_x)
+    print(train_real_x.shape)
 
-    start_training(embedding_dim, units, batch_size, vocab_size)
+    train_real_y = [np.random.randint(vocab_size, size=seq_len) for i in range(n_samples)]
+    train_real_y = np.array(train_real_y)
+    print(train_real_y.shape)
+    
+    encoder = sequence_to_sequence.Encoder(vocab_size, embedding_dim, units)
+    decoder = sequence_to_sequence.Decoder(vocab_size, embedding_dim, units)
+    
+    enc_output, enc_state = encoder(train_real_x)
+    
+    input_mask = train_real_x != 0
+    
+    x_input = randn(n_samples * seq_len * vocab_size)
+    x_input = x_input.reshape(n_samples, seq_len, vocab_size)
+    print(x_input.shape)
+    
+    random_tokens = tf.argmax(x_input, axis=-1)
+
+    decoder_input = container_classes.DecoderInput(new_tokens=random_tokens, enc_output=enc_output, mask=input_mask)
+
+    dec_result, dec_state = decoder(decoder_input, state=enc_state)
+    
+    print(dec_result.logits.shape, dec_state.shape)
+    
+    fake_pred_tokens = tf.argmax(dec_result.logits, axis=-1)
+    print(fake_pred_tokens)
+    
+    y_real = np.ones((n_samples, 1))
+    y_fake = np.zeros((n_samples, 1))
+    
+    print(train_real_y.shape, fake_pred_tokens.shape)
+    X, y = np.vstack((train_real_y, fake_pred_tokens)), np.vstack((y_real, y_fake))
+    print(X.shape, y.shape)
+    
+    disc_model = neural_network.make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units)
+    
+    print(disc_model.summary())
+    
+    print(X)
+    print()
+    print(y)
+    
+    disc_model.fit(X, y, epochs=10)'''
+    
+    '''gan_model = neural_network.make_generator_model(seq_len, vocab_size, (n_samples, seq_len))
+    print(gan_model.summary())
+    
+    gan_X, gan_y = generate_fake_samples(gan_model, latent_dim, batch_size, train_real_x)
+    #pred_tokens = tf.argmax(gan_X, axis=-1)
+    #print(pred_tokens)
+    print(gan_X.shape)
+    print()
+    print(gan_y.shape)
+    
+    disc_model = neural_network.make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units)
+    
+    print(disc_model.summary())
+    
+    gen_disc_model = define_gan(gan_model, disc_model)'''
+    
+    
+    seq_len = 50
+    vocab_size = 20
+    latent_dim = 100
+    batch_size = 32
+    embedding_dim = 16
+    enc_units = 16
+    factor = 2
+    n_samples = factor * batch_size
+    
+    train_real_x = [np.random.randint(vocab_size, size=seq_len) for i in range(n_samples)]
+    train_real_x = np.array(train_real_x)
+    print(train_real_x.shape)
+    
+    gen_model = neural_network.make_generator_model(vocab_size, embedding_dim, enc_units, seq_len)
+    
+    print(gen_model)
+    
+    generated_seq, generated_state = gen_model(train_real_x, n_samples, training=False)
+
+    print(generated_seq)
+
+    
+    
+# generate points in latent space as input for the generator
+'''def generate_latent_points(latent_dim, n_samples):
+    # generate points in the latent space
+    x_input = randn(latent_dim * n_samples)
+    # reshape into a batch of inputs for the network
+    x_input = x_input.reshape(n_samples, latent_dim)
+    return x_input    
+    
+
+# use the generator to generate n fake examples, with class labels
+def generate_fake_samples(g_model, latent_dim, n_samples, train_real_x):
+    # generate points in latent space
+    x_input = generate_latent_points(latent_dim, n_samples)
+    x_output = generate_latent_points(latent_dim, n_samples)
+    # predict outputs
+    X = train_real_x #g_model.predict(x_input)
+    y = g_model.predict(x_output)
+    # create 'fake' class labels (0)
+    # y = np.zeros((n_samples, 1))
+    return X, y
+    
+# define the combined generator and discriminator model, for updating the generator
+def define_gan(g_model, d_model):
+    # make weights in the discriminator not trainable
+    d_model.trainable = False
+    # connect them
+    model = Sequential()
+    # add generator
+    model.add(g_model)
+    # add the discriminator
+    model.add(d_model)
+    # compile model
+    opt = Adam(lr=0.0002, beta_1=0.5)
+    model.compile(loss=masked_loss.MaskedLoss(), optimizer=opt)
+    return model
+   
+
+def train_gan(gan_model, latent_dim, train_real_y, n_epochs=100, n_batch=256):
+    # manually enumerate epochs
+    for i in range(n_epochs):
+        # prepare points in latent space as input for the generator
+        x_gan = generate_latent_points(latent_dim, n_batch)
+        # create inverted labels for the fake samples
+        y_gan = train_real_y #ones((n_batch, 1))
+        # update the generator via the discriminator's error
+        gan_model.train_on_batch(x_gan, y_gan)
+
+
+def train(g_model, d_model, gan_model, dataset, latent_dim, n_epochs=100, n_batch=256):
+    bat_per_epo = int(dataset.shape[0] / n_batch)
+    half_batch = int(n_batch / 2)
+    # manually enumerate epochs
+    for i in range(n_epochs):
+        # enumerate batches over the training set
+        for j in range(bat_per_epo):
+	    # get randomly selected 'real' samples
+            X_real, y_real = generate_real_samples(dataset, half_batch)
+	    # generate 'fake' examples
+            X_fake, y_fake = generate_fake_samples(g_model, latent_dim, half_batch)
+	    # create training set for the discriminator
+            X, y = vstack((X_real, X_fake)), vstack((y_real, y_fake))
+	    # update discriminator model weights
+            d_loss, _ = d_model.train_on_batch(X, y)
+	    # prepare points in latent space as input for the generator
+            X_gan = generate_latent_points(latent_dim, n_batch)
+	    # create inverted labels for the fake samples
+            y_gan = ones((n_batch, 1))
+	    # update the generator via the discriminator's error
+            g_loss = gan_model.train_on_batch(X_gan, y_gan)
+            # summarize loss on this batch
+            print('>%d, %d/%d, d=%.3f, g=%.3f' % (i+1, j+1, bat_per_epo, d_loss, g_loss))'''
+
+
+
 
 def start_training(embedding_dim, units, batch_size, vocab_size):
     
@@ -153,6 +326,10 @@ def start_training(embedding_dim, units, batch_size, vocab_size):
                 print(te_clade_df.shape)
                 print("Prediction on test data...")
                 predict_sequence(te_X, te_y, model, LEN_AA, vocab_size, batch_size)
+
+
+
+
 
 def predict_sequence(test_x, test_y, model, seq_len, vocab_size, batch_size):
     avg_test_loss = []

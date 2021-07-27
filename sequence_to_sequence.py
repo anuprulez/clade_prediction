@@ -41,10 +41,13 @@ class Encoder(tf.keras.layers.Layer):
                                    recurrent_initializer='glorot_uniform')
 
   def call(self, tokens, state=None):
+
     # 2. The embedding layer looks up the embedding for each token.
     vectors = self.embedding(tokens)
+
     # 3. The GRU processes the embedding sequence.
     output, state = self.gru(vectors, initial_state=state)
+
     # 4. Returns the new sequence and its state.
     return output, state
 
