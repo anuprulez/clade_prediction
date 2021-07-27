@@ -27,6 +27,7 @@ seq_len = 1275
 
 generator_optimizer = tf.keras.optimizers.Adam(1e-4)
 discriminator_optimizer = tf.keras.optimizers.Adam(1e-4)
+
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
 
@@ -38,6 +39,7 @@ class Generator(tf.keras.Model):
     self.embed_dim = embed_dim
     self.enc_units = enc_units
     self.seq_len = seq_len
+    
     self.embed = tf.keras.layers.Embedding(vocab_size, embed_dim)
     self.gru1 = tf.keras.layers.GRU(enc_units,
                                    # Return the sequence and state
@@ -54,7 +56,7 @@ class Generator(tf.keras.Model):
     self.fc = tf.keras.layers.Dense(vocab_size)
                     
 
-  def call(self, real_x, fake_y, training=False):
+  def call(self, real_x, fake_y, training=True):
       #print(real_x.shape)
       vectors = self.embed(real_x)
       #print(vectors.shape)
@@ -74,12 +76,37 @@ class Generator(tf.keras.Model):
       #print(logits.shape)
       return logits, dec_state
 
-      
 
-def make_generator_model(vocab_size, embed_dim, units, seq_len):
-    model = Generator(vocab_size, embed_dim, units, seq_len)
-    return model
+def make_generator_model(vocab_size, embed_dim, enc_units, seq_len, real_x, fake_y):
+    model = Generator(vocab_size, embed_dim, enc_units, seq_len)
+    '''inputs = tf.keras.Input(shape=(None, seq_len))
     
+    embed = tf.keras.layers.Embedding(vocab_size, embed_dim)
+    gru1 = tf.keras.layers.GRU(enc_units, return_sequences=True, return_state=True, recurrent_initializer='glorot_uniform')
+                                   
+                                   
+    gru2 = tf.keras.layers.GRU(enc_units, return_sequences=True, return_state=True, recurrent_initializer='glorot_uniform')                         
+    fc1 = tf.keras.layers.Dense(enc_units, activation=tf.math.tanh, use_bias=False)
+    fc = tf.keras.layers.Dense(vocab_size)
+
+    vectors = embed(real_x)
+    enc_output, enc_state = gru1(vectors, initial_state=None)
+
+    # generate random output seq
+    random_vector = embed(fake_y)
+    # Step 2. Process one step with the RNN
+    # TODO Check decoder RNN
+    rnn_output, dec_state = gru2(random_vector, initial_state=enc_state)
+    #print(rnn_output.shape)
+    fc1_vector = fc1(rnn_output)
+    #print(fc1_vector.shape)
+    logits = fc(fc1_vector)
+
+    model = tf.keras.Model(inputs=inputs, outputs=logits, name="encoder_decoder")
+    model.summary()'''
+    return model
+
+
 def make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units):
     model = tf.keras.Sequential()
     
@@ -110,14 +137,12 @@ def generator_loss(fake_output):
     return cross_entropy(tf.ones_like(fake_output), fake_output)   
 
 
-@tf.function
 def train_step(batch_real_x, batch_real_y, batch_fake_y, batch_size, seq_len, vocab_size, generator, discriminator):
-
-    #print(batch_real_x.shape, batch_real_y.shape, batch_fake_y.shape)
     with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
         
         generated_seq, gen_state = generator(batch_real_x, batch_fake_y, training=True)
-
+        print(dir(generator))
+        print(generator.trainable)
         gen_tokens = tf.argmax(generated_seq, axis=-1)
         real_output = discriminator(batch_real_x, training=True)
 
@@ -125,19 +150,13 @@ def train_step(batch_real_x, batch_real_y, batch_fake_y, batch_size, seq_len, vo
 
         gen_loss = generator_loss(fake_output)
         disc_loss = discriminator_loss(real_output, fake_output)
+        print(gen_loss, disc_loss)
+        #print(generator.trainable_variables)
+        gradients_of_generator = gen_tape.gradient(gen_loss, generator.trainable_variables)
+        gradients_of_discriminator = disc_tape.gradient(disc_loss, discriminator.trainable_variables)
         
-        #print(gen_loss)
-        #print(disc_loss)
-    #print(generator.trainable_variables)
-    gradients_of_generator = gen_tape.gradient(gen_loss, generator.trainable_variables)
-    #print(gradients_of_generator)
-    gradients_of_discriminator = disc_tape.gradient(disc_loss, discriminator.trainable_variables)
-    #print("--------------------------------------")
-    #print(discriminator.trainable_variables)
-    #print(gradients_of_discriminator)
-    
-    generator_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
-    discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
+        generator_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
+        discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
     
     
 

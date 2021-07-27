@@ -209,7 +209,10 @@ def read_files():
     disc_model = neural_network.make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units)
     print(disc_model.summary())'''
 
-    gen_model = neural_network.make_generator_model(vocab_size, embedding_dim, enc_units, seq_len)
+    gen_model = neural_network.make_generator_model(vocab_size, embedding_dim, enc_units, seq_len, train_real_x, fake_seq)
+    
+    print(gen_model)
+    
     disc_model = neural_network.make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units)
 
     input_tokens = tf.data.Dataset.from_tensor_slices((train_real_x)).batch(batch_size)
