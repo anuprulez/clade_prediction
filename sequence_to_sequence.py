@@ -67,20 +67,23 @@ class Decoder(tf.keras.layers.Layer):
                                    recurrent_initializer='glorot_uniform')
 
     # For step 3. The RNN output will be the query for the attention layer.
-    #self.attention = battention.BahdanauAttention(self.dec_units)
+    self.attention = battention.BahdanauAttention(self.dec_units)
 
     # For step 4. Eqn. (3): converting `ct` to `at`
-    self.Wc = tf.keras.layers.Dense(dec_units, activation=tf.math.tanh, use_bias=False)
+    self.Wc = tf.keras.layers.Dense(dec_units, activation=tf.math.tanh,
+                                    use_bias=False)
 
     # For step 5. This fully connected layer produces the logits for each
     # output token.
     self.fc = tf.keras.layers.Dense(self.output_vocab_size)
 
 
-def call(self, inputs, state=None):
+def call(self,
+         inputs: container_classes.DecoderInput,
+         state=None) -> Tuple[container_classes.DecoderOutput, tf.Tensor]:
 
     # Step 1. Lookup the embeddings
-    vectors = self.embedding(inputs)
+    vectors = self.embedding(inputs.new_tokens)
 
     # Step 2. Process one step with the RNN
     rnn_output, state = self.gru(vectors, initial_state=state)
@@ -95,11 +98,11 @@ def call(self, inputs, state=None):
 
     # Step 4. Eqn. (3): `at = tanh(Wc@[ct; ht])`
     #attention_vector = self.Wc(context_and_rnn_output)
-    wc_vector = self.Wc(rnn_output)
-
+    attention_vector = self.Wc(rnn_output)
+    attention_weights = None
     # Step 5. Generate logit predictions:
-    logits = self.fc(wc_vector)
+    logits = self.fc(attention_vector)
 
-    return logits, state
+    return container_classes.DecoderOutput(logits, attention_weights), state
 
 Decoder.call = call
