@@ -59,15 +59,21 @@ def _train_step(self, inputs):
           loss = tf.constant(0.0)
           
           # Run the decoder one step.
-          decoder_input = container_classes.DecoderInput(new_tokens=unrolled_y, enc_output=enc_output, mask=input_mask)
+          #decoder_input = container_classes.DecoderInput(new_tokens=unrolled_y, enc_output=enc_output, mask=input_mask)
 
-          dec_result, dec_state = self.decoder(decoder_input, state=enc_state)
+          #dec_result, dec_state = self.decoder(decoder_input, state=enc_state)
           
-          y = unrolled_y
-          y_pred = dec_result.logits
+          #y = unrolled_y
+          #y_pred = dec_result.logits
           #print(y.shape, y_pred.shape)
-          loss = self.loss(y, y_pred)
-
+          #loss = self.loss(y, y_pred)
+          for t in tf.range(max_target_length-1):
+              new_tokens = unrolled_y[:, t:t+2]
+              step_loss, dec_state = self._loop_step(new_tokens, input_mask,
+                                                                   enc_output, dec_state)
+              loss = loss + step_loss
+              print(step_loss)
+              print("--")
           # Average the loss over all non padding tokens.
           average_loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
           
@@ -85,7 +91,7 @@ def _train_step(self, inputs):
   return {'epo_loss': epo_avg_loss / (step + 1) }
   
 
-'''def _loop_step(self, new_tokens, input_mask, enc_output, dec_state):
+def _loop_step(self, new_tokens, input_mask, enc_output, dec_state):
   input_token, target_token = new_tokens[:, 0:1], new_tokens[:, 1:2]
 
   # Run the decoder one step.
@@ -100,8 +106,8 @@ def _train_step(self, inputs):
   y_pred = dec_result.logits
   step_loss = self.loss(y, y_pred)
 
-  return step_loss, dec_state'''
+  return step_loss, dec_state
 
 TrainModel._preprocess = _preprocess
 TrainModel._train_step = _train_step
-#TrainModel._loop_step = _loop_step
+TrainModel._loop_step = _loop_step
