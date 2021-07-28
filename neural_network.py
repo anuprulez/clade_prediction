@@ -87,14 +87,14 @@ n_samples = factor * batch_size
 def arg_max(logits):
     return tf.math.argmax(logits, axis=-1)
 
-def make_generator_model(vocab_size, embed_dim, enc_units, seq_len):
+def make_generator_model(vocab_size, embed_dim, enc_units, seq_len, latent_dim=100):
     '''model = tf.keras.Sequential()
     model.add(tf.keras.layers.InputLayer(input_shape=(seq_len, )))
     model.add(tf.keras.layers.Embedding(vocab_size, embed_dim))
     model.add(tf.keras.layers.Dense(enc_units, use_bias=False))
     model.add(tf.keras.layers.Dense(vocab_size, use_bias=False))'''
     
-    inputs = tf.keras.Input(shape=(seq_len, ))
+    '''inputs = tf.keras.Input(shape=(seq_len, ))
     embed = tf.keras.layers.Embedding(vocab_size, embed_dim)
     gru1 = tf.keras.layers.GRU(enc_units, return_sequences=True, return_state=True, recurrent_initializer='glorot_uniform')
     fc1 = tf.keras.layers.Dense(enc_units, use_bias=False)
@@ -106,7 +106,18 @@ def make_generator_model(vocab_size, embed_dim, enc_units, seq_len):
     logits = fc(fc1_vec)
     #tokens = tf.math.argmax(logits, axis=-1)
     #tokens = tf.keras.layers.Lambda(arg_max)(logits)
-    model = tf.keras.Model(inputs=inputs, outputs=logits)
+    model = tf.keras.Model(inputs=inputs, outputs=logits)'''
+    
+    model = tf.keras.Sequential()
+    #model.add(tf.keras.layers.InputLayer(input_shape=(seq_len, )))
+    model.add(tf.keras.layers.Dense(seq_len * vocab_size, use_bias=False, input_shape=(latent_dim,)))
+    model.add(tf.keras.layers.Reshape((seq_len, vocab_size)))
+    #model.add(tf.keras.layers.Embedding(vocab_size, embedding_dim))
+    #model.add(tf.keras.layers.GRU(enc_units, return_sequences=True, return_state=False, recurrent_initializer='glorot_uniform'))
+    #model.add(tf.keras.layers.GRU(enc_units, return_sequences=False, return_state=False, recurrent_initializer='glorot_uniform'))
+    model.add(tf.keras.layers.Dense(enc_units, use_bias=False))
+    model.add(tf.keras.layers.Dense(vocab_size, use_bias=False))
+    
     return model
  
 
@@ -192,22 +203,23 @@ def train_step(batch_real_x, batch_real_y, fake_target):
 def train_step(batch_real_x, batch_real_y, fake_target):
 
     with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
-
-      fake_y = generator(batch_real_x, training=True)
+      noise = tf.random.normal([batch_size, 100])
+      fake_y = generator(noise, training=True)
       print(fake_y.shape)
 
       real_output = discriminator(batch_real_y, training=True)
-      fake_output = discriminator(tf.math.argmax(fake_y, axis=-1), training=True)
+      
+      fake_output = discriminator(batch_real_x, training=True) #tf.math.argmax(fake_y, axis=-1)
 
       print(real_output.shape, fake_output.shape)
+      #disc_loss = discriminator_loss(real_output, fake_output)
+      gen_loss = generator_loss(fake_output)
 
-      disc_loss = discriminator_loss(real_output, fake_output)
-      gen_loss = generator_loss(real_output)
-
-      print(gen_loss, disc_loss)
-
+      print(gen_loss)
+    
     gradients_of_generator = gen_tape.gradient(gen_loss, generator.trainable_variables)
+    print(gradients_of_generator)
     generator_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
 
-    gradients_of_discriminator = disc_tape.gradient(disc_loss, discriminator.trainable_variables)
-    discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
+    #gradients_of_discriminator = disc_tape.gradient(disc_loss, discriminator.trainable_variables)
+    #discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
