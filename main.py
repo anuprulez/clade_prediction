@@ -130,8 +130,6 @@ def start_training(embedding_dim, units, batch_size, vocab_size):
     tr_clade_files = glob.glob('data/train/*.csv')
     te_clade_files = glob.glob('data/test/*.csv')
     
-    
-    
     for name in tr_clade_files:
         clade_df = pd.read_csv(name, sep="\t")
         X = clade_df["X"]
