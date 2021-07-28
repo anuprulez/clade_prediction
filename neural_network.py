@@ -84,13 +84,29 @@ epochs = 2
 n_samples = factor * batch_size
 
 
+def arg_max(logits):
+    return tf.math.argmax(logits, axis=-1)
 
 def make_generator_model(vocab_size, embed_dim, enc_units, seq_len):
-    model = tf.keras.Sequential()
+    '''model = tf.keras.Sequential()
     model.add(tf.keras.layers.InputLayer(input_shape=(seq_len, )))
     model.add(tf.keras.layers.Embedding(vocab_size, embed_dim))
     model.add(tf.keras.layers.Dense(enc_units, use_bias=False))
-    model.add(tf.keras.layers.Dense(vocab_size, use_bias=False))
+    model.add(tf.keras.layers.Dense(vocab_size, use_bias=False))'''
+    
+    inputs = tf.keras.Input(shape=(seq_len, ))
+    embed = tf.keras.layers.Embedding(vocab_size, embed_dim)
+    gru1 = tf.keras.layers.GRU(enc_units, return_sequences=True, return_state=True, recurrent_initializer='glorot_uniform')
+    fc1 = tf.keras.layers.Dense(enc_units, use_bias=False)
+    fc = tf.keras.layers.Dense(vocab_size, use_bias=False)
+    
+    em_vec = embed(inputs)
+    gru_vec, _ = gru1(em_vec)
+    fc1_vec = fc1(gru_vec)
+    logits = fc(fc1_vec)
+    #tokens = tf.math.argmax(logits, axis=-1)
+    #tokens = tf.keras.layers.Lambda(arg_max)(logits)
+    model = tf.keras.Model(inputs=inputs, outputs=logits)
     return model
  
 
@@ -101,24 +117,27 @@ def make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units):
     model.add(tf.keras.layers.GRU(enc_units, return_sequences=False, return_state=False, recurrent_initializer='glorot_uniform'))
     model.add(tf.keras.layers.Dense(enc_units, use_bias=False))
     model.add(tf.keras.layers.Dense(1, use_bias=False))
+    #opt = tf.keras.optimizers.Adam(1e-4)
+    #model.compile(loss='binary_crossentropy', optimizer=opt, metrics=['accuracy'])
     return model
 
 
 generator = make_generator_model(vocab_size, embedding_dim, enc_units, seq_len) 
+discriminator = make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units)
 
 # do sample prediction and inference
-input_x = [np.random.randint(vocab_size, size=seq_len) for i in range(1)]
+'''input_x = [np.random.randint(vocab_size, size=seq_len) for i in range(1)]
 input_x = np.array(input_x)
 print(input_x.shape)
 
 gen_seq = generator(input_x, training=False)
-gen_seq = tf.math.argmax(gen_seq, axis=-1)
+#gen_seq = tf.math.argmax(gen_seq, axis=-1)
 print(gen_seq)
    
-discriminator = make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units)
+
 
 disc_out = discriminator(gen_seq, training=False)
-print(disc_out)
+print(disc_out)'''
 
 
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
@@ -131,6 +150,8 @@ def discriminator_loss(real_output, fake_output):
 
 
 def generator_loss(fake_output):
+    #fake_output = fake_output / tf.math.reduce_max(fake_output)
+    #print(fake_output)
     return cross_entropy(tf.ones_like(fake_output), fake_output)
     
 
@@ -138,22 +159,55 @@ generator_optimizer = tf.keras.optimizers.Adam(1e-4)
 discriminator_optimizer = tf.keras.optimizers.Adam(1e-4)
 
 
-def train_step(batch_real_x, batch_real_y, fake_target):
+'''def combined_model(g_model, d_model):
+
+    d_model.trainable = False
+    model = tf.keras.Sequential()
+    model.add(g_model)
+    model.add(d_model)
+    disc_opt = tf.keras.optimizers.Adam(1e-4)
+    model.compile(loss='binary_crossentropy', optimizer=disc_opt)
     
+    return model
+
+gan_model = combined_model(generator, discriminator)
+
+def train_step(batch_real_x, batch_real_y, fake_target):
+
+    gen_seq = generator(batch_real_x, training=False)
+    shape_var = discriminator(batch_real_y, training=False)
+    
+    d_y = tf.ones_like(shape_var)
+    g_y = tf.zeros_like(shape_var)
+    
+    X, y = np.vstack((batch_real_y, gen_seq)), np.vstack((d_y, g_y))
+
+    disc_train = discriminator.fit(X, y)
+    
+    gan_model = combined_model(generator, discriminator)
+    
+    gan_train = gan_model.fit(batch_real_x, d_y)'''
+    
+@tf.function
+def train_step(batch_real_x, batch_real_y, fake_target):
+
     with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
-      gen_tape.watch(generator.trainable_variables)
-      fake_seq = generator(batch_real_x, training=True)
+
+      fake_y = generator(batch_real_x, training=True)
+      print(fake_y.shape)
+
       real_output = discriminator(batch_real_y, training=True)
-      fake_output = discriminator(tf.math.argmax(fake_seq, axis=-1), training=True)
+      fake_output = discriminator(tf.math.argmax(fake_y, axis=-1), training=True)
+
       print(real_output.shape, fake_output.shape)
-      gen_loss = generator_loss(fake_output)
+
       disc_loss = discriminator_loss(real_output, fake_output)
+      gen_loss = generator_loss(real_output)
+
       print(gen_loss, disc_loss)
-      
+
     gradients_of_generator = gen_tape.gradient(gen_loss, generator.trainable_variables)
-
     generator_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
+
+    gradients_of_discriminator = disc_tape.gradient(disc_loss, discriminator.trainable_variables)
     discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
-
-
-
