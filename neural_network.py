@@ -8,11 +8,13 @@ import numpy as np
 import logging
 import tensorflow as tf
 from numpy.random import randn
+from tensorflow.keras import backend as K
 
 import preprocess_sequences
 import utils
 import masked_loss
 import sequence_to_sequence
+import ArgMaxLayer
 
 
 PATH_PRE = "data/ncov_global/"
@@ -71,50 +73,52 @@ class Generator(tf.keras.Model):
       #print(logits.shape)
       return self.fc(fc1_vector)
 
+seq_len = 50
+vocab_size = 20
+latent_dim = 100
+batch_size = 32
+embedding_dim = 16
+enc_units = 16
+factor = 1
+epochs = 2
+n_samples = factor * batch_size
 
-def make_generator_model(vocab_size, embed_dim, enc_units, seq_len, real_x, fake_y):
-    #model = Generator(vocab_size, embed_dim, enc_units, seq_len)
-    inputs = tf.keras.Input(shape=(seq_len, ))
-    
-    embed = tf.keras.layers.Embedding(vocab_size, embed_dim)
-    gru1 = tf.keras.layers.GRU(enc_units, return_sequences=True, return_state=True, recurrent_initializer='glorot_uniform')
-                                   
-                                   
-    #gru2 = tf.keras.layers.GRU(enc_units, return_sequences=True, return_state=True, recurrent_initializer='glorot_uniform')                         
-    fc1 = tf.keras.layers.Dense(enc_units, activation=tf.math.tanh, use_bias=False)
-    fc = tf.keras.layers.Dense(vocab_size)
 
-    vectors = embed(inputs)
-    enc_output, _ = gru1(vectors, initial_state=None)
 
-    
-    #print(rnn_output.shape)
-    fc1_vector = fc1(enc_output)
-    #print(fc1_vector.shape)
-    logits = fc(fc1_vector)
-
-    model = tf.keras.Model(inputs=inputs, outputs=logits, name="encoder_decoder")
-   
+def make_generator_model(vocab_size, embed_dim, enc_units, seq_len):
+    model = tf.keras.Sequential()
+    model.add(tf.keras.layers.InputLayer(input_shape=(seq_len, )))
+    model.add(tf.keras.layers.Embedding(vocab_size, embed_dim))
+    model.add(tf.keras.layers.Dense(enc_units, use_bias=False))
+    model.add(tf.keras.layers.Dense(vocab_size, use_bias=False))
     return model
-
+ 
 
 def make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units):
     model = tf.keras.Sequential()
-    
-    embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
-    gru_1 = tf.keras.layers.GRU(enc_units, return_sequences=False, return_state=False, recurrent_initializer='glorot_uniform')
-    fc_1 = tf.keras.layers.Dense(enc_units, activation=tf.math.tanh, use_bias=False)
-    fc = tf.keras.layers.Dense(1)
-    
-    model.add(embedding)
-    model.add(gru_1)
-    model.add(fc_1)
-    model.add(fc)
-    optimizer = tf.optimizers.Adam()
-    loss = 'binary_crossentropy'
-    model.compile(loss=loss, optimizer=optimizer)
-
+    model.add(tf.keras.layers.InputLayer(input_shape=(seq_len, )))
+    model.add(tf.keras.layers.Embedding(vocab_size, embedding_dim))
+    model.add(tf.keras.layers.GRU(enc_units, return_sequences=False, return_state=False, recurrent_initializer='glorot_uniform'))
+    model.add(tf.keras.layers.Dense(enc_units, use_bias=False))
+    model.add(tf.keras.layers.Dense(1, use_bias=False))
     return model
+
+
+generator = make_generator_model(vocab_size, embedding_dim, enc_units, seq_len) 
+
+# do sample prediction and inference
+input_x = [np.random.randint(vocab_size, size=seq_len) for i in range(1)]
+input_x = np.array(input_x)
+print(input_x.shape)
+
+gen_seq = generator(input_x, training=False)
+gen_seq = tf.math.argmax(gen_seq, axis=-1)
+print(gen_seq)
+   
+discriminator = make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units)
+
+disc_out = discriminator(gen_seq, training=False)
+print(disc_out)
 
 
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
@@ -134,30 +138,22 @@ generator_optimizer = tf.keras.optimizers.Adam(1e-4)
 discriminator_optimizer = tf.keras.optimizers.Adam(1e-4)
 
 
-def train_step(batch_real_x, batch_real_y, batch_fake_y, batch_size, seq_len, vocab_size, generator, discriminator):
+def train_step(batch_real_x, batch_real_y, fake_target):
     
     with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
-        
-        generated_seq = generator(batch_real_x, training=True)
-        
-        fake_tokens = tf.argmax(generated_seq, axis=-1)
-        
-        real_output = discriminator(batch_real_x, training=True)
-
-        fake_output = discriminator(fake_tokens, training=True)
-
-        gen_loss = generator_loss(fake_output)
-        
-        gen_loss = tf.reduce_mean(gen_loss)
-        disc_loss = discriminator_loss(real_output, fake_output)
-
+      gen_tape.watch(generator.trainable_variables)
+      fake_seq = generator(batch_real_x, training=True)
+      real_output = discriminator(batch_real_y, training=True)
+      fake_output = discriminator(tf.math.argmax(fake_seq, axis=-1), training=True)
+      print(real_output.shape, fake_output.shape)
+      gen_loss = generator_loss(fake_output)
+      disc_loss = discriminator_loss(real_output, fake_output)
+      print(gen_loss, disc_loss)
+      
     gradients_of_generator = gen_tape.gradient(gen_loss, generator.trainable_variables)
-    print(gradients_of_generator)
+
     generator_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
-    
-    gradients_of_discriminator = disc_tape.gradient(disc_loss, discriminator.trainable_variables)
     discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
-    
-   
-    
-    
+
+
+

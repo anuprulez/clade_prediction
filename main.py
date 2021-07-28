@@ -197,23 +197,8 @@ def read_files():
     fake_output = fake_output.reshape(n_samples, seq_len, vocab_size)
     fake_seq = tf.argmax(fake_output, axis=-1)
     print(fake_seq.shape)
-    
-    '''gen_model = neural_network.make_generator_model(vocab_size, embedding_dim, enc_units, seq_len)
-    
-    print(gen_model)
-    
-    generated_seq, generated_state = gen_model(train_real_x, n_samples, training=False)
 
-    print(generated_seq)
     
-    disc_model = neural_network.make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units)
-    print(disc_model.summary())'''
-
-    gen_model = neural_network.make_generator_model(vocab_size, embedding_dim, enc_units, seq_len, train_real_x, fake_seq)
-    
-    print(gen_model)
-    
-    disc_model = neural_network.make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units)
 
     input_tokens = tf.data.Dataset.from_tensor_slices((train_real_x)).batch(batch_size)
     target_tokens = tf.data.Dataset.from_tensor_slices((train_real_y)).batch(batch_size)
@@ -222,7 +207,7 @@ def read_files():
     for n in range(epochs):
         print("Training epoch {}...".format(str(n)))
         for step, (x_batch_train, y_batch_train, y_batch_fake) in enumerate(zip(input_tokens, target_tokens, fake_target)):
-            neural_network.train_step(x_batch_train, y_batch_train, y_batch_fake, batch_size, seq_len, vocab_size, gen_model, disc_model)
+            neural_network.train_step(x_batch_train, y_batch_train, y_batch_fake)
     
 # generate points in latent space as input for the generator
 '''def generate_latent_points(latent_dim, n_samples):
