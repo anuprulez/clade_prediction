@@ -141,14 +141,14 @@ def start_training(embedding_dim, units, batch_size, vocab_size):
         print(dataset_out)
 
         for n in range(epochs):
-            print("Training epoch {}...".format(str(n)))
+            print("Training epoch {}...".format(str(n+1)))
             batch_learning = model.train_step([dataset_in, dataset_out])
-            print("Training loss at step {}: {}".format(str(n+1), str(np.round(batch_learning["epo_loss"], 4))))
+            print("Training loss at step {}: {}".format(str(n+1), str(np.round(batch_learning["epo_loss"], 8))))
             for te_name in te_clade_files:
                 te_clade_df = pd.read_csv(te_name, sep="\t")
                 te_X = clade_df["X"]
                 te_y = clade_df["Y"]
-                print(te_clade_df.shape)
+                #print(te_clade_df.shape)
                 print("Prediction on test data...")
                 predict_sequence(te_X, te_y, model, LEN_AA, vocab_size, batch_size)
 
@@ -161,37 +161,40 @@ def predict_sequence(test_x, test_y, model, seq_len, vocab_size, batch_size):
     
         batch_x_test = utils.convert_to_array(x)
         batch_y_test = utils.convert_to_array(y)
-        
-        print(batch_x_test.shape, batch_y_test.shape)
+        print(batch_x_test)
+        print()
+        print(batch_y_test)
+        print("-----")
+        #print(batch_x_test.shape, batch_y_test.shape)
         
         if batch_x_test.shape[0] == batch_size:
         
             enc_output, enc_state = model.encoder(batch_x_test)
         
-            print(enc_output.shape)
+            #print(enc_output.shape)
         
             input_mask = batch_x_test != 0
             target_mask = batch_y_test != 0
             new_tokens = tf.fill([batch_size, seq_len], 0)
 
-            print(new_tokens.shape)
+            #print(new_tokens.shape)
 
-            decoder_input = container_classes.DecoderInput(new_tokens=new_tokens, enc_output=enc_output, mask=input_mask)
-            dec_result, dec_state = model.decoder(decoder_input, state=enc_state)
+            #decoder_input = container_classes.DecoderInput(new_tokens=new_tokens, enc_output=enc_output, mask=input_mask)
+            logits, dec_state = model.decoder(new_tokens, state=enc_state)
         
-            print(dec_result.logits.shape, dec_state.shape)
+            #print(logits.shape, dec_state.shape)
         
             # compute loss
             y = batch_y_test
-            y_pred = dec_result.logits
-            pred_tokens = tf.argmax(y_pred, axis=-1)
+            y_pred = logits
+            #pred_tokens = tf.argmax(y_pred, axis=-1)
             loss = model.loss(y, y_pred)
         
-        
+            #print(target_mask.shape)
             average_loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
         
             real_loss = average_loss.numpy()
-            print("Batch {} loss: {}".format(str(i), str(real_loss)))
+            #print("Batch {} loss: {}".format(str(i), str(real_loss)))
             avg_test_loss.append(real_loss)
             i += 1
     print("Total test loss: {}".format(str(np.mean(avg_test_loss))))

@@ -61,31 +61,29 @@ def _train_step(self, inputs):
           # Run the decoder one step.
           #decoder_input = container_classes.DecoderInput(new_tokens=unrolled_y, enc_output=enc_output, mask=input_mask)
 
-          #dec_result, dec_state = self.decoder(decoder_input, state=enc_state)
+          logits, dec_state = self.decoder(unrolled_y, state=enc_state)
           
-          #y = unrolled_y
-          #y_pred = dec_result.logits
+          y = unrolled_y
+          y_pred = logits
+          #y_pred = tf.argmax(y_pred, axis=-1)
           #print(y.shape, y_pred.shape)
-          #loss = self.loss(y, y_pred)
-          for t in tf.range(max_target_length-1):
-              new_tokens = unrolled_y[:, t:t+2]
-              step_loss, dec_state = self._loop_step(new_tokens, input_mask,
-                                                                   enc_output, dec_state)
-              loss = loss + step_loss
-              print(step_loss)
-              print("--")
+          loss = self.loss(y, y_pred)
+          #for t in tf.range(max_target_length-1):
+          #    new_tokens = unrolled_y[:, t:t+2]
+          #    step_loss, dec_state = self._loop_step(new_tokens, input_mask, enc_output, dec_state)
+          #    loss = loss + step_loss
           # Average the loss over all non padding tokens.
           average_loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
           
-          print("Batch {} loss: {}".format(str(step), str(average_loss.numpy())))
+          #print("Batch {} loss: {}".format(str(step), str(average_loss.numpy())))
 
           #pred_tokens = tf.argmax(dec_result.logits, axis=-1)
           
-          # Apply an optimization step
-          variables = self.trainable_variables 
-          gradients = tape.gradient(average_loss, variables)
-          self.optimizer.apply_gradients(zip(gradients, variables))
-          epo_avg_loss += average_loss.numpy()
+      # Apply an optimization step
+      variables = self.trainable_variables 
+      gradients = tape.gradient(average_loss, variables)
+      self.optimizer.apply_gradients(zip(gradients, variables))
+      epo_avg_loss += average_loss.numpy()
 
   # Return a dict mapping metric names to current value
   return {'epo_loss': epo_avg_loss / (step + 1) }

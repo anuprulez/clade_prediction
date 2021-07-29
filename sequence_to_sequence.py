@@ -78,16 +78,17 @@ class Decoder(tf.keras.layers.Layer):
     self.fc = tf.keras.layers.Dense(self.output_vocab_size)
 
 
-def call(self,
-         inputs: container_classes.DecoderInput,
-         state=None) -> Tuple[container_classes.DecoderOutput, tf.Tensor]:
+def call(self, inputs, state=None):
 
     # Step 1. Lookup the embeddings
-    vectors = self.embedding(inputs.new_tokens)
+    vectors = self.embedding(inputs)
+    #print("vectors")
+    #print(vectors.shape)
 
     # Step 2. Process one step with the RNN
     rnn_output, state = self.gru(vectors, initial_state=state)
-
+    #print("rnn_output")
+    #print(rnn_output.shape)
     # Step 3. Use the RNN output as the query for the attention over the
     # encoder output.
     #context_vector, attention_weights = self.attention(query=rnn_output, value=inputs.enc_output, mask=inputs.mask)
@@ -99,10 +100,15 @@ def call(self,
     # Step 4. Eqn. (3): `at = tanh(Wc@[ct; ht])`
     #attention_vector = self.Wc(context_and_rnn_output)
     attention_vector = self.Wc(rnn_output)
-    attention_weights = None
+    #print("attention_vector")
+    #print(attention_vector.shape)
+    #attention_weights = None
     # Step 5. Generate logit predictions:
     logits = self.fc(attention_vector)
+    #print("logits")
+    #print(logits.shape)
+    #print("--------------------")
 
-    return container_classes.DecoderOutput(logits, attention_weights), state
+    return logits, state
 
 Decoder.call = call
