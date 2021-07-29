@@ -47,7 +47,8 @@ def _train_step(self, inputs):
       unrolled_x = utils.convert_to_array(x_batch_train)
       unrolled_y = utils.convert_to_array(y_batch_train)
       (_, input_mask, _, target_mask) = self._preprocess(unrolled_x, unrolled_y)
-      max_target_length = unrolled_x.shape[1]
+      seq_len = unrolled_x.shape[1]
+      batch_size = unrolled_x.shape[0]
       
       with tf.GradientTape() as tape:
           # Encode the input
@@ -61,10 +62,19 @@ def _train_step(self, inputs):
           # Run the decoder one step.
           #decoder_input = container_classes.DecoderInput(new_tokens=unrolled_y, enc_output=enc_output, mask=input_mask)
 
-          logits, dec_state = self.decoder(unrolled_y, state=enc_state)
+          new_tokens = tf.fill([batch_size, seq_len], 0)
+          logits, dec_state = self.decoder(new_tokens, state=enc_state)
           
           y = unrolled_y
           y_pred = logits
+          
+          if step == 0:
+              print("Training: Sample 0, batch 0")
+              print(y[0].numpy())
+              print(tf.argmax(y_pred, axis=-1)[0].numpy())
+              error = self.loss(y[0], y_pred[0])
+              print(error)
+              print("-----")
           #y_pred = tf.argmax(y_pred, axis=-1)
           #print(y.shape, y_pred.shape)
           loss = self.loss(y, y_pred)
@@ -80,13 +90,13 @@ def _train_step(self, inputs):
           #pred_tokens = tf.argmax(dec_result.logits, axis=-1)
           
       # Apply an optimization step
-      variables = self.trainable_variables 
+      variables = self.trainable_variables
       gradients = tape.gradient(average_loss, variables)
       self.optimizer.apply_gradients(zip(gradients, variables))
       epo_avg_loss += average_loss.numpy()
 
   # Return a dict mapping metric names to current value
-  return {'epo_loss': epo_avg_loss / (step + 1) }
+  return {'epo_loss': epo_avg_loss / (step + 1), 'encoder': self.encoder, 'decoder': self.decoder}
   
 
 def _loop_step(self, new_tokens, input_mask, enc_output, dec_state):
