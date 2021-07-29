@@ -52,7 +52,7 @@ def _train_step(self, inputs):
       
       with tf.GradientTape() as tape:
           # Encode the input
-          enc_output, enc_state = self.encoder(unrolled_x)
+          enc_output, enc_state = self.encoder(unrolled_x, training=True)
           # Initialize the decoder's state to the encoder's final state.
           # This only works if the encoder and decoder have the same number of
           # units.
@@ -63,18 +63,18 @@ def _train_step(self, inputs):
           #decoder_input = container_classes.DecoderInput(new_tokens=unrolled_y, enc_output=enc_output, mask=input_mask)
 
           new_tokens = tf.fill([batch_size, seq_len], 0)
-          logits, dec_state = self.decoder(new_tokens, state=enc_state)
+          logits, dec_state = self.decoder(new_tokens, state=enc_state, training=True)
           
           y = unrolled_y
           y_pred = logits
           
           if step == 0:
+              s_index = 3
               print("Training: Sample 0, batch 0")
-              print(y[0].numpy())
-              print(tf.argmax(y_pred, axis=-1)[0].numpy())
+              print(y[s_index].numpy())
+              print(tf.argmax(y_pred, axis=-1)[s_index].numpy())
               error = self.loss(y[0], y_pred[0])
               print(error)
-              print("-----")
           #y_pred = tf.argmax(y_pred, axis=-1)
           #print(y.shape, y_pred.shape)
           loss = self.loss(y, y_pred)

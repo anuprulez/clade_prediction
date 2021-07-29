@@ -131,15 +131,12 @@ def start_training(embedding_dim, units, batch_size, vocab_size):
     te_clade_files = glob.glob('data/test/*.csv')
     
     for name in tr_clade_files:
-        clade_df = pd.read_csv(name, sep="\t")
-        X = clade_df["X"]
-        y = clade_df["Y"]
-        print(clade_df.shape)
+        tr_clade_df = pd.read_csv(name, sep="\t")
+        X = tr_clade_df["X"]
+        y = tr_clade_df["Y"]
+        print(tr_clade_df.shape)
         dataset_in = tf.data.Dataset.from_tensor_slices((X)).batch(batch_size)
         dataset_out = tf.data.Dataset.from_tensor_slices((y)).batch(batch_size)
-        print(dataset_in)
-        print(dataset_out)
-
         for n in range(epochs):
             print("Training epoch {}...".format(str(n+1)))
             batch_learning = model.train_step([dataset_in, dataset_out])
@@ -148,8 +145,8 @@ def start_training(embedding_dim, units, batch_size, vocab_size):
             print("Training loss at step {}: {}".format(str(n+1), str(np.round(batch_learning["epo_loss"], 8))))
             for te_name in te_clade_files:
                 te_clade_df = pd.read_csv(te_name, sep="\t")
-                te_X = clade_df["X"]
-                te_y = clade_df["Y"]
+                te_X = te_clade_df["X"]
+                te_y = te_clade_df["Y"]
                 #print(te_clade_df.shape)
                 print("Prediction on test data...")
                 predict_sequence(te_X, te_y, encoder, decoder, model, LEN_AA, vocab_size, batch_size)
@@ -171,7 +168,7 @@ def predict_sequence(test_x, test_y, encoder, decoder, model, seq_len, vocab_siz
         
         if batch_x_test.shape[0] == batch_size:
         
-            enc_output, enc_state = encoder(batch_x_test)
+            enc_output, enc_state = encoder(batch_x_test, training=False)
         
             #print(enc_output.shape)
         
@@ -182,16 +179,15 @@ def predict_sequence(test_x, test_y, encoder, decoder, model, seq_len, vocab_siz
             #print(new_tokens.shape)
 
             #decoder_input = container_classes.DecoderInput(new_tokens=new_tokens, enc_output=enc_output, mask=input_mask)
-            logits, dec_state = decoder(new_tokens, state=enc_state)
+            logits, dec_state = decoder(new_tokens, state=enc_state, training=False)
         
             #print(logits.shape, dec_state.shape)
 
-            if step == 0:
-                print("Test: Sample 0, batch 0")
+            if step == 5:
+                print("Test: Sample 0, batch {}".format(str(step)))
                 print(batch_y_test[0])
                 print(tf.argmax(logits, axis=-1)[0])
                 print(model.loss(batch_y_test[0], logits[0]))
-                print("---")
         
             # compute loss
             y = batch_y_test
@@ -207,7 +203,7 @@ def predict_sequence(test_x, test_y, encoder, decoder, model, seq_len, vocab_siz
             avg_test_loss.append(real_loss)
             i += 1
     print("Total test loss: {}".format(str(np.mean(avg_test_loss))))
-
+    print()
 
 
 if __name__ == "__main__":
