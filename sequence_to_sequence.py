@@ -39,11 +39,6 @@ class Encoder(tf.keras.layers.Layer):
                                    return_sequences=True,
                                    return_state=True,
                                    recurrent_initializer='glorot_uniform')
-    self.gru1 = tf.keras.layers.GRU(self.enc_units,
-                                   # Return the sequence and state
-                                   return_sequences=True,
-                                   return_state=True,
-                                   recurrent_initializer='glorot_uniform')
 
   def call(self, tokens, state=None, training=False):
     # 2. The embedding layer looks up the embedding for each token.
@@ -75,15 +70,11 @@ class Decoder(tf.keras.layers.Layer):
                                    return_state=True,
                                    recurrent_initializer='glorot_uniform')
     
-    self.gru1 = tf.keras.layers.GRU(self.dec_units,
-                                   # Return the sequence and state
-                                   return_sequences=True,
-                                   return_state=True,
-                                   recurrent_initializer='glorot_uniform')
+    
    
-    self.dropout = tf.keras.layers.Dropout(0.2)
+    #self.dropout = tf.keras.layers.Dropout(0.2)
     # For step 3. The RNN output will be the query for the attention layer.
-    self.attention = battention.BahdanauAttention(self.dec_units)
+    #self.attention = battention.BahdanauAttention(self.dec_units)
 
     # For step 4. Eqn. (3): converting `ct` to `at`
     self.Wc = tf.keras.layers.Dense(dec_units, activation=tf.math.tanh,
@@ -91,7 +82,7 @@ class Decoder(tf.keras.layers.Layer):
 
     # For step 5. This fully connected layer produces the logits for each
     # output token.
-    self.fc = tf.keras.layers.Dense(self.output_vocab_size)
+    self.fc = tf.keras.layers.Dense(self.output_vocab_size, use_bias=False)
 
 
 def call(self, inputs, state=None, training=False):
@@ -116,14 +107,14 @@ def call(self, inputs, state=None, training=False):
 
     # Step 4. Eqn. (3): `at = tanh(Wc@[ct; ht])`
     #attention_vector = self.Wc(context_and_rnn_output)
-    rnn_output = self.dropout(rnn_output)
+    #rnn_output = self.dropout(rnn_output)
 
     attention_vector = self.Wc(rnn_output)
     #print("attention_vector")
     #print(attention_vector.shape)
     #attention_weights = None
     # Step 5. Generate logit predictions:
-    attention_vector = self.dropout(attention_vector)
+    #attention_vector = self.dropout(attention_vector)
     
     logits = self.fc(attention_vector)
     #print("logits")

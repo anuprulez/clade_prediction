@@ -14,20 +14,24 @@ import utils
 
 
 def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_size):
-    
-    encoder = sequence_to_sequence.Encoder(vocab_size, embedding_dim, enc_units)
-    
-    decoder = sequence_to_sequence.Decoder(vocab_size, embedding_dim, enc_units)
-    
-    inputs = tf.keras.Input(shape=(seq_len,))
-    
-    enc_output, enc_state = encoder(inputs, training=True)
 
-    new_tokens = tf.fill([batch_size, seq_len], 0)
+    encoder = sequence_to_sequence.Encoder(vocab_size, embedding_dim, enc_units)
+
+    decoder = sequence_to_sequence.Decoder(vocab_size, embedding_dim, enc_units)
+
+    inputs = tf.keras.Input(shape=(seq_len,))
+
+    enc_output, enc_state = encoder(inputs, training=True)
+    
+    ## TODO Add noise to enc_state to allow generation of multiple child sequences from a parent sequence
+    noise = tf.keras.Input(shape=(enc_units,))
+    
+    enc_state = tf.math.add(enc_state, noise)
+    new_tokens = tf.keras.Input(shape=(seq_len,))
     
     logits, dec_state = decoder(new_tokens, state=enc_state, training=True)
     
-    gen_model = tf.keras.Model([inputs], [logits, dec_state])
+    gen_model = tf.keras.Model([inputs, new_tokens, noise], [logits, dec_state])
     
     return gen_model, encoder
 
@@ -58,12 +62,6 @@ def make_disc_par_enc_model(seq_len, vocab_size, embedding_dim, enc_units):
     GeneratorEncoder_model = tf.keras.Model([gen_inputs], encoder_stateGen)
     
     return ParentEncoder_model, GeneratorEncoder_model
-
-
-#def make_disc_gen_enc_model(seq_len, vocab_size, embedding_dim, enc_units):
-    
-#    return 
-
 
 def make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units):
 

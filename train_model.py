@@ -40,29 +40,32 @@ def start_training(inputs, generator, encoder, disc_par_enc, disc_gen_enc, discr
       (_, input_mask, _, target_mask) = _preprocess(unrolled_x, unrolled_y)
       seq_len = unrolled_x.shape[1]
       batch_size = unrolled_x.shape[0]
-      
+      enc_units = 32
       with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
           
-          logits, state = generator(unrolled_x, training=True)
-          print(logits.shape, state.shape)
+          new_tokens = tf.fill([batch_size, seq_len], 0)
+          noise = tf.random.normal((batch_size, enc_units))
+          print(noise.shape)
+          logits, state = generator([unrolled_x, new_tokens, noise], training=True)
+          #print(logits.shape, state.shape)
           
           generated_tokens = tf.math.argmax(logits, axis=-1)
-          print(generated_tokens.shape)
+          #print(generated_tokens.shape)
 
           par_enc_output, par_enc_state = encoder(unrolled_x)
-          print(par_enc_output.shape, par_enc_state.shape)
+          #print(par_enc_output.shape, par_enc_state.shape)
           
           gen_enc_output, gen_enc_state = encoder(generated_tokens)
-          print(gen_enc_output.shape, gen_enc_state.shape)
+          #print(gen_enc_output.shape, gen_enc_state.shape)
 
           real_enc_output, real_enc_state = encoder(unrolled_y)
 
-          print(real_enc_output.shape, real_enc_output.shape)
+          #print(real_enc_output.shape, real_enc_output.shape)
 
           fake_output = discriminator([par_enc_state, gen_enc_state])
           real_output = discriminator([par_enc_state, real_enc_state])
           
-          print(fake_output.shape, real_output.shape)
+          #print(fake_output.shape, real_output.shape)
           
           disc_loss = discriminator_loss(real_output, fake_output)
           
@@ -72,6 +75,8 @@ def start_training(inputs, generator, encoder, disc_par_enc, disc_gen_enc, discr
       
       gradients_of_generator = gen_tape.gradient(gen_loss, generator.trainable_variables)
       #print(generator.trainable_variables)
+      #for item in generator.trainable_variables:
+      #    print(item.name)
       generator_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
 
       gradients_of_discriminator = disc_tape.gradient(disc_loss, discriminator.trainable_variables)
