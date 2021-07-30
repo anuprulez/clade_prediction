@@ -21,7 +21,7 @@ PATH_PRE = "data/ncov_global/"
 PATH_SEQ = PATH_PRE + "spike_protein.fasta" #"ncov_global.fasta"
 PATH_SEQ_CLADE = PATH_PRE + "ncov_global.tsv"
 PATH_CLADES = "data/clade_in_clade_out.json"
-
+      
 
 class Encoder(tf.keras.layers.Layer):
   def __init__(self, input_vocab_size, embedding_dim, enc_units):

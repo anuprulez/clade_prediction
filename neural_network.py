@@ -9,122 +9,84 @@ import logging
 import tensorflow as tf
 
 import preprocess_sequences
+import sequence_to_sequence
 import utils
 
 
-PATH_PRE = "data/ncov_global/"
-PATH_SEQ = PATH_PRE + "spike_protein.fasta" #"ncov_global.fasta"
-PATH_SEQ_CLADE = PATH_PRE + "ncov_global.tsv"
-PATH_CLADES = "data/clade_in_clade_out.json"
-
-v_size = 17000
-embedding_dim = 8
-seq_len = 1275
-
-
-def embedding(vocab_size, out_dim, seq_len):
-    embed = tf.keras.layers.Embedding(vocab_size, out_dim, mask_zero=True)
-    return embed
-
-
-def make_generator_model(v_size, seq_len):
-    model = tf.keras.Sequential()
-    #model.add(embedding(v_size, out_size, seq_len))
-    #model.add(tf.keras.layers.Embedding(v_size, embedding_dim))
-    #model.add(tf.keras.layers.InputLayer(input_shape=(seq_len, v_size)))
-    #model.add(tf.keras.layers.GRU(64, return_sequences=False, activation="elu"))
-    #model.add(tf.keras.layers.GRU(64, return_sequences=True, activation="elu"))
-    model.add(tf.keras.layers.Dense(64, activation="elu"))
-    model.add(tf.keras.layers.Reshape((seq_len, 1, v_size)))
-    #assert model.output_shape == (None, seq_len, 1, v_size)
-    #model.add(tf.keras.layers.Dropout(0.2))
-    #model.add(tf.keras.layers.GRU(64))
-    #model.add(tf.keras.layers.Dropout(0.2))
-    #model.add(tf.keras.layers.Dense(v_size, activation='sigmoid'))
-    #model.compile(loss='binary_crossentropy', optimizer='adam')
-
-    return model
-
-
-def make_discriminator_model():
-    model = tf.keras.Sequential()
-    model.add(layers.Conv2D(64, (5, 5), strides=(2, 2), padding='same',
-                                     input_shape=[28, 28, 1]))
-    model.add(layers.LeakyReLU())
-    model.add(layers.Dropout(0.3))
-
-    model.add(layers.Conv2D(128, (5, 5), strides=(2, 2), padding='same'))
-    model.add(layers.LeakyReLU())
-    model.add(layers.Dropout(0.3))
-
-    model.add(layers.Flatten())
-    model.add(layers.Dense(1))
-
-    return model
+def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_size):
     
+    encoder = sequence_to_sequence.Encoder(vocab_size, embedding_dim, enc_units)
     
-def discriminator_loss(real_output, fake_output):
-    real_loss = cross_entropy(tf.ones_like(real_output), real_output)
-    fake_loss = cross_entropy(tf.zeros_like(fake_output), fake_output)
-    total_loss = real_loss + fake_loss
-    return total_loss
+    decoder = sequence_to_sequence.Decoder(vocab_size, embedding_dim, enc_units)
     
+    inputs = tf.keras.Input(shape=(seq_len,))
     
-def generator_loss(fake_output):
-    return cross_entropy(tf.ones_like(fake_output), fake_output)
+    enc_output, enc_state = encoder(inputs, training=True)
+
+    new_tokens = tf.fill([batch_size, seq_len], 0)
     
+    logits, dec_state = decoder(new_tokens, state=enc_state, training=True)
     
-def train_step(images):
-    noise = tf.random.normal([BATCH_SIZE, noise_dim])
-
-    with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
-      generated_images = generator(noise, training=True)
-
-      real_output = discriminator(images, training=True)
-      fake_output = discriminator(generated_images, training=True)
-
-      gen_loss = generator_loss(fake_output)
-      disc_loss = discriminator_loss(real_output, fake_output)
-
-    gradients_of_generator = gen_tape.gradient(gen_loss, generator.trainable_variables)
-    gradients_of_discriminator = disc_tape.gradient(disc_loss, discriminator.trainable_variables)
-
-    generator_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
-    discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
+    gen_model = tf.keras.Model([inputs], [logits, dec_state])
     
+    return gen_model, encoder
+
+
+def make_disc_par_enc_model(seq_len, vocab_size, embedding_dim, enc_units):
+    # parent seq encoder model
+    parent_inputs = tf.keras.Input(shape=(None,))
+    enc_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
+    enc_GRU = tf.keras.layers.GRU(enc_units, return_state=True)
     
-def train(dataset, epochs):
-    for epoch in range(epochs):
-        start = time.time()
-
-    for image_batch in dataset:
-        train_step(image_batch)
-
-    # Produce images for the GIF as you go
-    display.clear_output(wait=True)
-    generate_and_save_images(generator,
-                             epoch + 1,
-                             seed)
-
-    # Save the model every 15 epochs
-    #if (epoch + 1) % 15 == 0:
-    #    checkpoint.save(file_prefix = checkpoint_prefix)
-
-    print ('Time for epoch {} is {} sec'.format(epoch + 1, time.time()-start))
+    parent_inputs_embedding = enc_embedding(parent_inputs)
+    #enc_outputs, fwd_hPar, fwd_cPar, bwd_hPar, bwd_cPar = enc_BiGRU(parent_inputs_embedding)
+    enc_outputs, enc_state = enc_GRU(parent_inputs_embedding)
+    print(enc_outputs.shape, enc_state.shape)
+    #state_hPar = #Concatenate()([fwd_hPar, bwd_hPar])
+    #state_cPar= #Concatenate()([fwd_cPar, bwd_cPar])
+    #encoder_statePar = [state_hPar, state_cPar]
+    ParentEncoder_model = tf.keras.Model([parent_inputs], [enc_state])
     
- 
-def generate_and_save_images(model, epoch, test_input):
-  # Notice `training` is set to False.
-  # This is so all layers run in inference mode (batchnorm).
-  predictions = model(test_input, training=False)
+    # generated seq encoder model
+    gen_inputs = tf.keras.Input(shape=(None, vocab_size))
+    enc_inputsGen = tf.keras.layers.Dense(embedding_dim, activation='linear', use_bias=False)(gen_inputs)
+    #enc_outputsGen, fwd_hGen, fwd_cGen, bwd_hGen, bwd_cGen = enc_BiGRU(enc_inputsGen)
+    enc_outputsGen, stateGen = enc_GRU(enc_inputsGen)
+    #state_hGen = Concatenate()([fwd_hGen, bwd_hGen])
+    #state_cGen = Concatenate()([fwd_cGen, bwd_cGen])
+    encoder_stateGen = [stateGen]
+    GeneratorEncoder_model = tf.keras.Model([gen_inputs], encoder_stateGen)
+    
+    return ParentEncoder_model, GeneratorEncoder_model
 
-  fig = plt.figure(figsize=(4, 4))
 
-  for i in range(predictions.shape[0]):
-      plt.subplot(4, 4, i+1)
-      plt.imshow(predictions[i, :, :, 0] * 127.5 + 127.5, cmap='gray')
-      plt.axis('off')
+#def make_disc_gen_enc_model(seq_len, vocab_size, embedding_dim, enc_units):
+    
+#    return 
 
-  plt.savefig('image_at_epoch_{:04d}.png'.format(epoch))
-  plt.show()
+
+def make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units):
+
+    #Load the weights for the pretrained autoencoder
+    #ParentEncoder_model.load_weights('Influenza_biLSTM_encoder_model_128_4500_weights.h5')
+    #GeneratorEncoder_model.layers[1].set_weights(enc_embedding.get_weights())
+    
+    xPar = tf.keras.Input(shape=(None, enc_units)) #ParentEncoder_model([parent_inputs])
+    xGen = tf.keras.Input(shape=(None, enc_units)) #GeneratorEncoder_model([gen_inputs])
+    xConcat = tf.keras.layers.Concatenate()([xPar+xGen])
+    x = tf.keras.layers.Dropout(0.2)(xConcat)
+    #x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.Dense(128)(x)
+    x = tf.keras.layers.LeakyReLU(0.1)(x)
+    x = tf.keras.layers.Dropout(0.2)(x)
+    #x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.Dense(64)(x)
+    x = tf.keras.layers.LeakyReLU(0.1)(x)
+    x = tf.keras.layers.Dropout(0.2)(x)
+    #x = tf.keras.layers.BatchNormalization()(x)
+    output_class = tf.keras.layers.Dense(1, activation='linear')(x)
+    
+    disc_model = tf.keras.Model([xPar, xGen], [output_class]) # parent_inputs, gen_inputs
+    
+    return disc_model
 

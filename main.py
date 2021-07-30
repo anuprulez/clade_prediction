@@ -25,9 +25,9 @@ PATH_PRE = "data/ncov_global/"
 PATH_SEQ = PATH_PRE + "spike_protein.fasta" #"ncov_global.fasta"
 PATH_SEQ_CLADE = PATH_PRE + "ncov_global.tsv"
 PATH_CLADES = "data/clade_in_clade_out_19A_20A.json" #"data/clade_in_clade_out.json"
-embedding_dim = 64
-batch_size = 64
-units = 128
+embedding_dim = 8
+batch_size = 16
+units = 64
 epochs = 10
 LEN_AA = 1275
 
@@ -35,7 +35,7 @@ LEN_AA = 1275
 
 
 def read_files():
-    samples_clades = preprocess_sequences.get_samples_clades(PATH_SEQ_CLADE)
+    '''samples_clades = preprocess_sequences.get_samples_clades(PATH_SEQ_CLADE)
     
     clades_in_clades_out = utils.read_json(PATH_CLADES)
 
@@ -45,7 +45,7 @@ def read_files():
     print("Generating cross product...")
     preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df)
     
-    vocab_size = utils.embedding_info(forward_dict)
+    vocab_size = utils.embedding_info(forward_dict)'''
     
     #print("Transforming generated samples...")
     #train_x, train_y, test_x, test_y = preprocess_sequences.transform_encoded_samples()
@@ -97,37 +97,62 @@ def read_files():
     
     dataset_in = tf.data.Dataset.from_tensor_slices((train_x)).batch(batch_size)
     dataset_out = tf.data.Dataset.from_tensor_slices((train_y)).batch(batch_size)'''
-
-    start_training(embedding_dim, units, batch_size, vocab_size)
-
-def start_training(embedding_dim, units, batch_size, vocab_size):
     
-    model = train_model.TrainModel(
-        embedding_dim, units,
-        vocab_size,
-        use_tf_function=False
-    )
-
-    # Configure the loss and optimizer
-    model.compile(
-        optimizer=tf.optimizers.Adam(),
-        loss=masked_loss.MaskedLoss(),
-    )
-  
-    '''te_factor = 1
-    te_batch_size = 1
-
-    print("Generating test data...")
-    test_x = [np.random.randint(vocab_size, size=seq_len) for i in range(te_factor * te_batch_size)]
-    test_x = np.array(test_x)
-
-    test_y = [np.random.randint(vocab_size, size=seq_len) for i in range(te_factor * te_batch_size)]
-    test_y = np.array(test_y)
-    print(test_x.shape, test_y.shape)'''
+    seq_len = 50
+    vocab_size = 20
+    latent_dim = 100
+    batch_size = 32
+    embedding_dim = 16
+    enc_units = 16
+    factor = 1
+    epochs = 2
+    n_samples = factor * batch_size
     
-    print("Start training ...")  
+    train_real_x = [np.random.randint(vocab_size, size=seq_len) for i in range(n_samples)]
+    train_real_x = np.array(train_real_x)
+    print(train_real_x.shape)
     
-    tr_clade_files = glob.glob('data/train/*.csv')
+    train_real_y = [np.random.randint(vocab_size, size=seq_len) for i in range(n_samples)]
+    train_real_y = np.array(train_real_y)
+    print(train_real_y.shape)
+
+    start_training(train_real_x, train_real_y, embedding_dim, units, batch_size, vocab_size, seq_len)
+
+
+def start_training(train_real_x, train_real_y, embedding_dim, units, batch_size, vocab_size, seq_len):
+    
+    seq_len = 50
+    vocab_size = 20
+    latent_dim = 100
+    batch_size = 32
+    embedding_dim = 16
+    enc_units = 32
+    factor = 5
+    epochs = 1
+
+    generator, encoder = neural_network.make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_size)
+    
+    disc_par_enc, disc_gen_enc = neural_network.make_disc_par_enc_model(seq_len, vocab_size, embedding_dim, enc_units)
+    
+    #disc_gen_enc =  neural_network.make_disc_gen_enc_model(seq_len, vocab_size, embedding_dim, enc_units)
+    
+    discriminator = neural_network.make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units)
+    
+    #print(generator)
+    
+    #print(discriminator)
+    
+    print("Start training ...")
+    
+    dataset_in = tf.data.Dataset.from_tensor_slices((train_real_x)).batch(batch_size)
+    dataset_out = tf.data.Dataset.from_tensor_slices((train_real_y)).batch(batch_size)
+
+    for n in range(epochs):
+        print("Training epoch {}...".format(str(n+1)))
+        train_model.start_training([dataset_in, dataset_out], generator, encoder, disc_par_enc, disc_gen_enc, discriminator)
+    
+    
+    '''tr_clade_files = glob.glob('data/train/*.csv')
     te_clade_files = glob.glob('data/test/*.csv')
     
     for name in tr_clade_files:
@@ -148,8 +173,8 @@ def start_training(embedding_dim, units, batch_size, vocab_size):
                 te_X = te_clade_df["X"]
                 te_y = te_clade_df["Y"]
                 #print(te_clade_df.shape)
-                print("Prediction on test data...")
-                predict_sequence(te_X, te_y, encoder, decoder, model, LEN_AA, vocab_size, batch_size)
+                #print("Prediction on test data...")
+                #predict_sequence(te_X, te_y, encoder, decoder, model, LEN_AA, vocab_size, batch_size)'''
 
 def predict_sequence(test_x, test_y, encoder, decoder, model, seq_len, vocab_size, batch_size):
     avg_test_loss = []

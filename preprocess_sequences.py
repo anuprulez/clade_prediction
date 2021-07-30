@@ -9,7 +9,7 @@ import h5py
 
 import utils
 
-LEN_AA = 1275
+LEN_AA = 1273
 
 
 def get_samples_clades(path_seq_clades):
