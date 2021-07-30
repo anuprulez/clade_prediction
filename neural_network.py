@@ -88,6 +88,8 @@ def arg_max(logits):
     return tf.math.argmax(logits, axis=-1)
 
 def make_generator_model(vocab_size, embed_dim, enc_units, seq_len, latent_dim=100):
+    
+
     '''model = tf.keras.Sequential()
     model.add(tf.keras.layers.InputLayer(input_shape=(seq_len, )))
     model.add(tf.keras.layers.Embedding(vocab_size, embed_dim))
@@ -108,7 +110,7 @@ def make_generator_model(vocab_size, embed_dim, enc_units, seq_len, latent_dim=1
     #tokens = tf.keras.layers.Lambda(arg_max)(logits)
     model = tf.keras.Model(inputs=inputs, outputs=logits)'''
     
-    model = tf.keras.Sequential()
+    '''model = tf.keras.Sequential()
     #model.add(tf.keras.layers.InputLayer(input_shape=(seq_len, )))
     model.add(tf.keras.layers.Dense(seq_len * vocab_size, use_bias=False, input_shape=(latent_dim,)))
     model.add(tf.keras.layers.Reshape((seq_len, vocab_size)))
@@ -118,24 +120,85 @@ def make_generator_model(vocab_size, embed_dim, enc_units, seq_len, latent_dim=1
     model.add(tf.keras.layers.Dense(enc_units, use_bias=False))
     model.add(tf.keras.layers.Dense(vocab_size, use_bias=False))
     
-    return model
- 
+    return model'''
+    
+    # Generator Encoder model
+    parent_inp = tf.keras.Input(shape=(None, seq_len))
+    gen_enc_embedding = tf.keras.layers.Embedding(vocab_size, embed_dim)
+    gen_enc_BiGRU = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(enc_units, return_state=True))
+    
+    enc_embed = gen_enc_embedding(parent_inp)
+    enc_outputs, state_hPar, state_cPar = gen_enc_BiGRU(enc_embed)
+    
+    generator_encoder_model = tf.keras.Model([parent_inp], [enc_outputs, state_hPar, state_cPar])
+    
+    # Generator decoder model
+    
+    
+    
 
 def make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units):
-    model = tf.keras.Sequential()
+    '''model = tf.keras.Sequential()
     model.add(tf.keras.layers.InputLayer(input_shape=(seq_len, )))
     model.add(tf.keras.layers.Embedding(vocab_size, embedding_dim))
     model.add(tf.keras.layers.GRU(enc_units, return_sequences=False, return_state=False, recurrent_initializer='glorot_uniform'))
     model.add(tf.keras.layers.Dense(enc_units, use_bias=False))
     model.add(tf.keras.layers.Dense(1, use_bias=False))
     #opt = tf.keras.optimizers.Adam(1e-4)
-    #model.compile(loss='binary_crossentropy', optimizer=opt, metrics=['accuracy'])
-    return model
+    #model.compile(loss='binary_crossentropy', optimizer=opt, metrics=['accuracy'])'''
+    
+    # parent seq encoder
+    parent_inputs = tf.keras.Input(shape=(None,))
+    enc_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
+    parent_inputs_embedding = enc_embedding(parent_inputs)
+    enc_BiGRU = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(enc_units, return_state=True))
+    #enc_outputs, fwd_hPar, fwd_cPar, bwd_hPar, bwd_cPar = enc_BiGRU(parent_inputs_embedding)
+    enc_outputs, state_hPar, state_cPar = enc_BiGRU(parent_inputs_embedding)
+    print(enc_outputs.shape, state_hPar.shape, state_cPar.shape)
+    #state_hPar = #Concatenate()([fwd_hPar, bwd_hPar])
+    #state_cPar= #Concatenate()([fwd_cPar, bwd_cPar])
+    encoder_statePar = [state_hPar, state_cPar]
+    ParentEncoder_model = tf.keras.Model([parent_inputs], encoder_statePar)
+    
+    # generated seq encoder
+    gen_inputs = tf.keras.Input(shape=(None, vocab_size))
+    enc_inputsGen = tf.keras.layers.Dense(embedding_dim, activation = 'linear', use_bias = False)(gen_inputs)
+    #enc_outputsGen, fwd_hGen, fwd_cGen, bwd_hGen, bwd_cGen = enc_BiGRU(enc_inputsGen)
+    enc_outputsGen, state_hGen, state_cGen = enc_BiGRU(enc_inputsGen)
+    #state_hGen = Concatenate()([fwd_hGen, bwd_hGen])
+    #state_cGen = Concatenate()([fwd_cGen, bwd_cGen])
+    encoder_stateGen = [state_hGen, state_cGen]
+    GeneratorEncoder_model = tf.keras.Model([gen_inputs], encoder_stateGen) 
+    
+    #Load the weights for the pretrained autoencoder
+    #ParentEncoder_model.load_weights('Influenza_biLSTM_encoder_model_128_4500_weights.h5')
+    GeneratorEncoder_model.layers[1].set_weights(enc_embedding.get_weights())
+    
+    xPar = ParentEncoder_model([parent_inputs])
+    xGen = GeneratorEncoder_model([gen_inputs])
+    xConcat = tf.keras.layers.Concatenate()(xPar+xGen)
+    x = tf.keras.layers.Dropout(0.2)(xConcat)
+    x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.Dense(128)(x)
+    x = tf.keras.layers.LeakyReLU(0.1)(x)
+    x = tf.keras.layers.Dropout(0.2)(x)
+    x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.Dense(64)(x)
+    x = tf.keras.layers.LeakyReLU(0.1)(x)
+    x = tf.keras.layers.Dropout(0.2)(x)
+    x = tf.keras.layers.BatchNormalization()(x)
+    output_class = tf.keras.layers.Dense(1, activation = 'linear')(x)
+    
+    disc_model = tf.keras.Model([parent_inputs, gen_inputs], [output_class])
+    
+    return disc_model
 
 
 generator = make_generator_model(vocab_size, embedding_dim, enc_units, seq_len) 
 discriminator = make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units)
 
+print(discriminator)
+sys.exit()
 # do sample prediction and inference
 '''input_x = [np.random.randint(vocab_size, size=seq_len) for i in range(1)]
 input_x = np.array(input_x)
