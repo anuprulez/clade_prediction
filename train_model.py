@@ -34,7 +34,7 @@ def generator_loss(fake_output):
     return cross_entropy(tf.ones_like(fake_output), fake_output)
     
 
-def start_training(inputs, generator, encoder, discriminator):
+def start_training(inputs, generator, encoder, par_enc_model, gen_enc_model, discriminator):
   input_tokens, target_tokens = inputs  
   epo_avg_loss = 0.0
   for step, (x_batch_train, y_batch_train) in enumerate(zip(input_tokens, target_tokens)):
@@ -54,11 +54,21 @@ def start_training(inputs, generator, encoder, discriminator):
 
           generated_tokens = tf.math.argmax(generated_logits, axis=-1)
           print(generated_tokens.shape)
-          print(encoder.weights)
+
+          encoder.save_weights('data/generated_files/generator_encoder_weights.h5')
+
+          par_enc_model.load_weights('data/generated_files/generator_encoder_weights.h5')
+          #print(par_enc_model.get_weights())
+          gen_enc_model.layers[1].set_weights(par_enc_model.layers[1].get_weights())
+
           real_y = tf.one_hot(unrolled_y, depth=generated_logits.shape[-1], axis=-1)
 
-          fake_output = discriminator([unrolled_x, generated_logits])
-          real_output = discriminator([unrolled_x, real_y])
+          par_enc_real_state_x = par_enc_model(unrolled_x)
+          gen_real_enc_state_y = gen_enc_model(real_y)
+          gen_enc_fake_state_x = gen_enc_model(generated_logits)
+
+          fake_output = discriminator([par_enc_real_state_x, gen_enc_fake_state_x])
+          real_output = discriminator([par_enc_real_state_x, gen_real_enc_state_y])
 
           print(fake_output.shape)
           print(real_output.shape)
@@ -75,93 +85,12 @@ def start_training(inputs, generator, encoder, discriminator):
       gradients_of_discriminator = disc_tape.gradient(disc_loss, discriminator.trainable_variables)
       discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
 
-'''
-          #print(disc_output)
-          
-          #y = unrolled_y
-          #y_pred = logits
-          
-          
-          #output = discriminator(x_batch_train, generated_tokens)
-          
-          #print(output)
-          
-      
-          # Encode the input
-          enc_output, enc_state = self.encoder(unrolled_x, training=True)
-          # Initialize the decoder's state to the encoder's final state.
-          # This only works if the encoder and decoder have the same number of
-          # units.
-          dec_state = enc_state
-          loss = tf.constant(0.0)
-          
-          # Run the decoder one step.
-          #decoder_input = container_classes.DecoderInput(new_tokens=unrolled_y, enc_output=enc_output, mask=input_mask)
-
-          new_tokens = tf.fill([batch_size, seq_len], 0)
-          logits, dec_state = self.decoder(new_tokens, state=enc_state, training=True)
-          
-          y = unrolled_y
-          y_pred = logits
-          
-          if step == 0:
-              s_index = 3
-              print("Training: Sample 0, batch 0")
-              print(y[s_index].numpy())
-              print(tf.argmax(y_pred, axis=-1)[s_index].numpy())
-              error = self.loss(y[0], y_pred[0])
-              print(error)
-          #y_pred = tf.argmax(y_pred, axis=-1)
-          #print(y.shape, y_pred.shape)
-          loss = self.loss(y, y_pred)
-          #for t in tf.range(max_target_length-1):
-          #    new_tokens = unrolled_y[:, t:t+2]
-          #    step_loss, dec_state = self._loop_step(new_tokens, input_mask, enc_output, dec_state)
-          #    loss = loss + step_loss
-          # Average the loss over all non padding tokens.
-          average_loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
-          
-          #print("Batch {} loss: {}".format(str(step), str(average_loss.numpy())))
-
-          #pred_tokens = tf.argmax(dec_result.logits, axis=-1)
-          
-      # Apply an optimization step
-      variables = self.trainable_variables
-      gradients = tape.gradient(average_loss, variables)
-      self.optimizer.apply_gradients(zip(gradients, variables))
-      epo_avg_loss += average_loss.numpy()
-
-  # Return a dict mapping metric names to current value
-  return {'epo_loss': epo_avg_loss / (step + 1), 'encoder': self.encoder, 'decoder': self.decoder}
-
-
-with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
-      noise = tf.random.normal([batch_size, 100])
-      fake_y = generator(noise, training=True)
-      print(fake_y.shape)
-
-      real_output = discriminator(batch_real_y, training=True)
-      
-      fake_output = discriminator(batch_real_x, training=True) #tf.math.argmax(fake_y, axis=-1)
-
-      print(real_output.shape, fake_output.shape)
-      #disc_loss = discriminator_loss(real_output, fake_output)
-      gen_loss = generator_loss(fake_output)
-
-      print(gen_loss)
-    
-    gradients_of_generator = gen_tape.gradient(gen_loss, generator.trainable_variables)
-    print(gradients_of_generator)
-    generator_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
-''' 
-
 def _preprocess(input_text, target_text):
 
   # Convert IDs to masks.
   input_mask = input_text != 0
   target_mask = target_text != 0
   return input_text, input_mask, target_text, target_mask
-
 
 
 def _loop_step(new_tokens, input_mask, enc_output, dec_state):

@@ -23,7 +23,7 @@ PATH_SEQ_CLADE = PATH_PRE + "ncov_global.tsv"
 PATH_CLADES = "data/clade_in_clade_out.json"
       
 
-class Encoder(tf.keras.layers.Layer):
+'''class Encoder(tf.keras.layers.Layer):
   def __init__(self, input_vocab_size, embedding_dim, enc_units):
     super(Encoder, self).__init__()
     self.enc_units = enc_units
@@ -34,7 +34,7 @@ class Encoder(tf.keras.layers.Layer):
   def call(self, tokens, state=None, training=False):
     vectors = self.embedding(tokens)
     output, state = self.gru(vectors, initial_state=state, training=training)
-    return output, state
+    return output, state'''
 
 
 class Decoder(tf.keras.layers.Layer):
