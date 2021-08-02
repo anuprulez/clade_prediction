@@ -28,13 +28,8 @@ class Encoder(tf.keras.layers.Layer):
     super(Encoder, self).__init__()
     self.enc_units = enc_units
     self.input_vocab_size = input_vocab_size
-    self.embedding = tf.keras.layers.Embedding(self.input_vocab_size,
-                                               embedding_dim)
-    self.gru = tf.keras.layers.GRU(self.enc_units,
-                                   go_backwards=True,
-                                   return_sequences=True,
-                                   return_state=True,
-                                   recurrent_initializer='glorot_uniform')
+    self.embedding = tf.keras.layers.Embedding(self.input_vocab_size, embedding_dim)
+    self.gru = tf.keras.layers.GRU(self.enc_units, go_backwards=True, return_sequences=True, return_state=True, recurrent_initializer='glorot_uniform')
 
   def call(self, tokens, state=None, training=False):
     vectors = self.embedding(tokens)

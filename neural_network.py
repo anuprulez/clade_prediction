@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 import logging
 import tensorflow as tf
+import h5py
 
 import preprocess_sequences
 import sequence_to_sequence
@@ -15,13 +16,21 @@ import utils
 
 def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_size):
 
-    encoder = sequence_to_sequence.Encoder(vocab_size, embedding_dim, enc_units)
-
+    #encoder = sequence_to_sequence.Encoder(vocab_size, embedding_dim, enc_units)
+    
+    gen_inputs = tf.keras.Input(shape=(seq_len,))
+    gen_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
+    gen_gru = tf.keras.layers.GRU(enc_units, go_backwards=True, return_sequences=True, return_state=True, recurrent_initializer='glorot_uniform')
+    
+    inputs = tf.keras.Input(shape=(seq_len,))
+    embed = gen_embedding(gen_inputs)
+    gen_output, gen_state = gen_gru(embed)
+    
+    encoder_model = tf.keras.Model([gen_inputs], [gen_output, gen_state])
+    
+    enc_output, enc_state = encoder_model(inputs, training=True)
     decoder = sequence_to_sequence.Decoder(vocab_size, embedding_dim, enc_units)
 
-    inputs = tf.keras.Input(shape=(seq_len,))
-
-    enc_output, enc_state = encoder(inputs, training=True)
 
     ## TODO Add noise to enc_state to allow generation of multiple child sequences from a parent sequence
     noise = tf.keras.Input(shape=(enc_units,))
@@ -33,7 +42,14 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     
     gen_model = tf.keras.Model([inputs, new_tokens, noise], [logits])
     
-    return gen_model, encoder
+    '''f = h5py.File('data/generated_files/generator_encoder_weights.h5','w')
+    for wt in encoder.weights:
+        print(wt.name)
+        f.create_dataset(wt.name, data=wt.numpy())
+    f.close()'''
+    encoder_model.save_weights('data/generated_files/generator_encoder_weights.h5')
+    
+    return gen_model, encoder_model
 
 
 def make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units):
@@ -44,7 +60,6 @@ def make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units):
     
     # parent seq encoder model
     parent_inputs = tf.keras.Input(shape=(None,))
-    gen_enc_wt = []
     enc_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
     enc_GRU = tf.keras.layers.GRU(enc_units, go_backwards=True,
                                    return_sequences=True,
@@ -56,17 +71,14 @@ def make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units):
     enc_outputs, enc_state = enc_GRU(parent_inputs_embedding)
     print(enc_outputs.shape, enc_state.shape)
     ParentEncoder_model = tf.keras.Model([parent_inputs], [enc_state])
-    #print(gen_enc_wt)
-    
-    
+
     # generated seq encoder model
     gen_inputs = tf.keras.Input(shape=(None, vocab_size))
     enc_inputsGen = tf.keras.layers.Dense(embedding_dim, activation='linear', use_bias=False)(gen_inputs)
     enc_outputsGen, stateGen = enc_GRU(enc_inputsGen)
     encoder_stateGen = [stateGen]
     GeneratorEncoder_model = tf.keras.Model([gen_inputs], encoder_stateGen)
-    
-    #ParentEncoder_model.set_weights(gen_enc_wt)
+    ParentEncoder_model.load_weights('data/generated_files/generator_encoder_weights.h5')
     GeneratorEncoder_model.layers[1].set_weights(enc_embedding.get_weights())
     
     xPar = ParentEncoder_model([parent_inputs])

@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 import logging
 import tensorflow as tf
+import h5py
 
 import preprocess_sequences
 import utils
@@ -53,41 +54,20 @@ def start_training(inputs, generator, encoder, discriminator):
 
           generated_tokens = tf.math.argmax(generated_logits, axis=-1)
           print(generated_tokens.shape)
-          
-          #enc_wt = tf.convert_to_tensor(encoder.get_weights())
-          
-          
+          print(encoder.weights)
+          real_y = tf.one_hot(unrolled_y, depth=generated_logits.shape[-1], axis=-1)
+
           fake_output = discriminator([unrolled_x, generated_logits])
-          real_output = discriminator([unrolled_y, generated_logits])
-          
+          real_output = discriminator([unrolled_x, real_y])
+
           print(fake_output.shape)
           print(real_output.shape)
-          
+
           disc_loss = discriminator_loss(real_output, fake_output)
 
           gen_loss = generator_loss(fake_output)
-          
+
           print(gen_loss, disc_loss)
-
-          '''par_enc_output, par_enc_state = encoder(unrolled_x)
-          print(par_enc_output.shape, par_enc_state.shape)
-
-          gen_enc_output, gen_enc_state = encoder(generated_tokens)
-          print(gen_enc_output.shape, gen_enc_state.shape)
-
-          real_enc_output, real_enc_state = encoder(unrolled_y)
-          print(real_enc_output.shape, real_enc_output.shape)
-
-          fake_output = discriminator([par_enc_state, gen_enc_state])
-          real_output = discriminator([par_enc_state, real_enc_state])
-
-          print(fake_output.shape, real_output.shape)'''
-
-          '''disc_loss = discriminator_loss(real_output, fake_output)
-
-          gen_loss = generator_loss(fake_output)
-
-          print(gen_loss, disc_loss)'''
 
       gradients_of_generator = gen_tape.gradient(gen_loss, generator.trainable_variables)
       generator_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
