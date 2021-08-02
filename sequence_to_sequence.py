@@ -28,12 +28,8 @@ class Encoder(tf.keras.layers.Layer):
     super(Encoder, self).__init__()
     self.enc_units = enc_units
     self.input_vocab_size = input_vocab_size
-
-    # The embedding layer converts tokens to vectors
     self.embedding = tf.keras.layers.Embedding(self.input_vocab_size,
                                                embedding_dim)
-
-    # The GRU RNN layer processes those vectors sequentially.
     self.gru = tf.keras.layers.GRU(self.enc_units,
                                    go_backwards=True,
                                    return_sequences=True,
@@ -41,14 +37,9 @@ class Encoder(tf.keras.layers.Layer):
                                    recurrent_initializer='glorot_uniform')
 
   def call(self, tokens, state=None, training=False):
-    # 2. The embedding layer looks up the embedding for each token.
     vectors = self.embedding(tokens)
-    # 3. The GRU processes the embedding sequence.
     output, state = self.gru(vectors, initial_state=state, training=training)
-    #print(output.shape, state.shape)    
-    #output, state = self.gru1(output, initial_state=state)
-    #print(output.shape, state.shape)
-    # 4. Returns the new sequence and its state.
+
     return output, state
 
 
@@ -58,69 +49,24 @@ class Decoder(tf.keras.layers.Layer):
     self.dec_units = dec_units
     self.output_vocab_size = output_vocab_size
     self.embedding_dim = embedding_dim
-
-    # For Step 1. The embedding layer convets token IDs to vectors
     self.embedding = tf.keras.layers.Embedding(self.output_vocab_size,
                                                embedding_dim)
-
-    # For Step 2. The RNN keeps track of what's been generated so far.
     self.gru = tf.keras.layers.GRU(self.dec_units,
                                    go_backwards=True,
                                    return_sequences=True,
                                    return_state=True,
                                    recurrent_initializer='glorot_uniform')
-    
-    
-   
-    #self.dropout = tf.keras.layers.Dropout(0.2)
-    # For step 3. The RNN output will be the query for the attention layer.
-    #self.attention = battention.BahdanauAttention(self.dec_units)
 
-    # For step 4. Eqn. (3): converting `ct` to `at`
     self.Wc = tf.keras.layers.Dense(dec_units, activation=tf.math.tanh,
                                     use_bias=False)
-
-    # For step 5. This fully connected layer produces the logits for each
-    # output token.
     self.fc = tf.keras.layers.Dense(self.output_vocab_size, use_bias=False)
 
 
 def call(self, inputs, state=None, training=False):
-
-    # Step 1. Lookup the embeddings
     vectors = self.embedding(inputs)
-    #print("vectors")
-    #print(vectors.shape)
-
-    # Step 2. Process one step with the RNN
     rnn_output, state = self.gru(vectors, initial_state=state, training=training)
-    #print("rnn_output")
-    #print(rnn_output.shape)
-    # Step 3. Use the RNN output as the query for the attention over the
-    # encoder output.
-    #context_vector, attention_weights = self.attention(query=rnn_output, value=inputs.enc_output, mask=inputs.mask)
-
-    #rnn_output, state = self.gru1(rnn_output, initial_state=state)
-    # Step 4. Eqn. (3): Join the context_vector and rnn_output
-    #     [ct; ht] shape: (batch t, value_units + query_units)
-    #context_and_rnn_output = tf.concat([context_vector, rnn_output], axis=-1)
-
-    # Step 4. Eqn. (3): `at = tanh(Wc@[ct; ht])`
-    #attention_vector = self.Wc(context_and_rnn_output)
-    #rnn_output = self.dropout(rnn_output)
-
     attention_vector = self.Wc(rnn_output)
-    #print("attention_vector")
-    #print(attention_vector.shape)
-    #attention_weights = None
-    # Step 5. Generate logit predictions:
-    #attention_vector = self.dropout(attention_vector)
-    
     logits = self.fc(attention_vector)
-    #print("logits")
-    #print(logits.shape)
-    #print("--------------------")
-
     return logits, state
 
 Decoder.call = call

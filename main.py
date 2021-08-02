@@ -105,7 +105,7 @@ def read_files():
     embedding_dim = 16
     enc_units = 16
     factor = 1
-    epochs = 2
+    epochs = 1
     n_samples = factor * batch_size
     
     train_real_x = [np.random.randint(vocab_size, size=seq_len) for i in range(n_samples)]
@@ -138,9 +138,9 @@ def start_training(train_real_x, train_real_y, embedding_dim, units, batch_size,
     
     discriminator = neural_network.make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units)
     
-    #print(generator)
+    print(generator)
     
-    #print(discriminator)
+    print(discriminator)
     
     print("Start training ...")
     
@@ -149,7 +149,7 @@ def start_training(train_real_x, train_real_y, embedding_dim, units, batch_size,
 
     for n in range(epochs):
         print("Training epoch {}...".format(str(n+1)))
-        train_model.start_training([dataset_in, dataset_out], generator, encoder, disc_par_enc, disc_gen_enc, discriminator)
+        train_model.start_training([dataset_in, dataset_out], generator, encoder, discriminator)
     
     
     '''tr_clade_files = glob.glob('data/train/*.csv')

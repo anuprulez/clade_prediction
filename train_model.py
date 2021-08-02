@@ -31,7 +31,7 @@ def generator_loss(fake_output):
     return cross_entropy(tf.ones_like(fake_output), fake_output)
     
      
-def start_training(inputs, generator, encoder, disc_par_enc, disc_gen_enc, discriminator):
+def start_training(inputs, generator, encoder, discriminator):
   input_tokens, target_tokens = inputs  
   epo_avg_loss = 0.0
   for step, (x_batch_train, y_batch_train) in enumerate(zip(input_tokens, target_tokens)):
