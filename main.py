@@ -132,7 +132,7 @@ def start_training(train_real_x, train_real_y, embedding_dim, units, batch_size,
 
     generator, encoder = neural_network.make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_size)
     
-    disc_par_enc, disc_gen_enc = neural_network.make_disc_par_enc_model(seq_len, vocab_size, embedding_dim, enc_units)
+    #disc_par_enc, disc_gen_enc = neural_network.make_disc_par_enc_model(seq_len, vocab_size, embedding_dim, enc_units)
     
     #disc_gen_enc =  neural_network.make_disc_gen_enc_model(seq_len, vocab_size, embedding_dim, enc_units)
     

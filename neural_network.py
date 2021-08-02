@@ -22,46 +22,19 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     inputs = tf.keras.Input(shape=(seq_len,))
 
     enc_output, enc_state = encoder(inputs, training=True)
-    
+
     ## TODO Add noise to enc_state to allow generation of multiple child sequences from a parent sequence
     noise = tf.keras.Input(shape=(enc_units,))
     
-    enc_state = tf.math.add(enc_state, noise)
+    #enc_state = tf.math.add(enc_state, noise)
     new_tokens = tf.keras.Input(shape=(seq_len,))
     
-    logits, dec_state = decoder(new_tokens, state=enc_state, training=True)
+    logits = decoder(new_tokens, state=enc_state, training=True)
     
-    gen_model = tf.keras.Model([inputs, new_tokens, noise], [logits, dec_state])
+    gen_model = tf.keras.Model([inputs, new_tokens, noise], [logits])
     
     return gen_model, encoder
 
-
-def make_disc_par_enc_model(seq_len, vocab_size, embedding_dim, enc_units):
-    # parent seq encoder model
-    parent_inputs = tf.keras.Input(shape=(None,))
-    enc_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
-    enc_GRU = tf.keras.layers.GRU(enc_units, return_state=True)
-    
-    parent_inputs_embedding = enc_embedding(parent_inputs)
-    #enc_outputs, fwd_hPar, fwd_cPar, bwd_hPar, bwd_cPar = enc_BiGRU(parent_inputs_embedding)
-    enc_outputs, enc_state = enc_GRU(parent_inputs_embedding)
-    print(enc_outputs.shape, enc_state.shape)
-    #state_hPar = #Concatenate()([fwd_hPar, bwd_hPar])
-    #state_cPar= #Concatenate()([fwd_cPar, bwd_cPar])
-    #encoder_statePar = [state_hPar, state_cPar]
-    ParentEncoder_model = tf.keras.Model([parent_inputs], [enc_state])
-    
-    # generated seq encoder model
-    gen_inputs = tf.keras.Input(shape=(None, vocab_size))
-    enc_inputsGen = tf.keras.layers.Dense(embedding_dim, activation='linear', use_bias=False)(gen_inputs)
-    #enc_outputsGen, fwd_hGen, fwd_cGen, bwd_hGen, bwd_cGen = enc_BiGRU(enc_inputsGen)
-    enc_outputsGen, stateGen = enc_GRU(enc_inputsGen)
-    #state_hGen = Concatenate()([fwd_hGen, bwd_hGen])
-    #state_cGen = Concatenate()([fwd_cGen, bwd_cGen])
-    encoder_stateGen = [stateGen]
-    GeneratorEncoder_model = tf.keras.Model([gen_inputs], encoder_stateGen)
-    
-    return ParentEncoder_model, GeneratorEncoder_model
 
 def make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units):
 
@@ -88,3 +61,31 @@ def make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units):
     
     return disc_model
 
+'''
+def make_disc_par_enc_model(seq_len, vocab_size, embedding_dim, enc_units):
+    # parent seq encoder model
+    parent_inputs = tf.keras.Input(shape=(None,))
+    enc_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
+    enc_GRU = tf.keras.layers.GRU(enc_units, return_state=True)
+    
+    parent_inputs_embedding = enc_embedding(parent_inputs)
+    #enc_outputs, fwd_hPar, fwd_cPar, bwd_hPar, bwd_cPar = enc_BiGRU(parent_inputs_embedding)
+    enc_outputs, enc_state = enc_GRU(parent_inputs_embedding)
+    print(enc_outputs.shape, enc_state.shape)
+    #state_hPar = #Concatenate()([fwd_hPar, bwd_hPar])
+    #state_cPar= #Concatenate()([fwd_cPar, bwd_cPar])
+    #encoder_statePar = [state_hPar, state_cPar]
+    ParentEncoder_model = tf.keras.Model([parent_inputs], [enc_state])
+    
+    # generated seq encoder model
+    gen_inputs = tf.keras.Input(shape=(None, vocab_size))
+    enc_inputsGen = tf.keras.layers.Dense(embedding_dim, activation='linear', use_bias=False)(gen_inputs)
+    #enc_outputsGen, fwd_hGen, fwd_cGen, bwd_hGen, bwd_cGen = enc_BiGRU(enc_inputsGen)
+    enc_outputsGen, stateGen = enc_GRU(enc_inputsGen)
+    #state_hGen = Concatenate()([fwd_hGen, bwd_hGen])
+    #state_cGen = Concatenate()([fwd_cGen, bwd_cGen])
+    encoder_stateGen = [stateGen]
+    GeneratorEncoder_model = tf.keras.Model([gen_inputs], encoder_stateGen)
+    
+    return ParentEncoder_model, GeneratorEncoder_model
+'''

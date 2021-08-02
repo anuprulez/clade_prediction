@@ -39,7 +39,6 @@ class Encoder(tf.keras.layers.Layer):
   def call(self, tokens, state=None, training=False):
     vectors = self.embedding(tokens)
     output, state = self.gru(vectors, initial_state=state, training=training)
-
     return output, state
 
 
@@ -52,21 +51,19 @@ class Decoder(tf.keras.layers.Layer):
     self.embedding = tf.keras.layers.Embedding(self.output_vocab_size,
                                                embedding_dim)
     self.gru = tf.keras.layers.GRU(self.dec_units,
-                                   go_backwards=True,
                                    return_sequences=True,
-                                   return_state=True,
+                                   return_state=False,
                                    recurrent_initializer='glorot_uniform')
 
-    self.Wc = tf.keras.layers.Dense(dec_units, activation=tf.math.tanh,
-                                    use_bias=False)
-    self.fc = tf.keras.layers.Dense(self.output_vocab_size, use_bias=False)
+    self.Wc = tf.keras.layers.Dense(dec_units, activation=tf.math.tanh, use_bias=False)
+    self.fc = tf.keras.layers.Dense(self.output_vocab_size, use_bias=False, activation=tf.keras.activations.softmax)
 
 
 def call(self, inputs, state=None, training=False):
     vectors = self.embedding(inputs)
-    rnn_output, state = self.gru(vectors, initial_state=state, training=training)
+    rnn_output = self.gru(vectors, initial_state=state, training=training)
     attention_vector = self.Wc(rnn_output)
     logits = self.fc(attention_vector)
-    return logits, state
+    return logits
 
 Decoder.call = call
