@@ -42,8 +42,37 @@ def make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units):
     #ParentEncoder_model.load_weights('Influenza_biLSTM_encoder_model_128_4500_weights.h5')
     #GeneratorEncoder_model.layers[1].set_weights(enc_embedding.get_weights())
     
-    xPar = tf.keras.Input(shape=(None, enc_units)) #ParentEncoder_model([parent_inputs])
-    xGen = tf.keras.Input(shape=(None, enc_units)) #GeneratorEncoder_model([gen_inputs])
+    # parent seq encoder model
+    parent_inputs = tf.keras.Input(shape=(None,))
+    gen_enc_wt = []
+    enc_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
+    enc_GRU = tf.keras.layers.GRU(enc_units, go_backwards=True,
+                                   return_sequences=True,
+                                   return_state=True,
+                                   recurrent_initializer='glorot_uniform')
+    
+    parent_inputs_embedding = enc_embedding(parent_inputs)
+    print(parent_inputs_embedding.shape)
+    enc_outputs, enc_state = enc_GRU(parent_inputs_embedding)
+    print(enc_outputs.shape, enc_state.shape)
+    ParentEncoder_model = tf.keras.Model([parent_inputs], [enc_state])
+    #print(gen_enc_wt)
+    
+    
+    # generated seq encoder model
+    gen_inputs = tf.keras.Input(shape=(None, vocab_size))
+    enc_inputsGen = tf.keras.layers.Dense(embedding_dim, activation='linear', use_bias=False)(gen_inputs)
+    enc_outputsGen, stateGen = enc_GRU(enc_inputsGen)
+    encoder_stateGen = [stateGen]
+    GeneratorEncoder_model = tf.keras.Model([gen_inputs], encoder_stateGen)
+    
+    #ParentEncoder_model.set_weights(gen_enc_wt)
+    GeneratorEncoder_model.layers[1].set_weights(enc_embedding.get_weights())
+    
+    xPar = ParentEncoder_model([parent_inputs])
+    xGen = GeneratorEncoder_model([gen_inputs]) 
+    #xPar = tf.keras.Input(shape=(None, enc_units)) #ParentEncoder_model([parent_inputs])
+    #xGen = tf.keras.Input(shape=(None, enc_units)) #GeneratorEncoder_model([gen_inputs])
     xConcat = tf.keras.layers.Concatenate()([xPar+xGen])
     x = tf.keras.layers.Dropout(0.2)(xConcat)
     #x = tf.keras.layers.BatchNormalization()(x)
@@ -57,7 +86,7 @@ def make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units):
     #x = tf.keras.layers.BatchNormalization()(x)
     output_class = tf.keras.layers.Dense(1, activation='linear')(x)
     
-    disc_model = tf.keras.Model([xPar, xGen], [output_class]) # parent_inputs, gen_inputs
+    disc_model = tf.keras.Model([parent_inputs, gen_inputs], [output_class]) # parent_inputs, gen_inputs
     
     return disc_model
 
