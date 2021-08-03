@@ -10,11 +10,12 @@ import tensorflow as tf
 import h5py
 
 import utils
+import masked_loss
 
 ENC_WEIGHTS_SAVE_PATH = "data/generated_files/generator_encoder_weights.h5"
 
-generator_optimizer = tf.keras.optimizers.Adam(1e-4)
-discriminator_optimizer = tf.keras.optimizers.Adam(1e-4)
+generator_optimizer = tf.keras.optimizers.Adam(1e-3)
+discriminator_optimizer = tf.keras.optimizers.Adam(1e-3)
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
 
@@ -33,6 +34,7 @@ def start_training(inputs, enc_units, generator, encoder, par_enc_model, gen_enc
   input_tokens, target_tokens = inputs  
   epo_avg_gen_loss = list()
   epo_avg_disc_loss = list()
+  m_loss = masked_loss.MaskedLoss()
   for step, (x_batch_train, y_batch_train) in enumerate(zip(input_tokens, target_tokens)):
       unrolled_x = utils.convert_to_array(x_batch_train)
       unrolled_y = utils.convert_to_array(y_batch_train)
@@ -68,6 +70,11 @@ def start_training(inputs, enc_units, generator, encoder, par_enc_model, gen_enc
 
           gen_loss = generator_loss(fake_output)
 
+          gen_true_loss = m_loss(unrolled_y, generated_logits)
+          print(gen_true_loss)
+          target_mask = unrolled_y != 0
+          gen_true_loss = gen_true_loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
+          print(gen_true_loss)
           print("Batch {}, Generator loss: {}, Discriminator loss: {}".format(str(step), str(gen_loss.numpy()), str(disc_loss.numpy())))
           epo_avg_gen_loss.append(gen_loss.numpy())
           epo_avg_disc_loss.append(disc_loss.numpy())

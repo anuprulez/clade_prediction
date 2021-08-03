@@ -26,10 +26,10 @@ PATH_CLADES = "data/clade_in_clade_out_19A_20A.json" #"data/clade_in_clade_out.j
 TRAIN_GEN_LOSS = "data/generated_files/tr_gen_loss.txt"
 TRAIN_DISC_LOSS = "data/generated_files/tr_disc_loss.txt"
 TEST_LOSS = "data/generated_files/te_loss.txt"
-embedding_dim = 32
+embedding_dim = 16
 batch_size = 64
-enc_units = 128
-epochs = 10
+enc_units = 256
+epochs = 20
 LEN_AA = 1273
 
 # https://www.tensorflow.org/text/tutorials/nmt_with_attention
