@@ -25,6 +25,7 @@ PATH_SEQ_CLADE = PATH_PRE + "ncov_global.tsv"
 PATH_CLADES = "data/clade_in_clade_out_19A_20A.json" #"data/clade_in_clade_out.json"
 TRAIN_GEN_LOSS = "data/generated_files/tr_gen_loss.txt"
 TRAIN_DISC_LOSS = "data/generated_files/tr_disc_loss.txt"
+TEST_LOSS = "data/generated_files/te_loss.txt"
 embedding_dim = 32
 batch_size = 64
 enc_units = 128
@@ -96,6 +97,7 @@ def start_training(vocab_size):
         print(tr_clade_df.shape)
         dataset_in = tf.data.Dataset.from_tensor_slices((X)).batch(batch_size)
         dataset_out = tf.data.Dataset.from_tensor_slices((y)).batch(batch_size)
+        total_te_loss = []
         for n in range(epochs):
             print("Training epoch {}...".format(str(n+1)))
             epo_gen_loss, epo_disc_loss = train_model.start_training([dataset_in, dataset_out], enc_units, generator, encoder, parent_encoder_model, gen_encoder_model, discriminator)
@@ -109,12 +111,13 @@ def start_training(vocab_size):
                 te_y = te_clade_df["Y"]
                 print(te_clade_df.shape)
                 print("Prediction on test data...")
-                predict_sequence(te_X, te_y, LEN_AA, vocab_size, batch_size)
-            
+                te_loss = predict_sequence(te_X, te_y, LEN_AA, vocab_size, batch_size)
+                total_te_loss.append(te_loss)
         np.savetxt(TRAIN_GEN_LOSS, train_gen_loss)
         np.savetxt(TRAIN_DISC_LOSS, train_disc_loss)
+        np.savetxt(TEST_LOSS, total_te_loss)
 
-def predict_sequence(test_x, test_y, model, seq_len, vocab_size, batch_size):
+def predict_sequence(test_x, test_y, seq_len, vocab_size, batch_size):
     avg_test_loss = []
     test_dataset_in = tf.data.Dataset.from_tensor_slices((test_x)).batch(batch_size)
     test_dataset_out = tf.data.Dataset.from_tensor_slices((test_y)).batch(batch_size)
@@ -133,26 +136,26 @@ def predict_sequence(test_x, test_y, model, seq_len, vocab_size, batch_size):
             noise = tf.random.normal((batch_size, enc_units))
             generated_logits = model([batch_x_test, new_tokens, noise], training=False)
             generated_tokens = tf.math.argmax(generated_logits, axis=-1)
-            if step == 5:
+            '''if step == 5:
                 print("Test: Sample 0, batch {}".format(str(step)))
                 print(batch_y_test[0])
                 print(tf.argmax(generated_logits, axis=-1)[0])
-                print(m_loss(batch_y_test[0], generated_logits[0]))
+                print(m_loss(batch_y_test[0], generated_tokens[0]))'''
         
             # compute loss
             y = batch_y_test
             y_pred = generated_logits
             loss = m_loss(y, y_pred)
-        
-            #print(target_mask.shape)
+
             average_loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
             real_loss = average_loss.numpy()
             print("Test: Batch {} loss: {}".format(str(i), str(real_loss)))
             avg_test_loss.append(real_loss)
             i += 1
-    print("Total test loss: {}".format(str(np.mean(avg_test_loss))))
-    print()
-
+    mean_loss = np.mean(avg_test_loss)
+    print("Total test loss: {}".format(str(mean_loss)))
+    return mean_loss
+    
 
 if __name__ == "__main__":
     start_time = time.time()
