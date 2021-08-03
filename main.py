@@ -98,7 +98,7 @@ def start_training(vocab_size):
         dataset_out = tf.data.Dataset.from_tensor_slices((y)).batch(batch_size)
         for n in range(epochs):
             print("Training epoch {}...".format(str(n+1)))
-            epo_gen_loss, epo_disc_loss, generator = train_model.start_training([dataset_in, dataset_out], enc_units, generator, encoder, parent_encoder_model, gen_encoder_model, discriminator)
+            epo_gen_loss, epo_disc_loss = train_model.start_training([dataset_in, dataset_out], enc_units, generator, encoder, parent_encoder_model, gen_encoder_model, discriminator)
             print("Training loss at step {}: Generator loss: {}, Discriminator loss :{}".format(str(n+1), str(epo_gen_loss), str(epo_disc_loss)))
             train_gen_loss.append(epo_gen_loss)
             train_disc_loss.append(epo_disc_loss)
@@ -109,35 +109,10 @@ def start_training(vocab_size):
                 te_y = te_clade_df["Y"]
                 print(te_clade_df.shape)
                 print("Prediction on test data...")
-                predict_sequence(te_X, te_y, generator, LEN_AA, vocab_size, batch_size)
+                predict_sequence(te_X, te_y, LEN_AA, vocab_size, batch_size)
             
         np.savetxt(TRAIN_GEN_LOSS, train_gen_loss)
         np.savetxt(TRAIN_DISC_LOSS, train_disc_loss)
-        
-        
-    '''tr_clade_files = glob.glob('data/train/*.csv')
-    te_clade_files = glob.glob('data/test/*.csv')
-    
-    for name in tr_clade_files:
-        tr_clade_df = pd.read_csv(name, sep="\t")
-        X = tr_clade_df["X"]
-        y = tr_clade_df["Y"]
-        print(tr_clade_df.shape)
-        dataset_in = tf.data.Dataset.from_tensor_slices((X)).batch(batch_size)
-        dataset_out = tf.data.Dataset.from_tensor_slices((y)).batch(batch_size)
-        for n in range(epochs):
-            print("Training epoch {}...".format(str(n+1)))
-            batch_learning = model.train_step([dataset_in, dataset_out])
-            encoder = batch_learning['encoder']
-            decoder = batch_learning['decoder']
-            print("Training loss at step {}: {}".format(str(n+1), str(np.round(batch_learning["epo_loss"], 8))))
-            for te_name in te_clade_files:
-                te_clade_df = pd.read_csv(te_name, sep="\t")
-                te_X = te_clade_df["X"]
-                te_y = te_clade_df["Y"]
-                #print(te_clade_df.shape)
-                #print("Prediction on test data...")
-                #predict_sequence(te_X, te_y, encoder, decoder, model, LEN_AA, vocab_size, batch_size)'''
 
 def predict_sequence(test_x, test_y, model, seq_len, vocab_size, batch_size):
     avg_test_loss = []
@@ -145,12 +120,12 @@ def predict_sequence(test_x, test_y, model, seq_len, vocab_size, batch_size):
     test_dataset_out = tf.data.Dataset.from_tensor_slices((test_y)).batch(batch_size)
     i = 0
     m_loss = masked_loss.MaskedLoss()
+    model = tf.keras.models.load_model("data/generated_files/model")
     for step, (x, y) in enumerate(zip(test_dataset_in, test_dataset_out)):
     
         batch_x_test = utils.convert_to_array(x)
         batch_y_test = utils.convert_to_array(y)
-        #print(batch_x_test.shape, batch_y_test.shape)
-        
+
         if batch_x_test.shape[0] == batch_size:
             input_mask = batch_x_test != 0
             target_mask = batch_y_test != 0

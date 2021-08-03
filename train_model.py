@@ -77,8 +77,9 @@ def start_training(inputs, enc_units, generator, encoder, par_enc_model, gen_enc
 
       gradients_of_discriminator = disc_tape.gradient(disc_loss, discriminator.trainable_variables)
       discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
-
-  return np.mean(epo_avg_gen_loss), np.mean(epo_avg_disc_loss), generator
+  # save model
+  tf.keras.models.save_model(generator, "data/generated_files/model")
+  return np.mean(epo_avg_gen_loss), np.mean(epo_avg_disc_loss)
 
 def _preprocess(input_text, target_text):
 
