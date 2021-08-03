@@ -22,9 +22,11 @@ PATH_PRE = "data/ncov_global/"
 PATH_SEQ = PATH_PRE + "spike_protein.fasta" #"ncov_global.fasta"
 PATH_SEQ_CLADE = PATH_PRE + "ncov_global.tsv"
 PATH_CLADES = "data/clade_in_clade_out_19A_20A.json" #"data/clade_in_clade_out.json"
+TRAIN_GEN_LOSS = "data/generated_files/tr_gen_loss.txt"
+TRAIN_DISC_LOSS = "data/generated_files/tr_disc_loss.txt"
 embedding_dim = 8
 batch_size = 16
-units = 64
+enc_units = 64
 epochs = 10
 LEN_AA = 1275
 
@@ -32,7 +34,7 @@ LEN_AA = 1275
 
 
 def read_files():
-    '''samples_clades = preprocess_sequences.get_samples_clades(PATH_SEQ_CLADE)
+    samples_clades = preprocess_sequences.get_samples_clades(PATH_SEQ_CLADE)
     
     clades_in_clades_out = utils.read_json(PATH_CLADES)
 
@@ -42,7 +44,7 @@ def read_files():
     print("Generating cross product...")
     preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df)
     
-    vocab_size = utils.embedding_info(forward_dict)'''
+    vocab_size = utils.embedding_info(forward_dict)
     
     #print("Transforming generated samples...")
     #train_x, train_y, test_x, test_y = preprocess_sequences.transform_encoded_samples()
@@ -94,31 +96,19 @@ def read_files():
     
     dataset_in = tf.data.Dataset.from_tensor_slices((train_x)).batch(batch_size)
     dataset_out = tf.data.Dataset.from_tensor_slices((train_y)).batch(batch_size)'''
-    
-    seq_len = 50
-    vocab_size = 20
-    latent_dim = 100
-    batch_size = 32
-    embedding_dim = 16
-    enc_units = 16
-    factor = 1
-    epochs = 1
-    
-    
-    
 
-    start_training()
+    start_training(vocab_size)
 
 
-def start_training():
+def start_training(vocab_size):
     
-    seq_len = 50
+    '''seq_len = 50
     vocab_size = 20
     batch_size = 32
     embedding_dim = 16
     enc_units = 32
-    factor = 100
-    epochs = 10
+    factor = 5
+    epochs = 1
     n_samples = factor * batch_size
     
     train_real_x = [np.random.randint(vocab_size, size=seq_len) for i in range(n_samples)]
@@ -128,22 +118,51 @@ def start_training():
     train_real_y = [np.random.randint(vocab_size, size=seq_len) for i in range(n_samples)]
     train_real_y = np.array(train_real_y)
     print(train_real_y.shape)
+    dataset_in = tf.data.Dataset.from_tensor_slices((train_real_x)).batch(batch_size)
+    dataset_out = tf.data.Dataset.from_tensor_slices((train_real_y)).batch(batch_size)
+    
+    '''
 
-    generator, encoder = neural_network.make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_size)
+    generator, encoder = neural_network.make_generator_model(LEN_AA, vocab_size, embedding_dim, enc_units, batch_size)
 
     parent_encoder_model, gen_encoder_model = neural_network.make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units)
 
     discriminator = neural_network.make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units)
 
     print("Start training ...")
+    
+    tr_clade_files = glob.glob('data/train/*.csv')
+    te_clade_files = glob.glob('data/test/*.csv')
 
-    dataset_in = tf.data.Dataset.from_tensor_slices((train_real_x)).batch(batch_size)
-    dataset_out = tf.data.Dataset.from_tensor_slices((train_real_y)).batch(batch_size)
-
-    for n in range(epochs):
-        print("Training epoch {}...".format(str(n+1)))
-        epo_gen_loss, epo_disc_loss = train_model.start_training([dataset_in, dataset_out], enc_units, generator, encoder, parent_encoder_model, gen_encoder_model, discriminator)
-        print("Training loss at step {}: Generator loss: {}, Discriminator loss :{}".format(str(n+1), str(epo_gen_loss), str(epo_disc_loss)))
+    train_gen_loss = list()
+    train_disc_loss = list()
+    
+    for name in tr_clade_files:
+        tr_clade_df = pd.read_csv(name, sep="\t")
+        X = tr_clade_df["X"]
+        y = tr_clade_df["Y"]
+        print(tr_clade_df.shape)
+        dataset_in = tf.data.Dataset.from_tensor_slices((X)).batch(batch_size)
+        dataset_out = tf.data.Dataset.from_tensor_slices((y)).batch(batch_size)
+        for n in range(epochs):
+            print("Training epoch {}...".format(str(n+1)))
+            epo_gen_loss, epo_disc_loss, generator = train_model.start_training([dataset_in, dataset_out], enc_units, generator, encoder, parent_encoder_model, gen_encoder_model, discriminator)
+            print("Training loss at step {}: Generator loss: {}, Discriminator loss :{}".format(str(n+1), str(epo_gen_loss), str(epo_disc_loss)))
+            train_gen_loss.append(epo_gen_loss)
+            train_disc_loss.append(epo_disc_loss)
+            
+            '''for te_name in te_clade_files:
+                te_clade_df = pd.read_csv(te_name, sep="\t")
+                te_X = te_clade_df["X"]
+                te_y = te_clade_df["Y"]
+                print(te_clade_df.shape)
+                print("Prediction on test data...")
+                predict_sequence(te_X, te_y, generator, LEN_AA, vocab_size, batch_size)'''
+            
+        np.savetxt(TRAIN_GEN_LOSS, train_gen_loss)
+        np.savetxt(TRAIN_DISC_LOSS, train_disc_loss)
+        
+        
     '''tr_clade_files = glob.glob('data/train/*.csv')
     te_clade_files = glob.glob('data/test/*.csv')
     
