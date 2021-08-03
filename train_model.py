@@ -11,14 +11,12 @@ import h5py
 
 import utils
 
+ENC_WEIGHTS_SAVE_PATH = "data/generated_files/generator_encoder_weights.h5"
 
 generator_optimizer = tf.keras.optimizers.Adam(1e-4)
 discriminator_optimizer = tf.keras.optimizers.Adam(1e-4)
-
-
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
-mse = tf.keras.losses.MeanSquaredError()
 
 def discriminator_loss(real_output, fake_output):
     real_loss = cross_entropy(tf.ones_like(real_output), real_output)
@@ -31,50 +29,48 @@ def generator_loss(fake_output):
     return cross_entropy(tf.ones_like(fake_output), fake_output)
     
 
-def start_training(inputs, generator, encoder, par_enc_model, gen_enc_model, discriminator):
+def start_training(inputs, enc_units, generator, encoder, par_enc_model, gen_enc_model, discriminator):
   input_tokens, target_tokens = inputs  
-  epo_avg_loss = 0.0
+  epo_avg_gen_loss = list()
+  epo_avg_disc_loss = list()
   for step, (x_batch_train, y_batch_train) in enumerate(zip(input_tokens, target_tokens)):
       unrolled_x = utils.convert_to_array(x_batch_train)
       unrolled_y = utils.convert_to_array(y_batch_train)
       (_, input_mask, _, target_mask) = _preprocess(unrolled_x, unrolled_y)
       seq_len = unrolled_x.shape[1]
       batch_size = unrolled_x.shape[0]
-      enc_units = 32
       with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
 
           new_tokens = tf.fill([batch_size, seq_len], 0)
           noise = tf.random.normal((batch_size, enc_units))
 
           generated_logits = generator([unrolled_x, new_tokens, noise], training=True)
-          print(generated_logits.shape)
 
           generated_tokens = tf.math.argmax(generated_logits, axis=-1)
-          print(generated_tokens.shape)
 
-          encoder.save_weights('data/generated_files/generator_encoder_weights.h5')
+          encoder.save_weights(ENC_WEIGHTS_SAVE_PATH)
 
-          par_enc_model.load_weights('data/generated_files/generator_encoder_weights.h5')
-          #print(par_enc_model.get_weights())
+          # update weights of the discriminator's encoder models
+          par_enc_model.load_weights(ENC_WEIGHTS_SAVE_PATH)
           gen_enc_model.layers[1].set_weights(par_enc_model.layers[1].get_weights())
 
+          # reformat real output to one-hot encoding
           real_y = tf.one_hot(unrolled_y, depth=generated_logits.shape[-1], axis=-1)
 
-          par_enc_real_state_x = par_enc_model(unrolled_x)
-          gen_real_enc_state_y = gen_enc_model(real_y)
-          gen_enc_fake_state_x = gen_enc_model(generated_logits)
+          par_enc_real_state_x = par_enc_model(unrolled_x, training=True)
+          gen_real_enc_state_y = gen_enc_model(real_y, training=True)
+          gen_enc_fake_state_x = gen_enc_model(generated_logits, training=True)
 
-          fake_output = discriminator([par_enc_real_state_x, gen_enc_fake_state_x])
-          real_output = discriminator([par_enc_real_state_x, gen_real_enc_state_y])
-
-          print(fake_output.shape)
-          print(real_output.shape)
+          fake_output = discriminator([par_enc_real_state_x, gen_enc_fake_state_x], training=True)
+          real_output = discriminator([par_enc_real_state_x, gen_real_enc_state_y], training=True)
 
           disc_loss = discriminator_loss(real_output, fake_output)
 
           gen_loss = generator_loss(fake_output)
 
-          print(gen_loss, disc_loss)
+          #print(gen_loss, disc_loss)
+          epo_avg_gen_loss.append(gen_loss.numpy())
+          epo_avg_disc_loss.append(disc_loss.numpy())
 
       gradients_of_generator = gen_tape.gradient(gen_loss, generator.trainable_variables)
       generator_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
@@ -82,6 +78,7 @@ def start_training(inputs, generator, encoder, par_enc_model, gen_enc_model, dis
       gradients_of_discriminator = disc_tape.gradient(disc_loss, discriminator.trainable_variables)
       discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
 
+  return np.mean(epo_avg_gen_loss), np.mean(epo_avg_disc_loss)
 
 def _preprocess(input_text, target_text):
 

@@ -10,8 +10,8 @@ import tensorflow as tf
 import h5py
 
 import preprocess_sequences
-#import sequence_to_sequence
-import utils
+
+ENC_WEIGHTS_SAVE_PATH = "data/generated_files/generator_encoder_weights.h5"
 
 
 class Decoder(tf.keras.layers.Layer):
@@ -24,7 +24,7 @@ class Decoder(tf.keras.layers.Layer):
                                                embedding_dim)
     self.gru = tf.keras.layers.GRU(self.dec_units,
                                    return_sequences=True,
-                                   return_state=False,
+                                   return_state=True,
                                    recurrent_initializer='glorot_uniform')
 
     self.Wc = tf.keras.layers.Dense(dec_units, activation=tf.math.tanh, use_bias=False)
@@ -33,7 +33,7 @@ class Decoder(tf.keras.layers.Layer):
 
   def call(self, inputs, state=None, training=False):
     vectors = self.embedding(inputs)
-    rnn_output = self.gru(vectors, initial_state=state, training=training)
+    rnn_output, state = self.gru(vectors, initial_state=state)
     attention_vector = self.Wc(rnn_output)
     logits = self.fc(attention_vector)
     return logits
@@ -45,7 +45,11 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     # define layers
     gen_inputs = tf.keras.Input(shape=(seq_len,))
     gen_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
-    gen_gru = tf.keras.layers.GRU(enc_units, go_backwards=True, return_sequences=True, return_state=True, recurrent_initializer='glorot_uniform')
+    gen_gru = tf.keras.layers.GRU(enc_units, 
+    				go_backwards=True,
+    				return_sequences=True,
+    				return_state=True,
+    				recurrent_initializer='glorot_uniform')
     inputs = tf.keras.Input(shape=(seq_len,))
     # create model
     embed = gen_embedding(gen_inputs)
@@ -61,20 +65,19 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     decoder = Decoder(vocab_size, embedding_dim, enc_units)
     # run decoder
     logits = decoder(new_tokens, state=enc_state, training=True)
-
     # Create GAN
     gen_model = tf.keras.Model([inputs, new_tokens, noise], [logits])
-    
     # Save encoder's weights shared by discriminator's encoder model
-    encoder_model.save_weights('data/generated_files/generator_encoder_weights.h5')
+    encoder_model.save_weights(ENC_WEIGHTS_SAVE_PATH)
     return gen_model, encoder_model
 
 
-def make_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units):
+def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units):
     # parent seq encoder model
     parent_inputs = tf.keras.Input(shape=(seq_len,))
     enc_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
-    enc_GRU = tf.keras.layers.GRU(enc_units, go_backwards=True,
+    enc_GRU = tf.keras.layers.GRU(enc_units,
+                                   go_backwards=True,
                                    return_sequences=True,
                                    return_state=True,
                                    recurrent_initializer='glorot_uniform')
@@ -90,7 +93,7 @@ def make_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units):
     disc_gen_encoder_model = tf.keras.Model([gen_inputs], [gen_enc_state])
 
     # initialize weights of discriminator's encoder model for parent and generated seqs
-    disc_par_encoder_model.load_weights('data/generated_files/generator_encoder_weights.h5')
+    disc_par_encoder_model.load_weights(ENC_WEIGHTS_SAVE_PATH)
     disc_gen_encoder_model.layers[1].set_weights(enc_embedding.get_weights())
 
     return disc_par_encoder_model, disc_gen_encoder_model
@@ -110,7 +113,7 @@ def make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units):
     x = tf.keras.layers.Dense(enc_units/2)(x)
     x = tf.keras.layers.LeakyReLU(0.1)(x)
     x = tf.keras.layers.Dropout(0.2)(x)
-    #x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.BatchNormalization()(x)
     output_class = tf.keras.layers.Dense(1, activation='linear')(x)
     
     disc_model = tf.keras.Model([input_parent, input_generated], [output_class])

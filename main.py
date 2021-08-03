@@ -103,6 +103,22 @@ def read_files():
     enc_units = 16
     factor = 1
     epochs = 1
+    
+    
+    
+
+    start_training()
+
+
+def start_training():
+    
+    seq_len = 50
+    vocab_size = 20
+    batch_size = 32
+    embedding_dim = 16
+    enc_units = 32
+    factor = 100
+    epochs = 10
     n_samples = factor * batch_size
     
     train_real_x = [np.random.randint(vocab_size, size=seq_len) for i in range(n_samples)]
@@ -113,36 +129,21 @@ def read_files():
     train_real_y = np.array(train_real_y)
     print(train_real_y.shape)
 
-    start_training(train_real_x, train_real_y, embedding_dim, units, batch_size, vocab_size, seq_len)
-
-
-def start_training(train_real_x, train_real_y, embedding_dim, units, batch_size, vocab_size, seq_len):
-    
-    seq_len = 50
-    vocab_size = 20
-    latent_dim = 100
-    batch_size = 32
-    embedding_dim = 16
-    enc_units = 32
-    factor = 5
-    epochs = 3
-
     generator, encoder = neural_network.make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_size)
-    
-    parent_encoder_model, gen_encoder_model = neural_network.make_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units)
-    
+
+    parent_encoder_model, gen_encoder_model = neural_network.make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units)
+
     discriminator = neural_network.make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units)
-    
+
     print("Start training ...")
-    
+
     dataset_in = tf.data.Dataset.from_tensor_slices((train_real_x)).batch(batch_size)
     dataset_out = tf.data.Dataset.from_tensor_slices((train_real_y)).batch(batch_size)
 
     for n in range(epochs):
         print("Training epoch {}...".format(str(n+1)))
-        train_model.start_training([dataset_in, dataset_out], generator, encoder, parent_encoder_model, gen_encoder_model, discriminator)
-    
-    
+        epo_gen_loss, epo_disc_loss = train_model.start_training([dataset_in, dataset_out], enc_units, generator, encoder, parent_encoder_model, gen_encoder_model, discriminator)
+        print("Training loss at step {}: Generator loss: {}, Discriminator loss :{}".format(str(n+1), str(epo_gen_loss), str(epo_disc_loss)))
     '''tr_clade_files = glob.glob('data/train/*.csv')
     te_clade_files = glob.glob('data/test/*.csv')
     
