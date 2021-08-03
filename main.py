@@ -24,11 +24,11 @@ PATH_SEQ_CLADE = PATH_PRE + "ncov_global.tsv"
 PATH_CLADES = "data/clade_in_clade_out_19A_20A.json" #"data/clade_in_clade_out.json"
 TRAIN_GEN_LOSS = "data/generated_files/tr_gen_loss.txt"
 TRAIN_DISC_LOSS = "data/generated_files/tr_disc_loss.txt"
-embedding_dim = 8
-batch_size = 16
-enc_units = 64
+embedding_dim = 32
+batch_size = 64
+enc_units = 128
 epochs = 10
-LEN_AA = 1275
+LEN_AA = 1273
 
 # https://www.tensorflow.org/text/tutorials/nmt_with_attention
 
@@ -125,9 +125,9 @@ def start_training(vocab_size):
 
     generator, encoder = neural_network.make_generator_model(LEN_AA, vocab_size, embedding_dim, enc_units, batch_size)
 
-    parent_encoder_model, gen_encoder_model = neural_network.make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units)
+    parent_encoder_model, gen_encoder_model = neural_network.make_disc_par_gen_model(LEN_AA, vocab_size, embedding_dim, enc_units)
 
-    discriminator = neural_network.make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units)
+    discriminator = neural_network.make_discriminator_model(LEN_AA, vocab_size, embedding_dim, enc_units)
 
     print("Start training ...")
     

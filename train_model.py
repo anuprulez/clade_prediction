@@ -68,7 +68,7 @@ def start_training(inputs, enc_units, generator, encoder, par_enc_model, gen_enc
 
           gen_loss = generator_loss(fake_output)
 
-          #print(gen_loss, disc_loss)
+          print("Batch {}, Generator loss: {}, Discriminator loss: {}".format(str(step), str(gen_loss.numpy()), str(disc_loss.numpy())))
           epo_avg_gen_loss.append(gen_loss.numpy())
           epo_avg_disc_loss.append(disc_loss.numpy())
 
