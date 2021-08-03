@@ -14,10 +14,7 @@ import matplotlib.pyplot as plt
 import preprocess_sequences
 import utils
 import neural_network
-import sequence_to_sequence
-import container_classes
 import train_model
-import masked_loss
 
 
 
@@ -132,17 +129,9 @@ def start_training(train_real_x, train_real_y, embedding_dim, units, batch_size,
 
     generator, encoder = neural_network.make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_size)
     
-    #disc_par_enc, disc_gen_enc = neural_network.make_disc_par_enc_model(seq_len, vocab_size, embedding_dim, enc_units)
-    
-    #disc_gen_enc =  neural_network.make_disc_gen_enc_model(seq_len, vocab_size, embedding_dim, enc_units)
-    
     parent_encoder_model, gen_encoder_model = neural_network.make_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units)
     
     discriminator = neural_network.make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units)
-    
-    print(generator)
-    
-    print(discriminator)
     
     print("Start training ...")
     

@@ -9,10 +9,7 @@ import logging
 import tensorflow as tf
 import h5py
 
-import preprocess_sequences
 import utils
-import sequence_to_sequence
-import container_classes
 
 
 generator_optimizer = tf.keras.optimizers.Adam(1e-4)
@@ -84,6 +81,7 @@ def start_training(inputs, generator, encoder, par_enc_model, gen_enc_model, dis
 
       gradients_of_discriminator = disc_tape.gradient(disc_loss, discriminator.trainable_variables)
       discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
+
 
 def _preprocess(input_text, target_text):
 
