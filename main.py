@@ -19,7 +19,7 @@ import train_model
 
 
 PATH_PRE = "data/ncov_global/"
-PATH_SEQ = PATH_PRE + "spike_protein.fasta" #"ncov_global.fasta"
+PATH_SEQ = PATH_PRE + "spike_protein.fasta"
 PATH_SEQ_CLADE = PATH_PRE + "ncov_global.tsv"
 PATH_CLADES = "data/clade_in_clade_out_19A_20A.json" #"data/clade_in_clade_out.json"
 TRAIN_GEN_LOSS = "data/generated_files/tr_gen_loss.txt"
@@ -45,64 +45,15 @@ def read_files():
     preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df)
     
     vocab_size = utils.embedding_info(forward_dict)
-    
-    #print("Transforming generated samples...")
-    #train_x, train_y, test_x, test_y = preprocess_sequences.transform_encoded_samples()
-    
-    #print(train_x.shape, train_y.shape, test_x.shape, test_y.shape)
-    
-    '''train_x = np.array([list(map(int, lst)) for lst in train_x])
-    train_y = [list(map(int, lst)) for lst in train_y]
-
-    test_x = [list(map(int, lst)) for lst in test_x]
-    test_y = [list(map(int, lst)) for lst in test_y]'''
-    
-    #print(train_x)
-    
-    #print("Reading in/out sequences...")
-    # = preprocess_sequences.read_in_out_sequences()
-    
-    '''vocab_size, seq_len = utils.embedding_info(forward_dict, train_samples)
-    
-    # get train datasets
-    train_x = train_samples["Sequence_x"].to_numpy()
-    train_y = train_samples["Sequence_y"].to_numpy()
-
-    train_x = [list(map(int, lst)) for lst in train_x]
-    train_y = [list(map(int, lst)) for lst in train_y]
-    
-    print(train_x, train_y)
-    
-    # get test datasets
-    test_x = test_samples["Sequence_x"].to_numpy()
-    test_y = test_samples["Sequence_y"].to_numpy()
-
-    test_x = [list(map(int, lst)) for lst in test_x]
-    test_y = [list(map(int, lst)) for lst in test_y]
-    
-    print(test_x, test_y)
-
-    print("Creating neural network...")
-    
-    factor = 100
-    
-    train_x = [np.random.randint(vocab_size, size=seq_len) for i in range(factor * batch_size)]
-    train_x = np.array(train_x)
-    print(train_x.shape)
-
-    train_y = [np.random.randint(vocab_size, size=seq_len) for i in range(factor * batch_size)]
-    train_y = np.array(train_y)
-    print(train_y.shape)
-    
-    dataset_in = tf.data.Dataset.from_tensor_slices((train_x)).batch(batch_size)
-    dataset_out = tf.data.Dataset.from_tensor_slices((train_y)).batch(batch_size)'''
 
     start_training(vocab_size)
 
 
 def start_training(vocab_size):
     
-    '''seq_len = 50
+    '''
+    # code snippet with random samples
+    seq_len = 50
     vocab_size = 20
     batch_size = 32
     embedding_dim = 16
