@@ -63,12 +63,12 @@ def pretrain_generator(inputs, enc_units, gen_encoder, gen_decoder):
       pretrain_generator_optimizer.apply_gradients(zip(gradients_of_generator, gen_decoder.trainable_variables))
 
   # save model
+  gen_encoder.save_weights(ENC_WEIGHTS_SAVE_PATH)
   tf.keras.models.save_model(gen_encoder, "data/generated_files/pretrain_gen_encoder")
   tf.keras.models.save_model(gen_decoder, "data/generated_files/pretrain_gen_decoder")
-
   return np.mean(epo_avg_gen_loss), gen_encoder, gen_decoder
 
-def start_training(inputs, enc_units, generator, encoder, par_enc_model, gen_enc_model, discriminator):
+def start_training(inputs, enc_units, generator, encoder, par_enc_model, gen_enc_model, discriminator, gen_disc_alter):
   input_tokens, target_tokens = inputs  
   epo_avg_gen_loss = list()
   epo_avg_disc_loss = list()
@@ -84,73 +84,54 @@ def start_training(inputs, enc_units, generator, encoder, par_enc_model, gen_enc
           new_tokens = tf.fill([batch_size, seq_len], 0)
           noise = tf.random.normal((batch_size, enc_units))
 
-          #generated_logits = generator([unrolled_x, new_tokens, noise], training=True)
-
-          enc_output, enc_state = encoder(unrolled_x)
+          enc_output, enc_state = encoder(unrolled_x, training=gen_disc_alter)
           enc_state = tf.math.add(enc_state, noise)
           gen_loss = tf.constant(0.0)
           dec_state = enc_state
-          '''for t in tf.range(1273-1):
-              i_token, o_token = new_tokens[:, t:t+1], unrolled_y[:, t+1:t+2]
-              #print(t, i_token.shape, o_token.shape)
-              dec_result, dec_state = generator([i_token, dec_state], training=True)
-              y = o_token
-              y_pred = dec_result
-              target_mask = o_token != 0
-              ls = m_loss(y, y_pred) / tf.reduce_sum(tf.cast(target_mask, tf.float32))
-              #print(t, ls)
-              gen_loss += ls
-          gen_loss = gen_loss / 1273'''
-          #new_tokens = unrolled_y
-          generated_logits, dec_state = generator([new_tokens, dec_state], training=True)
-
-
-          #print(generated_logits.shape)
+          generated_logits, dec_state = generator([new_tokens, dec_state], training=gen_disc_alter)
           #generated_tokens = tf.math.argmax(generated_logits, axis=-1)
 
-          target_mask = unrolled_y != 0
-          gen_loss = m_loss(unrolled_y, generated_logits)
-          gen_loss = gen_loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
+          #target_mask = unrolled_y != 0
+          #gen_loss = m_loss(unrolled_y, generated_logits)
+          #gen_loss = gen_loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
 
-          print("Batch {}, Generator loss: {}".format(str(step), str(gen_loss.numpy())))
+          #print("Batch {}, Generator loss: {}".format(str(step), str(gen_loss.numpy())))
 
-          '''encoder.save_weights(ENC_WEIGHTS_SAVE_PATH)
-
+          #encoder.save_weights(ENC_WEIGHTS_SAVE_PATH)
           # update weights of the discriminator's encoder models
-          par_enc_model.load_weights(ENC_WEIGHTS_SAVE_PATH)
-          gen_enc_model.layers[1].set_weights(par_enc_model.layers[1].get_weights())
+          #par_enc_model.load_weights(ENC_WEIGHTS_SAVE_PATH)
+          #gen_enc_model.layers[1].set_weights(par_enc_model.layers[1].get_weights())
 
           # reformat real output to one-hot encoding
           real_y = tf.one_hot(unrolled_y, depth=generated_logits.shape[-1], axis=-1)
+          
+          par_enc_real_state_x = par_enc_model(unrolled_x, training= not gen_disc_alter)
+          gen_real_enc_state_y = gen_enc_model(real_y, training= not gen_disc_alter)
+          gen_enc_fake_state_x = gen_enc_model(generated_logits, training= not gen_disc_alter)
 
-          par_enc_real_state_x = par_enc_model(unrolled_x, training=True)
-          gen_real_enc_state_y = gen_enc_model(real_y, training=True)
-          gen_enc_fake_state_x = gen_enc_model(generated_logits, training=True)
-
-          fake_output = discriminator([par_enc_real_state_x, gen_enc_fake_state_x], training=True)
-          real_output = discriminator([par_enc_real_state_x, gen_real_enc_state_y], training=True)
+          fake_output = discriminator([par_enc_real_state_x, gen_enc_fake_state_x], training= not gen_disc_alter)
+          real_output = discriminator([par_enc_real_state_x, gen_real_enc_state_y], training= not gen_disc_alter)
 
           disc_loss = discriminator_loss(real_output, fake_output)
 
           gen_loss = generator_loss(fake_output)
 
-          gen_true_loss = m_loss(unrolled_y, generated_logits)
-          print(gen_true_loss)
-          target_mask = unrolled_y != 0
-          gen_true_loss = gen_true_loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
-          print(gen_true_loss)
+          #gen_true_loss = m_loss(unrolled_y, generated_logits)
+          #target_mask = unrolled_y != 0
+          #gen_true_loss = gen_true_loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
 
           #print("Batch {}, Generator loss: {}, Discriminator loss: {}".format(str(step), str(gen_loss.numpy()), str(disc_loss.numpy())))
           epo_avg_gen_loss.append(gen_loss.numpy())
-          epo_avg_disc_loss.append(disc_loss.numpy())'''
-
-      gradients_of_generator = gen_tape.gradient(gen_loss, generator.trainable_variables)
-      generator_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
-
-      '''gradients_of_discriminator = disc_tape.gradient(disc_loss, discriminator.trainable_variables)
-      discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))'''
+          epo_avg_disc_loss.append(disc_loss.numpy())
+      if gen_disc_alter is True:
+          gradients_of_generator = gen_tape.gradient(gen_loss, generator.trainable_variables)
+          generator_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
+      if not gen_disc_alter is True:
+          gradients_of_discriminator = disc_tape.gradient(disc_loss, discriminator.trainable_variables)
+          discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
   # save model
-  tf.keras.models.save_model(generator, "data/generated_files/model")
+  tf.keras.models.save_model(encoder, "data/generated_files/enc_model")
+  tf.keras.models.save_model(generator, "data/generated_files/gen_model")
   return np.mean(epo_avg_gen_loss), np.mean(epo_avg_disc_loss), encoder, generator
 
 def _preprocess(input_text, target_text):

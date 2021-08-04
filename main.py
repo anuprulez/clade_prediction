@@ -31,7 +31,7 @@ TEST_LOSS = "data/generated_files/te_loss.txt"
 embedding_dim = 256
 batch_size = 128
 enc_units = 128
-pretrain_epochs = 10
+pretrain_epochs = 1
 epochs = 20
 LEN_AA = 1273
 
@@ -79,11 +79,11 @@ def start_training(vocab_size):
     
     '''
 
-    generator, encoder = neural_network.make_generator_model(LEN_AA, vocab_size, embedding_dim, enc_units, batch_size)
+    decoder, encoder = neural_network.make_generator_model(LEN_AA, vocab_size, embedding_dim, enc_units, batch_size)
 
-    parent_encoder_model, gen_encoder_model = neural_network.make_disc_par_gen_model(LEN_AA, vocab_size, embedding_dim, enc_units)
+    #parent_encoder_model, gen_encoder_model = neural_network.make_disc_par_gen_model(LEN_AA, vocab_size, embedding_dim, enc_units)
 
-    discriminator = neural_network.make_discriminator_model(LEN_AA, vocab_size, embedding_dim, enc_units)
+    #discriminator = neural_network.make_discriminator_model(LEN_AA, vocab_size, embedding_dim, enc_units)
 
     print("Start training ...")
     
@@ -100,24 +100,30 @@ def start_training(vocab_size):
         print(tr_clade_df.shape)
         print("Pretraining generator...")
         X_pretrain, X_train, y_pretrain, y_train  = train_test_split(X, y, test_size=0.5)
+        print(X_pretrain.shape, y_pretrain.shape, X_train.shape, y_train.shape)
         pretrain_dataset_in = tf.data.Dataset.from_tensor_slices((X_pretrain)).batch(batch_size)
         pretrain_dataset_out = tf.data.Dataset.from_tensor_slices((y_pretrain)).batch(batch_size)
         
         for i in range(pretrain_epochs):
             print("Pre training epoch {}...".format(str(i+1)))
-            epo_pretrain_gen_loss, encoder, generator = train_model.pretrain_generator([pretrain_dataset_in, pretrain_dataset_out], enc_units, encoder, generator)
-            print("Pre training loss at step {}: Generator loss: {}".format(str(n+1), str(epo_gen_loss)))
+            epo_pretrain_gen_loss, encoder, generator = train_model.pretrain_generator([pretrain_dataset_in, pretrain_dataset_out], enc_units, encoder, decoder)
+            print("Pre training loss at step {}: Generator loss: {}".format(str(i+1), str(epo_pretrain_gen_loss)))
             pretrain_gen_loss.append(epo_pretrain_gen_loss)
         np.savetxt(PRETRAIN_GEN_LOSS, pretrain_gen_loss) 
-            
-        sys.exit()
+
+        parent_encoder_model, gen_encoder_model = neural_network.make_disc_par_gen_model(LEN_AA, vocab_size, embedding_dim, enc_units)
+        discriminator = neural_network.make_discriminator_model(LEN_AA, vocab_size, embedding_dim, enc_units)
+
         print("Training Gen and Disc...")
         dataset_in = tf.data.Dataset.from_tensor_slices((X_train)).batch(batch_size)
         dataset_out = tf.data.Dataset.from_tensor_slices((y_train)).batch(batch_size)
         total_te_loss = []
+        alter_gen_disc_tr = False
         for n in range(epochs):
             print("Training epoch {}...".format(str(n+1)))
-            epo_gen_loss, epo_disc_loss, encoder, generator = train_model.start_training([dataset_in, dataset_out], enc_units, generator, encoder, parent_encoder_model, gen_encoder_model, discriminator)
+            if (n+1) % 3 == 0:
+                alter_gen_disc_tr = not alter_gen_disc_tr
+            epo_gen_loss, epo_disc_loss, encoder, generator = train_model.start_training([dataset_in, dataset_out], enc_units, generator, encoder, parent_encoder_model, gen_encoder_model, discriminator, alter_gen_disc_tr)
             print("Training loss at step {}: Generator loss: {}, Discriminator loss :{}".format(str(n+1), str(epo_gen_loss), str(epo_disc_loss)))
             train_gen_loss.append(epo_gen_loss)
             train_disc_loss.append(epo_disc_loss)
