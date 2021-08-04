@@ -26,9 +26,9 @@ PATH_CLADES = "data/clade_in_clade_out_19A_20A.json" #"data/clade_in_clade_out.j
 TRAIN_GEN_LOSS = "data/generated_files/tr_gen_loss.txt"
 TRAIN_DISC_LOSS = "data/generated_files/tr_disc_loss.txt"
 TEST_LOSS = "data/generated_files/te_loss.txt"
-embedding_dim = 16
-batch_size = 64
-enc_units = 256
+embedding_dim = 256
+batch_size = 128
+enc_units = 128
 epochs = 20
 LEN_AA = 1273
 
@@ -100,7 +100,7 @@ def start_training(vocab_size):
         total_te_loss = []
         for n in range(epochs):
             print("Training epoch {}...".format(str(n+1)))
-            epo_gen_loss, epo_disc_loss = train_model.start_training([dataset_in, dataset_out], enc_units, generator, encoder, parent_encoder_model, gen_encoder_model, discriminator)
+            epo_gen_loss, epo_disc_loss, encoder, generator = train_model.start_training([dataset_in, dataset_out], enc_units, generator, encoder, parent_encoder_model, gen_encoder_model, discriminator)
             print("Training loss at step {}: Generator loss: {}, Discriminator loss :{}".format(str(n+1), str(epo_gen_loss), str(epo_disc_loss)))
             train_gen_loss.append(epo_gen_loss)
             train_disc_loss.append(epo_disc_loss)
@@ -111,13 +111,13 @@ def start_training(vocab_size):
                 te_y = te_clade_df["Y"]
                 print(te_clade_df.shape)
                 print("Prediction on test data...")
-                te_loss = predict_sequence(te_X, te_y, LEN_AA, vocab_size, batch_size)
+                te_loss = predict_sequence(te_X, te_y, LEN_AA, vocab_size, batch_size, encoder, generator)
                 total_te_loss.append(te_loss)
         np.savetxt(TRAIN_GEN_LOSS, train_gen_loss)
         np.savetxt(TRAIN_DISC_LOSS, train_disc_loss)
         np.savetxt(TEST_LOSS, total_te_loss)
 
-def predict_sequence(test_x, test_y, seq_len, vocab_size, batch_size):
+def predict_sequence(test_x, test_y, seq_len, vocab_size, batch_size, encoder, generator):
     avg_test_loss = []
     test_dataset_in = tf.data.Dataset.from_tensor_slices((test_x)).batch(batch_size)
     test_dataset_out = tf.data.Dataset.from_tensor_slices((test_y)).batch(batch_size)
@@ -134,7 +134,17 @@ def predict_sequence(test_x, test_y, seq_len, vocab_size, batch_size):
             target_mask = batch_y_test != 0
             new_tokens = tf.fill([batch_size, seq_len], 0)
             noise = tf.random.normal((batch_size, enc_units))
-            generated_logits = model([batch_x_test, new_tokens, noise], training=False)
+            #noise = tf.random.normal((batch_size, enc_units))
+            #generated_logits = generator([unrolled_x, new_tokens, noise], training=True)
+
+            enc_output, enc_state = encoder(batch_x_test)
+            enc_state = tf.math.add(enc_state, noise)
+            generated_logits, state = generator([new_tokens, enc_state], training=False)
+            #enc_state = tf.math.add(enc_state, noise)
+
+            
+
+            #generated_logits = model([batch_x_test, new_tokens, noise], training=False)
             generated_tokens = tf.math.argmax(generated_logits, axis=-1)
             '''if step == 5:
                 print("Test: Sample 0, batch {}".format(str(step)))

@@ -15,8 +15,10 @@ ENC_WEIGHTS_SAVE_PATH = "data/generated_files/generator_encoder_weights.h5"
 
 
 class Decoder(tf.keras.layers.Layer):
-  def __init__(self, output_vocab_size, embedding_dim, dec_units):
+  def __init__(self, output_vocab_size, embedding_dim, dec_units, seq_len, batch_size):
     super(Decoder, self).__init__()
+    self.seq_len = seq_len
+    self.batch_size = batch_size
     self.dec_units = dec_units
     self.output_vocab_size = output_vocab_size
     self.embedding_dim = embedding_dim
@@ -24,19 +26,18 @@ class Decoder(tf.keras.layers.Layer):
                                                embedding_dim)
     self.gru = tf.keras.layers.GRU(self.dec_units,
                                    return_sequences=True,
-                                   return_state=True,
-                                   recurrent_initializer='glorot_uniform')
+                                   return_state=True)
 
-    self.Wc = tf.keras.layers.Dense(dec_units, activation=tf.math.tanh, use_bias=False)
-    self.fc = tf.keras.layers.Dense(self.output_vocab_size, use_bias=False, activation=tf.keras.activations.softmax)
+    self.Wc = tf.keras.layers.Dense(dec_units, activation='relu', use_bias=True)
+    self.fc = tf.keras.layers.Dense(self.output_vocab_size, use_bias=True, activation='softmax')
 
 
   def call(self, inputs, state=None, training=False):
-    vectors = self.embedding(inputs)
-    rnn_output, state = self.gru(vectors, initial_state=state)
-    attention_vector = self.Wc(rnn_output)
-    logits = self.fc(attention_vector)
-    return logits
+      vectors = self.embedding(inputs)
+      rnn_output, state = self.gru(vectors, initial_state=state)
+      attention_vector = self.Wc(rnn_output)
+      logits = self.fc(attention_vector)
+      return logits, state
 
 
 def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_size):
@@ -56,20 +57,38 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     gen_output, gen_state = gen_gru(embed)
     encoder_model = tf.keras.Model([gen_inputs], [gen_output, gen_state])
     # run model
-    enc_output, enc_state = encoder_model(inputs, training=True)
+    #enc_output, enc_state = encoder_model(inputs, training=True)
     
     # Create decoder for Generator
-    noise = tf.keras.Input(shape=(enc_units,))
-    enc_state = tf.math.add(enc_state, noise)
+    #noise = tf.keras.Input(shape=(enc_units,))
+    e_state = tf.keras.Input(shape=(enc_units,))
+    #enc_state = tf.math.add(enc_state, noise)
     new_tokens = tf.keras.Input(shape=(seq_len,))
-    decoder = Decoder(vocab_size, embedding_dim, enc_units)
+    # define layers
+    dec_embedding = tf.keras.layers.Embedding(vocab_size,
+                                               embedding_dim)
+    dec_gru = tf.keras.layers.GRU(enc_units,
+                                   return_sequences=True,
+                                   return_state=True)
+
+    dec_Wc = tf.keras.layers.Dense(enc_units, activation='relu', use_bias=True)
+    dec_fc = tf.keras.layers.Dense(vocab_size, use_bias=True, activation='softmax')
+    
+    vectors = dec_embedding(new_tokens)
+    rnn_output, state = dec_gru(vectors, initial_state=e_state)
+    attention_vector = dec_Wc(rnn_output)
+    logits = dec_fc(attention_vector)
+
+    decoder_model = tf.keras.Model([new_tokens, e_state], [logits, state])
+
+    #decoder = Decoder(vocab_size, embedding_dim, enc_units, seq_len, batch_size)
     # run decoder
-    logits = decoder(new_tokens, state=enc_state, training=True)
+    #logits, dec_state = decoder(new_tokens, state=enc_state, training=True)
     # Create GAN
-    gen_model = tf.keras.Model([inputs, new_tokens, noise], [logits])
+    #gen_model = tf.keras.Model([inputs, new_tokens, noise], [logits])
     # Save encoder's weights shared by discriminator's encoder model
     encoder_model.save_weights(ENC_WEIGHTS_SAVE_PATH)
-    return gen_model, encoder_model
+    return decoder_model, encoder_model
 
 
 def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units):
