@@ -30,6 +30,43 @@ def generator_loss(fake_output):
     return cross_entropy(tf.ones_like(fake_output), fake_output)
     
 
+def pretrain_generator(inputs, gen_encoder, gen_decoder):
+  input_tokens, target_tokens = inputs  
+  epo_avg_gen_loss = list()
+  epo_avg_disc_loss = list()
+  m_loss = masked_loss.MaskedLoss()
+  for step, (x_batch_train, y_batch_train) in enumerate(zip(input_tokens, target_tokens)):
+      unrolled_x = utils.convert_to_array(x_batch_train)
+      unrolled_y = utils.convert_to_array(y_batch_train)
+      (_, input_mask, _, target_mask) = _preprocess(unrolled_x, unrolled_y)
+      seq_len = unrolled_x.shape[1]
+      batch_size = unrolled_x.shape[0]
+      with tf.GradientTape() as gen_tape:
+
+          new_tokens = tf.fill([batch_size, seq_len], 0)
+          noise = tf.random.normal((batch_size, enc_units))
+
+          enc_output, enc_state = gen_encoder(unrolled_x)
+          enc_state = tf.math.add(enc_state, noise)
+          gen_loss = tf.constant(0.0)
+          dec_state = enc_state
+          generated_logits, dec_state = gen_decoder([new_tokens, dec_state], training=True)
+
+          target_mask = unrolled_y != 0
+          gen_loss = m_loss(unrolled_y, generated_logits)
+          gen_loss = gen_loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
+
+          print("Batch {}, Generator loss: {}".format(str(step), str(gen_loss.numpy())))
+
+      gradients_of_generator = gen_tape.gradient(gen_loss, generator.trainable_variables)
+      generator_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
+
+  # save model
+  tf.keras.models.save_model(gen_encoder, "data/generated_files/gen_encoder")
+  tf.keras.models.save_model(gen_decoder, "data/generated_files/gen_decoder")
+
+  return np.mean(epo_avg_gen_loss), gen_encoder, gen_decoder
+
 def start_training(inputs, enc_units, generator, encoder, par_enc_model, gen_enc_model, discriminator):
   input_tokens, target_tokens = inputs  
   epo_avg_gen_loss = list()

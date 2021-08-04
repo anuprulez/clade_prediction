@@ -10,6 +10,7 @@ import glob
 import tensorflow as tf
 
 import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
 
 import preprocess_sequences
 import utils
@@ -23,12 +24,14 @@ PATH_PRE = "data/ncov_global/"
 PATH_SEQ = PATH_PRE + "spike_protein.fasta"
 PATH_SEQ_CLADE = PATH_PRE + "ncov_global.tsv"
 PATH_CLADES = "data/clade_in_clade_out_19A_20A.json" #"data/clade_in_clade_out.json"
+PRETRAIN_GEN_LOSS = "data/generated_files/pretr_gen_loss.txt"
 TRAIN_GEN_LOSS = "data/generated_files/tr_gen_loss.txt"
 TRAIN_DISC_LOSS = "data/generated_files/tr_disc_loss.txt"
 TEST_LOSS = "data/generated_files/te_loss.txt"
 embedding_dim = 256
 batch_size = 128
 enc_units = 128
+pretrain_epochs = 10
 epochs = 20
 LEN_AA = 1273
 
@@ -89,14 +92,28 @@ def start_training(vocab_size):
 
     train_gen_loss = list()
     train_disc_loss = list()
-    
+    pretrain_gen_loss = list()
     for name in tr_clade_files:
         tr_clade_df = pd.read_csv(name, sep="\t")
         X = tr_clade_df["X"]
         y = tr_clade_df["Y"]
         print(tr_clade_df.shape)
-        dataset_in = tf.data.Dataset.from_tensor_slices((X)).batch(batch_size)
-        dataset_out = tf.data.Dataset.from_tensor_slices((y)).batch(batch_size)
+        print("Pretraining generator...")
+        X_pretrain, X_train, y_pretrain, y_train  = train_test_split(X, y, test_size=0.5)
+        pretrain_dataset_in = tf.data.Dataset.from_tensor_slices((X_pretrain)).batch(batch_size)
+        pretrain_dataset_out = tf.data.Dataset.from_tensor_slices((y_pretrain)).batch(batch_size)
+        
+        for i in range(pretrain_epochs):
+            print("Pre training epoch {}...".format(str(i+1)))
+            epo_pretrain_gen_loss, encoder, generator = train_model.pretrain_generator([pretrain_dataset_in, pretrain_dataset_out], encoder, generator)
+            print("Pre training loss at step {}: Generator loss: {}".format(str(n+1), str(epo_gen_loss)))
+            pretrain_gen_loss.append(epo_pretrain_gen_loss)
+        np.savetxt(PRETRAIN_GEN_LOSS, pretrain_gen_loss) 
+            
+        sys.exit()
+        print("Training Gen and Disc...")
+        dataset_in = tf.data.Dataset.from_tensor_slices((X_train)).batch(batch_size)
+        dataset_out = tf.data.Dataset.from_tensor_slices((y_train)).batch(batch_size)
         total_te_loss = []
         for n in range(epochs):
             print("Training epoch {}...".format(str(n+1)))
@@ -172,4 +189,4 @@ if __name__ == "__main__":
     read_files()
     end_time = time.time()
     print("Program finished in {} seconds".format(str(np.round(end_time - start_time, 2))))
-
+     
