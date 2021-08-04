@@ -26,6 +26,7 @@ PATH_SEQ_CLADE = PATH_PRE + "ncov_global.tsv"
 PATH_CLADES = "data/clade_in_clade_out_19A_20A.json" #"data/clade_in_clade_out.json"
 PRETRAIN_GEN_LOSS = "data/generated_files/pretr_gen_loss.txt"
 TRAIN_GEN_LOSS = "data/generated_files/tr_gen_loss.txt"
+TRAIN_GEN_TRUE_LOSS = "data/generated_files/tr_gen_true_loss.txt"
 TRAIN_DISC_LOSS = "data/generated_files/tr_disc_loss.txt"
 TEST_LOSS = "data/generated_files/te_loss.txt"
 embedding_dim = 256
@@ -91,6 +92,7 @@ def start_training(vocab_size):
     te_clade_files = glob.glob('data/test/*.csv')
 
     train_gen_loss = list()
+    train_gen_true_loss = list()
     train_disc_loss = list()
     pretrain_gen_loss = list()
     for name in tr_clade_files:
@@ -118,27 +120,28 @@ def start_training(vocab_size):
         dataset_in = tf.data.Dataset.from_tensor_slices((X_train)).batch(batch_size)
         dataset_out = tf.data.Dataset.from_tensor_slices((y_train)).batch(batch_size)
         total_te_loss = []
-        alter_gen_disc_tr = False
+        alter_gen_disc_tr = True
         for n in range(epochs):
             print("Training epoch {}...".format(str(n+1)))
             if (n+1) % 3 == 0:
-                alter_gen_disc_tr = not alter_gen_disc_tr
-            epo_gen_loss, epo_disc_loss, encoder, generator = train_model.start_training([dataset_in, dataset_out], enc_units, generator, encoder, parent_encoder_model, gen_encoder_model, discriminator, alter_gen_disc_tr)
-            print("Training loss at step {}: Generator loss: {}, Discriminator loss :{}".format(str(n+1), str(epo_gen_loss), str(epo_disc_loss)))
+                alter_gen_disc_tr = alter_gen_disc_tr
+            epo_gen_loss, epo_disc_loss, gen_true_loss, encoder, generator = train_model.start_training([dataset_in, dataset_out], enc_units, generator, encoder, parent_encoder_model, gen_encoder_model, discriminator, alter_gen_disc_tr)
+            print("Training loss at step {}: Generator true loss: {}, Generator loss: {}, Discriminator loss :{}".format(str(n+1), str(gen_true_loss), str(epo_gen_loss), str(epo_disc_loss)))
             train_gen_loss.append(epo_gen_loss)
             train_disc_loss.append(epo_disc_loss)
-            
-            for te_name in te_clade_files:
+            train_gen_true_loss.append(gen_true_loss)
+            '''for te_name in te_clade_files:
                 te_clade_df = pd.read_csv(te_name, sep="\t")
                 te_X = te_clade_df["X"]
                 te_y = te_clade_df["Y"]
                 print(te_clade_df.shape)
                 print("Prediction on test data...")
                 te_loss = predict_sequence(te_X, te_y, LEN_AA, vocab_size, batch_size, encoder, generator)
-                total_te_loss.append(te_loss)
+                total_te_loss.append(te_loss)'''
         np.savetxt(TRAIN_GEN_LOSS, train_gen_loss)
         np.savetxt(TRAIN_DISC_LOSS, train_disc_loss)
         np.savetxt(TEST_LOSS, total_te_loss)
+        np.savetxt(TRAIN_GEN_TRUE_LOSS, train_gen_true_loss)
 
 def predict_sequence(test_x, test_y, seq_len, vocab_size, batch_size, encoder, generator):
     avg_test_loss = []
