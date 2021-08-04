@@ -14,6 +14,7 @@ import masked_loss
 
 ENC_WEIGHTS_SAVE_PATH = "data/generated_files/generator_encoder_weights.h5"
 
+pretrain_generator_optimizer = tf.keras.optimizers.Adam(0.01)
 generator_optimizer = tf.keras.optimizers.Adam(1e-3)
 discriminator_optimizer = tf.keras.optimizers.Adam(3e-5)
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
@@ -30,7 +31,7 @@ def generator_loss(fake_output):
     return cross_entropy(tf.ones_like(fake_output), fake_output)
     
 
-def pretrain_generator(inputs, gen_encoder, gen_decoder):
+def pretrain_generator(inputs, enc_units, gen_encoder, gen_decoder):
   input_tokens, target_tokens = inputs  
   epo_avg_gen_loss = list()
   epo_avg_disc_loss = list()
@@ -56,14 +57,14 @@ def pretrain_generator(inputs, gen_encoder, gen_decoder):
           gen_loss = m_loss(unrolled_y, generated_logits)
           gen_loss = gen_loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
 
-          print("Batch {}, Generator loss: {}".format(str(step), str(gen_loss.numpy())))
+          print("Batch {}, Pretrain Generator loss: {}".format(str(step), str(gen_loss.numpy())))
 
-      gradients_of_generator = gen_tape.gradient(gen_loss, generator.trainable_variables)
-      generator_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
+      gradients_of_generator = gen_tape.gradient(gen_loss, gen_decoder.trainable_variables)
+      pretrain_generator_optimizer.apply_gradients(zip(gradients_of_generator, gen_decoder.trainable_variables))
 
   # save model
-  tf.keras.models.save_model(gen_encoder, "data/generated_files/gen_encoder")
-  tf.keras.models.save_model(gen_decoder, "data/generated_files/gen_decoder")
+  tf.keras.models.save_model(gen_encoder, "data/generated_files/pretrain_gen_encoder")
+  tf.keras.models.save_model(gen_decoder, "data/generated_files/pretrain_gen_decoder")
 
   return np.mean(epo_avg_gen_loss), gen_encoder, gen_decoder
 

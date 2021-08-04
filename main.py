@@ -105,7 +105,7 @@ def start_training(vocab_size):
         
         for i in range(pretrain_epochs):
             print("Pre training epoch {}...".format(str(i+1)))
-            epo_pretrain_gen_loss, encoder, generator = train_model.pretrain_generator([pretrain_dataset_in, pretrain_dataset_out], encoder, generator)
+            epo_pretrain_gen_loss, encoder, generator = train_model.pretrain_generator([pretrain_dataset_in, pretrain_dataset_out], enc_units, encoder, generator)
             print("Pre training loss at step {}: Generator loss: {}".format(str(n+1), str(epo_gen_loss)))
             pretrain_gen_loss.append(epo_pretrain_gen_loss)
         np.savetxt(PRETRAIN_GEN_LOSS, pretrain_gen_loss) 
