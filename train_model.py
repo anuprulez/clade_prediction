@@ -20,17 +20,21 @@ discriminator_optimizer = tf.keras.optimizers.Adam(3e-5)
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 m_loss = masked_loss.MaskedLoss()
 
+def wasserstein_loss(y_true, y_pred):
+    return tf.math.reduce_mean(y_true * y_pred)
+
 
 def discriminator_loss(real_output, fake_output):
-    real_loss = cross_entropy(tf.ones_like(real_output), real_output)
-    fake_loss = cross_entropy(tf.zeros_like(fake_output), fake_output)
+    real_loss = wasserstein_loss(tf.ones_like(real_output), real_output) #cross_entropy(tf.ones_like(real_output), real_output)
+    fake_loss = wasserstein_loss(tf.ones_like(fake_output), fake_output) #cross_entropy(tf.zeros_like(fake_output), fake_output)
     total_loss = real_loss + fake_loss
     return total_loss
 
 
 def generator_loss(fake_output):
     return cross_entropy(tf.ones_like(fake_output), fake_output)
-    
+
+
 def gen_step_train(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real_o):
     step_loss = tf.constant(0.0)
     pred_logits = np.zeros((batch_size, seq_len, vocab_size))
@@ -115,8 +119,8 @@ def start_training(inputs, enc_units, generator, encoder, par_enc_model, gen_enc
           enc_state = tf.math.add(enc_state, noise)
           gen_loss = tf.constant(0.0)
           dec_state = enc_state
-          #generated_logits, dec_state = generator([new_tokens, dec_state], training = gen_disc_alter)
-          generated_logits, generator, gen_true_loss = gen_step_train(seq_len, batch_size, vocab_size, generator, dec_state, unrolled_y)
+          generated_logits, dec_state = generator([new_tokens, dec_state], training = gen_disc_alter)
+          #generated_logits, generator, gen_true_loss = gen_step_train(seq_len, batch_size, vocab_size, generator, dec_state, unrolled_y)
           #generated_tokens = tf.math.argmax(generated_logits, axis=-1)
 
           #target_mask = unrolled_y != 0
@@ -141,16 +145,21 @@ def start_training(inputs, enc_units, generator, encoder, par_enc_model, gen_enc
           real_output = discriminator([par_enc_real_state_x, gen_real_enc_state_y], training = gen_disc_alter)
           #print(dir(discriminator))
 
-          disc_loss = discriminator_loss(real_output, fake_output)
+          #disc_loss = discriminator_loss(real_output, fake_output)
 
-          gen_loss = generator_loss(fake_output)
+          #gen_loss = generator_loss(fake_output)
+          
+          #gen_true = tf.ones_like(fake_output)
+          gen_loss_wl = wasserstein_loss(tf.ones_like(fake_output), fake_output) 
 
-          #gen_true_loss = m_loss(unrolled_y, generated_logits)
-          #target_mask = unrolled_y != 0
-          #gen_true_loss = gen_true_loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
+          gen_true_loss = m_loss(unrolled_y, generated_logits)
+          target_mask = unrolled_y != 0
+          gen_true_loss = gen_true_loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
           epo_ave_gen_true_loss.append(gen_true_loss)
 
-          print("Batch {}, Generator true loss: {}, Generator loss: {}, Discriminator loss: {}".format(str(step), str(gen_true_loss), str(gen_loss.numpy()), str(disc_loss.numpy())))
+          gen_loss = gen_loss_wl + gen_true_loss
+
+          print("Batch {}, Generator W loss: {}, Generator true loss: {}, Generator loss: {}, Discriminator loss: {}".format(str(step), str(gen_loss_wl), str(gen_true_loss), str(gen_loss.numpy()), str(disc_loss.numpy())))
           epo_avg_gen_loss.append(gen_loss.numpy())
           epo_avg_disc_loss.append(disc_loss.numpy())
       #if gen_disc_alter is True:
