@@ -87,4 +87,4 @@ def format_clade_name(c_name):
     
     
 def embedding_info(dict_json):
-    return len(dict_json) + 1
+    return len(dict_json)

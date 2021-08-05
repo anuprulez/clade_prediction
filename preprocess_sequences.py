@@ -43,10 +43,10 @@ def preprocess_seq(fasta_file, samples_clades):
             row.append(clade_name)
             seq_chars = [char for char in sequence]
             indices_chars = [str(r_word_dictionaries[i]) for i in seq_chars]
-            if len(sequence) <= LEN_AA:
-                zeros = np.repeat('0', (LEN_AA - len(sequence)))
-                indices_kmers = np.hstack([indices_chars, zeros])
-                joined_indices_kmers = ','.join(indices_kmers)
+            if len(sequence) == LEN_AA:
+                #zeros = np.repeat('0', (LEN_AA - len(sequence)))
+                #indices_kmers = np.hstack([indices_chars, zeros])
+                joined_indices_kmers = ','.join(indices_chars)
                 row.append(joined_indices_kmers)
                 encoded_samples.append(row)
     sample_clade_sequence_df = pd.DataFrame(encoded_samples, columns=["SampleName", "Clade", "Sequence"])
