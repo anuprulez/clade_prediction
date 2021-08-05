@@ -144,8 +144,10 @@ def start_training(inputs, enc_units, generator, encoder, par_enc_model, gen_enc
           fake_output = discriminator([par_enc_real_state_x, gen_enc_fake_state_x], training = gen_disc_alter)
           real_output = discriminator([par_enc_real_state_x, gen_real_enc_state_y], training = gen_disc_alter)
           #print(dir(discriminator))
-
-          #disc_loss = discriminator_loss(real_output, fake_output)
+          #print(fake_output)
+          #print()
+          #print(real_output)
+          disc_loss = discriminator_loss(real_output, fake_output)
 
           #gen_loss = generator_loss(fake_output)
           
