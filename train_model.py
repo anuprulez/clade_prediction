@@ -59,7 +59,6 @@ def gen_step_train(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real
 def pretrain_generator(inputs, enc_units, gen_encoder, gen_decoder):
   input_tokens, target_tokens = inputs  
   epo_avg_gen_loss = list()
-  #m_loss = masked_loss.MaskedLoss()
   for step, (x_batch_train, y_batch_train) in enumerate(zip(input_tokens, target_tokens)):
       unrolled_x = utils.convert_to_array(x_batch_train)
       unrolled_y = utils.convert_to_array(y_batch_train)
@@ -74,7 +73,9 @@ def pretrain_generator(inputs, enc_units, gen_encoder, gen_decoder):
           enc_output, enc_state = gen_encoder(unrolled_x)
           enc_state = tf.math.add(enc_state, noise)
           dec_state = enc_state
-          gen_logits, gen_decoder, gen_loss = gen_step_train(seq_len, batch_size, vocab_size, gen_decoder, dec_state, unrolled_y)
+          gen_logits, dec_state = gen_decoder([new_tokens, dec_state], training=True)
+          gen_loss = m_loss(unrolled_y, gen_logits)
+          #gen_logits, gen_decoder, gen_loss = gen_step_train(seq_len, batch_size, vocab_size, gen_decoder, dec_state, unrolled_y)
           print("Pretrain Generator batch {} step loss: {}".format(str(step), str(gen_loss)))
           epo_avg_gen_loss.append(gen_loss)
       gradients_of_generator = gen_tape.gradient(gen_loss, gen_decoder.trainable_variables)
@@ -92,7 +93,6 @@ def start_training(inputs, enc_units, generator, encoder, par_enc_model, gen_enc
   epo_avg_gen_loss = list()
   epo_ave_gen_true_loss = list()
   epo_avg_disc_loss = list()
-  m_loss = masked_loss.MaskedLoss()
   generator.trainable = gen_disc_alter
   par_enc_model.trainable = gen_disc_alter  
   gen_enc_model.trainable = gen_disc_alter
@@ -113,8 +113,9 @@ def start_training(inputs, enc_units, generator, encoder, par_enc_model, gen_enc
           enc_state = tf.math.add(enc_state, noise)
           gen_loss = tf.constant(0.0)
           dec_state = enc_state
-          #generated_logits, dec_state = generator([new_tokens, dec_state], training = gen_disc_alter)
-          generated_logits, generator, gen_true_loss = gen_step_train(seq_len, batch_size, vocab_size, generator, dec_state, unrolled_y)
+          generated_logits, dec_state = generator([new_tokens, dec_state], training = gen_disc_alter)
+          gen_true_loss = m_loss(unrolled_y, generated_logits)
+          #generated_logits, generator, gen_true_loss = gen_step_train(seq_len, batch_size, vocab_size, generator, dec_state, unrolled_y)
           #generated_tokens = tf.math.argmax(generated_logits, axis=-1)
 
           #encoder.save_weights(ENC_WEIGHTS_SAVE_PATH)
