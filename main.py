@@ -10,27 +10,31 @@ import glob
 import tensorflow as tf
 
 import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
 
 import preprocess_sequences
 import utils
 import neural_network
-import sequence_to_sequence
-import container_classes
 import train_model
 import masked_loss
 
 
 
 PATH_PRE = "data/ncov_global/"
-PATH_SEQ = PATH_PRE + "spike_protein.fasta" #"ncov_global.fasta"
+PATH_SEQ = PATH_PRE + "spike_protein.fasta"
 PATH_SEQ_CLADE = PATH_PRE + "ncov_global.tsv"
 PATH_CLADES = "data/clade_in_clade_out_19A_20A.json" #"data/clade_in_clade_out.json"
-KMER_SIZE = 3
-embedding_dim = 64
+PRETRAIN_GEN_LOSS = "data/generated_files/pretr_gen_loss.txt"
+TRAIN_GEN_LOSS = "data/generated_files/tr_gen_loss.txt"
+TRAIN_GEN_TRUE_LOSS = "data/generated_files/tr_gen_true_loss.txt"
+TRAIN_DISC_LOSS = "data/generated_files/tr_disc_loss.txt"
+TEST_LOSS = "data/generated_files/te_loss.txt"
+embedding_dim = 128
 batch_size = 32
-units = 64
-epochs = 20
-LEN_AA = 1275
+enc_units = 128
+pretrain_epochs = 2
+epochs = 2
+LEN_AA = 1273
 
 # https://www.tensorflow.org/text/tutorials/nmt_with_attention
 
@@ -41,152 +45,151 @@ def read_files():
     clades_in_clades_out = utils.read_json(PATH_CLADES)
 
     print("Preprocessing sequences...")
-    encoded_sequence_df, forward_dict, rev_dict = preprocess_sequences.preprocess_seq(PATH_SEQ, samples_clades, KMER_SIZE)
-    
+    encoded_sequence_df, forward_dict, rev_dict = preprocess_sequences.preprocess_seq(PATH_SEQ, samples_clades)
+    print(clades_in_clades_out)    
     print("Generating cross product...")
     preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df)
     
     vocab_size = utils.embedding_info(forward_dict)
-    
-    #print("Transforming generated samples...")
-    #train_x, train_y, test_x, test_y = preprocess_sequences.transform_encoded_samples()
-    
-    #print(train_x.shape, train_y.shape, test_x.shape, test_y.shape)
-    
-    '''train_x = np.array([list(map(int, lst)) for lst in train_x])
-    train_y = [list(map(int, lst)) for lst in train_y]
 
-    test_x = [list(map(int, lst)) for lst in test_x]
-    test_y = [list(map(int, lst)) for lst in test_y]'''
-    
-    #print(train_x)
-    
-    #print("Reading in/out sequences...")
-    # = preprocess_sequences.read_in_out_sequences()
-    
-    '''vocab_size, seq_len = utils.embedding_info(forward_dict, train_samples)
-    
-    # get train datasets
-    train_x = train_samples["Sequence_x"].to_numpy()
-    train_y = train_samples["Sequence_y"].to_numpy()
+    start_training(vocab_size)
 
-    train_x = [list(map(int, lst)) for lst in train_x]
-    train_y = [list(map(int, lst)) for lst in train_y]
-    
-    print(train_x, train_y)
-    
-    # get test datasets
-    test_x = test_samples["Sequence_x"].to_numpy()
-    test_y = test_samples["Sequence_y"].to_numpy()
 
-    test_x = [list(map(int, lst)) for lst in test_x]
-    test_y = [list(map(int, lst)) for lst in test_y]
+def start_training(vocab_size):
     
-    print(test_x, test_y)
-
-    print("Creating neural network...")
+    '''
+    # code snippet with random samples
+    seq_len = 50
+    vocab_size = 20
+    batch_size = 32
+    embedding_dim = 16
+    enc_units = 32
+    factor = 5
+    epochs = 1
+    n_samples = factor * batch_size
     
-    factor = 100
+    train_real_x = [np.random.randint(vocab_size, size=seq_len) for i in range(n_samples)]
+    train_real_x = np.array(train_real_x)
+    print(train_real_x.shape)
     
-    train_x = [np.random.randint(vocab_size, size=seq_len) for i in range(factor * batch_size)]
-    train_x = np.array(train_x)
-    print(train_x.shape)
-
-    train_y = [np.random.randint(vocab_size, size=seq_len) for i in range(factor * batch_size)]
-    train_y = np.array(train_y)
-    print(train_y.shape)
+    train_real_y = [np.random.randint(vocab_size, size=seq_len) for i in range(n_samples)]
+    train_real_y = np.array(train_real_y)
+    print(train_real_y.shape)
+    dataset_in = tf.data.Dataset.from_tensor_slices((train_real_x)).batch(batch_size)
+    dataset_out = tf.data.Dataset.from_tensor_slices((train_real_y)).batch(batch_size)
     
-    dataset_in = tf.data.Dataset.from_tensor_slices((train_x)).batch(batch_size)
-    dataset_out = tf.data.Dataset.from_tensor_slices((train_y)).batch(batch_size)'''
+    '''
 
-    start_training(embedding_dim, units, batch_size, vocab_size)
+    decoder, encoder = neural_network.make_generator_model(LEN_AA, vocab_size, embedding_dim, enc_units, batch_size)
 
-def start_training(embedding_dim, units, batch_size, vocab_size):
-    
-    model = train_model.TrainModel(
-        embedding_dim, units,
-        vocab_size,
-        use_tf_function=False
-    )
+    #parent_encoder_model, gen_encoder_model = neural_network.make_disc_par_gen_model(LEN_AA, vocab_size, embedding_dim, enc_units)
 
-    # Configure the loss and optimizer
-    model.compile(
-        optimizer=tf.optimizers.Adam(),
-        loss=masked_loss.MaskedLoss(),
-    )
-  
-    '''te_factor = 1
-    te_batch_size = 1
+    #discriminator = neural_network.make_discriminator_model(LEN_AA, vocab_size, embedding_dim, enc_units)
 
-    print("Generating test data...")
-    test_x = [np.random.randint(vocab_size, size=seq_len) for i in range(te_factor * te_batch_size)]
-    test_x = np.array(test_x)
-
-    test_y = [np.random.randint(vocab_size, size=seq_len) for i in range(te_factor * te_batch_size)]
-    test_y = np.array(test_y)
-    print(test_x.shape, test_y.shape)'''
-    
-    print("Start training ...")  
+    print("Start training ...")
+    m_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
     
     tr_clade_files = glob.glob('data/train/*.csv')
-    print(tr_clade_files)
+    te_clade_files = glob.glob('data/test/*.csv')
+
+    train_gen_loss = list()
+    train_gen_true_loss = list()
+    train_disc_loss = list()
+    pretrain_gen_loss = list()
     for name in tr_clade_files:
-        clade_df = pd.read_csv(name, sep="\t")
-        X = clade_df["X"]
-        y = clade_df["Y"]
-        print(clade_df.shape)
-        dataset_in = tf.data.Dataset.from_tensor_slices((X)).batch(batch_size)
-        dataset_out = tf.data.Dataset.from_tensor_slices((y)).batch(batch_size)
-        print(dataset_in)
-        print(dataset_out)
+        tr_clade_df = pd.read_csv(name, sep="\t")
+        X = tr_clade_df["X"]
+        y = tr_clade_df["Y"]
+        print(tr_clade_df.shape)
+        print("Pretraining generator...")
+        X_pretrain, X_train, y_pretrain, y_train  = train_test_split(X, y, test_size=0.7)
+        print(X_pretrain.shape, y_pretrain.shape, X_train.shape, y_train.shape)
+        pretrain_dataset_in = tf.data.Dataset.from_tensor_slices((X_pretrain)).batch(batch_size)
+        pretrain_dataset_out = tf.data.Dataset.from_tensor_slices((y_pretrain)).batch(batch_size)
+        print("Num of pretrain batches: {}".format(str(int(X_pretrain.shape[0]/float(batch_size)))))
+        for i in range(pretrain_epochs):
+            print("Pre training epoch {}...".format(str(i+1)))
+            epo_pretrain_gen_loss, encoder, generator = train_model.pretrain_generator([pretrain_dataset_in, pretrain_dataset_out], enc_units, encoder, decoder)
+            print("Pre training loss at step {}: Generator loss: {}".format(str(i+1), str(epo_pretrain_gen_loss)))
+            pretrain_gen_loss.append(epo_pretrain_gen_loss)
+        np.savetxt(PRETRAIN_GEN_LOSS, pretrain_gen_loss) 
 
+        parent_encoder_model, gen_encoder_model = neural_network.make_disc_par_gen_model(LEN_AA, vocab_size, embedding_dim, enc_units)
+        discriminator = neural_network.make_discriminator_model(LEN_AA, vocab_size, embedding_dim, enc_units)
+
+        print("Training Gen and Disc...")
+        dataset_in = tf.data.Dataset.from_tensor_slices((X_train)).batch(batch_size)
+        dataset_out = tf.data.Dataset.from_tensor_slices((y_train)).batch(batch_size)
+        total_te_loss = []
+        alter_gen_disc_tr = True
+        print("Num of train batches: {}".format(str(int(X_train.shape[0]/float(batch_size)))))
         for n in range(epochs):
-            print("Training epoch {}...".format(str(n)))
-            batch_learning = model.train_step([dataset_in, dataset_out])
-            print("Training loss at step {}: {}".format(str(n+1), str(np.round(batch_learning["epo_loss"], 4))))
-            #predict_sequence(test_x, test_y, model, seq_len, vocab_size, te_batch_size)
+            print("Training epoch {}...".format(str(n+1)))
+            #if (n+1) % 3 == 0:
+            #alter_gen_disc_tr = alter_gen_disc_tr
+            epo_gen_loss, epo_disc_loss, gen_true_loss, encoder, generator = train_model.start_training([dataset_in, dataset_out], enc_units, generator, encoder, parent_encoder_model, gen_encoder_model, discriminator, alter_gen_disc_tr)
+            print("Training loss at step {}: Generator true loss: {}, Generator loss: {}, Discriminator loss :{}".format(str(n+1), str(gen_true_loss), str(epo_gen_loss), str(epo_disc_loss)))
+            train_gen_loss.append(epo_gen_loss)
+            train_disc_loss.append(epo_disc_loss)
+            train_gen_true_loss.append(gen_true_loss)
+            for te_name in te_clade_files:
+                te_clade_df = pd.read_csv(te_name, sep="\t")
+                te_X = te_clade_df["X"]
+                te_y = te_clade_df["Y"]
+                print(te_clade_df.shape)
+                print("Num of test batches: {}".format(str(int(te_clade_df.shape[0]/float(batch_size)))))
+                print("Prediction on test data...")
+                te_loss = predict_sequence(te_X, te_y, LEN_AA, vocab_size, batch_size, encoder, generator)
+                total_te_loss.append(te_loss)
+        np.savetxt(TRAIN_GEN_LOSS, train_gen_loss)
+        np.savetxt(TRAIN_DISC_LOSS, train_disc_loss)
+        np.savetxt(TEST_LOSS, total_te_loss)
+        np.savetxt(TRAIN_GEN_TRUE_LOSS, train_gen_true_loss)
 
 
-'''
-def predict_sequence(test_x, test_y, model, seq_len, vocab_size, batch_size):
+def predict_sequence(test_x, test_y, seq_len, vocab_size, batch_size, encoder, generator):
     avg_test_loss = []
+    m_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
     test_dataset_in = tf.data.Dataset.from_tensor_slices((test_x)).batch(batch_size)
     test_dataset_out = tf.data.Dataset.from_tensor_slices((test_y)).batch(batch_size)
-    attention = []
-    for batch_x_test, batch_y_test in zip(test_dataset_in, test_dataset_out):
-        enc_output, enc_state = model.encoder(batch_x_test)
-        input_mask = batch_x_test != 0
-        target_mask = batch_y_test != 0
-        new_tokens = tf.fill([batch_size, seq_len], 0)
+    i = 0
+    loaded_encoder = tf.keras.models.load_model("data/generated_files/enc_model")
+    loaded_generator = tf.keras.models.load_model("data/generated_files/gen_model")
+    for step, (x, y) in enumerate(zip(test_dataset_in, test_dataset_out)):
+    
+        batch_x_test = utils.convert_to_array(x)
+        batch_y_test = utils.convert_to_array(y)
 
-        decoder_input = container_classes.DecoderInput(new_tokens=new_tokens, enc_output=enc_output, mask=input_mask)
-        dec_result, dec_state = model.decoder(decoder_input, state=enc_state)
-        attention.append(dec_result.attention_weights)
-        # compute loss
-        y = batch_y_test
-        y_pred = dec_result.logits
-        pred_tokens = tf.argmax(y_pred, axis=-1)
-        loss = model.loss(y, y_pred)
-        average_loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
-        real_loss = average_loss.numpy()
-        avg_test_loss.append(real_loss)
-    attention_stack = tf.concat(attention, axis=1)
+        if batch_x_test.shape[0] == batch_size:
+            new_tokens = tf.fill([batch_size, seq_len], 0)
+            noise = tf.random.normal((batch_size, enc_units))
+
+            enc_output, enc_state = loaded_encoder(batch_x_test, training=False)
+            enc_state = tf.math.add(enc_state, noise)
+            generated_logits, state = loaded_generator([new_tokens, enc_state], training=False)
+            
+            loss = m_loss(batch_y_test, generated_logits)           
+            
+            #generated_logits = model([batch_x_test, new_tokens, noise], training=False)
+            generated_tokens = tf.math.argmax(generated_logits, axis=-1)
+            if step == 5:
+                print("Test: Sample 0, batch {}".format(str(step)))
+                print(batch_y_test[0])
+                print()
+                print(tf.argmax(generated_logits, axis=-1)[0])
+        
+            # compute loss
+            print("Test: Batch {} loss: {}".format(str(i), str(loss)))
+            avg_test_loss.append(loss)
+            i += 1
+    mean_loss = np.mean(avg_test_loss)
+    print("Total test loss: {}".format(str(mean_loss)))
+    return mean_loss
     
-    print("Total test loss: {}".format(str(np.mean(avg_test_loss))))
-    print()
-    plot_attention(attention_stack)
-    
-def plot_attention(attention_stack):
-    a = attention_stack[0]
-    print(np.sum(a, axis=-1))
-    #_ = plt.bar(range(len(a[0, :])), a[0, :])
-    #plt.imshow(np.array(a), vmin=0.0)
-    #plt.show()
-'''
 
 if __name__ == "__main__":
     start_time = time.time()
     read_files()
     end_time = time.time()
     print("Program finished in {} seconds".format(str(np.round(end_time - start_time, 2))))
-
+     
