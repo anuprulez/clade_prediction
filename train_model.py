@@ -12,6 +12,10 @@ import h5py
 import utils
 
 ENC_WEIGHTS_SAVE_PATH = "data/generated_files/generator_encoder_weights.h5"
+PRETRAIN_ENC_MODEL = "data/generated_files/pretrain_gen_encoder"
+PRETRAIN_GEN_MODEL = "data/generated_files/pretrain_gen_decoder"
+TRAIN_ENC_MODEL = "data/generated_files/enc_model"
+TRAIN_GEN_MODEL = "data/generated_files/gen_model"
 
 pretrain_generator_optimizer = tf.keras.optimizers.Adam(0.01)
 generator_optimizer = tf.keras.optimizers.Adam(1e-3)
@@ -51,20 +55,19 @@ def gen_step_train(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real
         i_token = o_token
     step_loss = step_loss / seq_len
     pred_logits = tf.convert_to_tensor(pred_logits)
-    print(real_o[1])
-    print()
-    print(tf.math.argmax(pred_logits, axis=-1)[1])
-    print("------------------")
+    #print(real_o[1])
+    #print()
+    #print(tf.math.argmax(pred_logits, axis=-1)[1])
+    #print("------------------")
     return pred_logits, gen_decoder, step_loss
 
 
-def pretrain_generator(inputs, enc_units, gen_encoder, gen_decoder, vocab_size, n_batches):
+def pretrain_generator(inputs, gen_encoder, gen_decoder, enc_units, vocab_size, n_batches):
   input_tokens, target_tokens = inputs  
   epo_avg_gen_loss = list()
   for step, (x_batch_train, y_batch_train) in enumerate(zip(input_tokens, target_tokens)):
       unrolled_x = utils.convert_to_array(x_batch_train)
       unrolled_y = utils.convert_to_array(y_batch_train)
-      (_, input_mask, _, target_mask) = _preprocess(unrolled_x, unrolled_y)
       seq_len = unrolled_x.shape[1]
       batch_size = unrolled_x.shape[0]
       with tf.GradientTape() as gen_tape:
@@ -84,24 +87,19 @@ def pretrain_generator(inputs, enc_units, gen_encoder, gen_decoder, vocab_size, 
 
   # save model
   gen_encoder.save_weights(ENC_WEIGHTS_SAVE_PATH)
-  tf.keras.models.save_model(gen_encoder, "data/generated_files/pretrain_gen_encoder")
-  tf.keras.models.save_model(gen_decoder, "data/generated_files/pretrain_gen_decoder")
+  tf.keras.models.save_model(gen_encoder, PRETRAIN_ENC_MODEL)
+  tf.keras.models.save_model(gen_decoder, PRETRAIN_GEN_MODEL)
   return np.mean(epo_avg_gen_loss), gen_encoder, gen_decoder
 
 
-def start_training(inputs, enc_units, vocab_size, generator, encoder, par_enc_model, gen_enc_model, discriminator, gen_disc_alter):
+def start_training(inputs, encoder, decoder, par_enc_model, gen_enc_model, discriminator, enc_units, vocab_size, n_train_batches):
   input_tokens, target_tokens = inputs  
   epo_avg_gen_loss = list()
   epo_ave_gen_true_loss = list()
   epo_avg_disc_loss = list()
-  generator.trainable = gen_disc_alter
-  par_enc_model.trainable = gen_disc_alter  
-  gen_enc_model.trainable = gen_disc_alter
-  discriminator.trainable = gen_disc_alter
   for step, (x_batch_train, y_batch_train) in enumerate(zip(input_tokens, target_tokens)):
       unrolled_x = utils.convert_to_array(x_batch_train)
       unrolled_y = utils.convert_to_array(y_batch_train)
-      (_, input_mask, _, target_mask) = _preprocess(unrolled_x, unrolled_y)
       seq_len = unrolled_x.shape[1]
       batch_size = unrolled_x.shape[0]
       with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
@@ -113,10 +111,10 @@ def start_training(inputs, enc_units, vocab_size, generator, encoder, par_enc_mo
           enc_state = tf.math.add(enc_state, noise)
           gen_loss = tf.constant(0.0)
           dec_state = enc_state
-          #generated_logits, dec_state = generator([new_tokens, dec_state], training = gen_disc_alter)
+          #generated_logits, dec_state = decoder([new_tokens, dec_state], training = gen_disc_alter)
           #gen_true_loss = m_loss(unrolled_y, generated_logits)
 
-          generated_logits, generator, gen_true_loss = gen_step_train(seq_len, batch_size, vocab_size, generator, dec_state, unrolled_y)
+          generated_logits, decoder, gen_true_loss = gen_step_train(seq_len, batch_size, vocab_size, decoder, dec_state, unrolled_y)
           #generated_tokens = tf.math.argmax(generated_logits, axis=-1)
 
           #encoder.save_weights(ENC_WEIGHTS_SAVE_PATH)
@@ -140,40 +138,16 @@ def start_training(inputs, enc_units, vocab_size, generator, encoder, par_enc_mo
           gen_loss_wl = wasserstein_loss(tf.ones_like(fake_output), fake_output)
           epo_ave_gen_true_loss.append(gen_true_loss)
           gen_loss = gen_loss_wl + gen_true_loss
-          print("Batch {}, Generator W loss: {}, Generator true loss: {}, Generator loss: {}, Discriminator loss: {}".format(str(step), str(gen_loss_wl), str(gen_true_loss), str(gen_loss.numpy()), str(disc_loss.numpy())))
+          print("Batch {}/{}, Generator W loss: {}, Generator true loss: {}, Generator loss: {}, Discriminator loss: {}".format(str(step), str(n_train_batches), str(gen_loss_wl), str(gen_true_loss), str(gen_loss.numpy()), str(disc_loss.numpy())))
           epo_avg_gen_loss.append(gen_loss.numpy())
           epo_avg_disc_loss.append(disc_loss.numpy())
-      gradients_of_generator = gen_tape.gradient(gen_loss, generator.trainable_variables)
-      generator_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
+      if step == 2:
+          break
+      gradients_of_generator = gen_tape.gradient(gen_loss, decoder.trainable_variables)
+      generator_optimizer.apply_gradients(zip(gradients_of_generator, decoder.trainable_variables))
       gradients_of_discriminator = disc_tape.gradient(disc_loss, discriminator.trainable_variables)
       discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
   # save model
-  tf.keras.models.save_model(encoder, "data/generated_files/enc_model")
-  tf.keras.models.save_model(generator, "data/generated_files/gen_model")
-  return np.mean(epo_avg_gen_loss), np.mean(epo_avg_disc_loss), np.mean(epo_ave_gen_true_loss), encoder, generator
-
-
-def _preprocess(input_text, target_text):
-
-  # Convert IDs to masks.
-  input_mask = input_text != 0
-  target_mask = target_text != 0
-  return input_text, input_mask, target_text, target_mask
-
-
-def _loop_step(new_tokens, input_mask, enc_output, dec_state):
-  input_token, target_token = new_tokens[:, 0:1], new_tokens[:, 1:2]
-
-  # Run the decoder one step.
-  decoder_input = container_classes.DecoderInput(new_tokens=input_token,
-                               enc_output=enc_output,
-                               mask=input_mask)
-
-  dec_result, dec_state = self.decoder(decoder_input, state=dec_state)
-
-  # `self.loss` returns the total for non-padded tokens
-  y = target_token
-  y_pred = dec_result.logits
-  step_loss = self.loss(y, y_pred)
-
-  return step_loss, dec_state
+  tf.keras.models.save_model(encoder, TRAIN_ENC_MODEL)
+  tf.keras.models.save_model(decoder, TRAIN_GEN_MODEL)
+  return np.mean(epo_avg_gen_loss), np.mean(epo_avg_disc_loss), np.mean(epo_ave_gen_true_loss), encoder, decoder
