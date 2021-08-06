@@ -48,8 +48,6 @@ def test_trained_model():
         print("Num of test batches: {}".format(str(int(te_clade_df.shape[0]/float(batch_size)))))
         print("Prediction on test data...")
         te_loss = predict_sequence(te_X, te_y, LEN_AA, vocab_size, batch_size)
-        #total_te_loss.append(te_loss)
-        #np.savetxt(TEST_LOSS, total_te_loss)
 
 
 def gen_step_predict(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real_o):
@@ -102,19 +100,10 @@ def predict_sequence(test_x, test_y, seq_len, vocab_size, batch_size):
             dec_state = enc_state
             #generated_logits, state = loaded_generator([new_tokens, enc_state], training=False)
             #loss = m_loss(batch_y_test, generated_logits)
+            
             generated_logits, _, loss = gen_step_predict(seq_len, batch_size, vocab_size, loaded_generator, dec_state, batch_y_test)
             
-            #one_x = batch_x_test[1]
-            #one_x = ",".join(list(one_x.numpy()))
-
-            #one_y = batch_y_test[1]
-            #one_y = ",".join(list(one_y.numpy()))
-
             p_y = tf.math.argmax(generated_logits, axis=-1)[1]
-            #predicted_y = predicted_y.numpy()
-            #predicted_y = ",".join(list(predicted_y))
-            #print(predicted_y)
-            
             one_x = convert_to_string_list(batch_x_test[1])
             one_y = convert_to_string_list(batch_y_test[1])
             pred_y = convert_to_string_list(p_y)
@@ -122,16 +111,12 @@ def predict_sequence(test_x, test_y, seq_len, vocab_size, batch_size):
             true_x.append(one_x)
             true_y.append(one_y)
             predicted_y.append(pred_y)
-            
-            #generated_tokens = tf.math.argmax(generated_logits, axis=-1)
+
             print("Test: Batch {} loss: {}".format(str(i), str(loss)))
             avg_test_loss.append(loss)
             i += 1
-        if step == 1:
-            break
     true_predicted_df = pd.DataFrame(list(zip(true_x, true_y, predicted_y)), columns=["True_X", "True_Y", "Predicted_Y"])
     true_predicted_df.to_csv("data/generated_files/true_predicted_df.csv", index=None)
-    # pd.DataFrame(list(zip(n_samples, var_name_df, var_pos_df, var_af_df, x, y, pt_annotations, colors)), columns=["sample_name", "variant", "POS", "AF", "x", "y", "annotations", "clusters"]) 
     mean_loss = np.mean(avg_test_loss)
     print("Total test loss: {}".format(str(mean_loss)))
     return mean_loss
