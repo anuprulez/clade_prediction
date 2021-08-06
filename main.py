@@ -44,7 +44,7 @@ SCE = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
 embedding_dim = 128
 batch_size = 32
 enc_units = 128
-pretrain_epochs = 3
+pretrain_epochs = 5
 epochs = 5
 seq_len = LEN_AA
 

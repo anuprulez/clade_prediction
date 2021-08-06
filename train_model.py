@@ -68,8 +68,6 @@ def pretrain_generator(inputs, gen_encoder, gen_decoder, enc_units, vocab_size, 
       seq_len = unrolled_x.shape[1]
       batch_size = unrolled_x.shape[0]
       with tf.GradientTape() as gen_tape:
-
-          new_tokens = tf.fill([batch_size, seq_len], 0)
           noise = tf.random.normal((batch_size, enc_units))
           enc_output, enc_state = gen_encoder(unrolled_x, training=True)
           enc_state = tf.math.add(enc_state, noise)
@@ -98,8 +96,6 @@ def start_training(inputs, encoder, decoder, par_enc_model, gen_enc_model, discr
       seq_len = unrolled_x.shape[1]
       batch_size = unrolled_x.shape[0]
       with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
-
-          new_tokens = tf.fill([batch_size, seq_len], 0)
           noise = tf.random.normal((batch_size, enc_units))
           # encode true parent
           enc_output, enc_state = encoder(unrolled_x, training=True)
