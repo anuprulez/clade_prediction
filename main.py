@@ -44,8 +44,8 @@ SCE = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
 embedding_dim = 128
 batch_size = 32
 enc_units = 128
-pretrain_epochs = 2
-epochs = 2
+pretrain_epochs = 3
+epochs = 5
 seq_len = LEN_AA
 
 
@@ -97,7 +97,7 @@ def start_training(vocab_size):
     
     n_test_batches = int(te_clade_df.shape[0]/float(batch_size))
     # divide datasets into pretrain and train sets
-    X_pretrain, X_train, y_pretrain, y_train  = train_test_split(X, y, test_size=0.99)
+    X_pretrain, X_train, y_pretrain, y_train  = train_test_split(X, y, test_size=0.7)
     # pretrain generator
     print("Pretraining generator...")
     print(X_pretrain.shape, y_pretrain.shape, X_train.shape, y_train.shape)
@@ -188,8 +188,6 @@ def predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, bat
             print("Test: Batch {} loss: {}".format(str(i), str(loss)))
             avg_test_loss.append(loss)
             i += 1
-        if i == 3:
-            break
     true_predicted_df = pd.DataFrame(list(zip(true_x, true_y, predicted_y)), columns=["True_X", "True_Y", "Predicted_Y"])
     true_predicted_df.to_csv(SAVE_TRUE_PRED_SEQ, index=None)
     mean_loss = np.mean(avg_test_loss)
@@ -214,10 +212,6 @@ def gen_step_predict(seq_len, batch_size, vocab_size, gen_decoder, dec_state, re
         i_token = dec_tokens
     step_loss = step_loss / seq_len
     pred_logits = tf.convert_to_tensor(pred_logits)
-    #print(real_o[1])
-    #print()
-    #print(tf.math.argmax(pred_logits, axis=-1)[1])
-    #print("------------------")
     return pred_logits, gen_decoder, step_loss
 
 
