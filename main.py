@@ -24,6 +24,7 @@ PATH_PRE = "data/ncov_global/"
 PATH_SEQ = PATH_PRE + "spike_protein.fasta"
 PATH_SEQ_CLADE = PATH_PRE + "ncov_global.tsv"
 PATH_CLADES = "data/clade_in_clade_out_19A_20A.json" #"data/clade_in_clade_out.json"
+
 PRETRAIN_GEN_LOSS = "data/generated_files/pretr_gen_loss.txt"
 PRETRAIN_GEN_TEST_LOSS = "data/generated_files/pretr_gen_test_loss.txt"
 
@@ -31,6 +32,7 @@ TRAIN_GEN_LOSS = "data/generated_files/tr_gen_loss.txt"
 TRAIN_GEN_TRUE_LOSS = "data/generated_files/tr_gen_true_loss.txt"
 TRAIN_DISC_LOSS = "data/generated_files/tr_disc_loss.txt"
 TEST_LOSS = "data/generated_files/te_loss.txt"
+
 PRETRAIN_ENC_MODEL = "data/generated_files/pretrain_gen_encoder"
 PRETRAIN_GEN_MODEL = "data/generated_files/pretrain_gen_decoder"
 TRAIN_ENC_MODEL = "data/generated_files/enc_model"
@@ -89,15 +91,20 @@ def start_training(vocab_size):
         te_y = te_clade_df["Y"]
         print(te_clade_df.shape)
 
+    # get test dataset as sliced tensors
     test_dataset_in = tf.data.Dataset.from_tensor_slices((te_X)).batch(batch_size)
     test_dataset_out = tf.data.Dataset.from_tensor_slices((te_y)).batch(batch_size)
+    
     n_test_batches = int(te_clade_df.shape[0]/float(batch_size))
     # divide datasets into pretrain and train sets
     X_pretrain, X_train, y_pretrain, y_train  = train_test_split(X, y, test_size=0.99)
+    # pretrain generator
     print("Pretraining generator...")
     print(X_pretrain.shape, y_pretrain.shape, X_train.shape, y_train.shape)
+    # get pretraining dataset as sliced tensors
     pretrain_dataset_in = tf.data.Dataset.from_tensor_slices((X_pretrain)).batch(batch_size)
     pretrain_dataset_out = tf.data.Dataset.from_tensor_slices((y_pretrain)).batch(batch_size)
+    
     n_pretrain_batches = int(X_pretrain.shape[0]/float(batch_size))
     print("Num of pretrain batches: {}".format(str(n_pretrain_batches)))
     for i in range(pretrain_epochs):
@@ -111,19 +118,22 @@ def start_training(vocab_size):
         pretrain_gen_test_loss.append(epo_pt_gen_te_loss)
     np.savetxt(PRETRAIN_GEN_LOSS, pretrain_gen_loss)
     np.savetxt(PRETRAIN_GEN_TEST_LOSS, pretrain_gen_test_loss)
-    
+
     # create discriminator model
     disc_parent_encoder_model, disc_gen_encoder_model = neural_network.make_disc_par_gen_model(LEN_AA, vocab_size, embedding_dim, enc_units)
     discriminator = neural_network.make_discriminator_model(LEN_AA, vocab_size, embedding_dim, enc_units)
     
+    # use the pretrained generator and train it along with discriminator
     print("Training Generator and Discriminator...")
     train_gen_loss = list()
     train_gen_true_loss = list()
     train_disc_loss = list()
     train_te_loss = list()
     
+    # get training dataset as sliced tensors
     dataset_in = tf.data.Dataset.from_tensor_slices((X_train)).batch(batch_size)
     dataset_out = tf.data.Dataset.from_tensor_slices((y_train)).batch(batch_size)
+    
     n_train_batches = int(X_train.shape[0]/float(batch_size))
     print("Num of train batches: {}".format(str(n_train_batches)))
     for n in range(epochs):
@@ -139,66 +149,11 @@ def start_training(vocab_size):
         epo_tr_gen_te_loss = predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, batch_size, TRAIN_ENC_MODEL, TRAIN_GEN_MODEL)
         train_te_loss.append(epo_tr_gen_te_loss)
     
+    # save loss files
     np.savetxt(TRAIN_GEN_LOSS, train_gen_loss)
     np.savetxt(TRAIN_DISC_LOSS, train_disc_loss)
     np.savetxt(TRAIN_GEN_TRUE_LOSS, train_gen_true_loss)
     np.savetxt(TEST_LOSS, train_te_loss)
-    #-----------------------------------------------------------------------
-
-    '''print("Start training ...")
-    train_gen_loss = list()
-    train_gen_true_loss = list()
-    train_disc_loss = list()
-    pretrain_gen_loss = list()
-    for name in tr_clade_files:
-        tr_clade_df = pd.read_csv(name, sep="\t")
-        X = tr_clade_df["X"]
-        y = tr_clade_df["Y"]
-        print(tr_clade_df.shape)
-        print("Pretraining generator...")
-        X_pretrain, X_train, y_pretrain, y_train  = train_test_split(X, y, test_size=0.7)
-        print(X_pretrain.shape, y_pretrain.shape, X_train.shape, y_train.shape)
-        pretrain_dataset_in = tf.data.Dataset.from_tensor_slices((X_pretrain)).batch(batch_size)
-        pretrain_dataset_out = tf.data.Dataset.from_tensor_slices((y_pretrain)).batch(batch_size)
-        print("Num of pretrain batches: {}".format(str(int(X_pretrain.shape[0]/float(batch_size)))))
-        for i in range(pretrain_epochs):
-            print("Pre training epoch {}...".format(str(i+1)))
-            epo_pretrain_gen_loss, encoder, generator = train_model.pretrain_generator([pretrain_dataset_in, pretrain_dataset_out], enc_units, encoder, decoder)
-            print("Pre training loss at step {}: Generator loss: {}".format(str(i+1), str(epo_pretrain_gen_loss)))
-            pretrain_gen_loss.append(epo_pretrain_gen_loss)
-        np.savetxt(PRETRAIN_GEN_LOSS, pretrain_gen_loss) 
-
-        parent_encoder_model, gen_encoder_model = neural_network.make_disc_par_gen_model(LEN_AA, vocab_size, embedding_dim, enc_units)
-        discriminator = neural_network.make_discriminator_model(LEN_AA, vocab_size, embedding_dim, enc_units)
-
-        print("Training Gen and Disc...")
-        dataset_in = tf.data.Dataset.from_tensor_slices((X_train)).batch(batch_size)
-        dataset_out = tf.data.Dataset.from_tensor_slices((y_train)).batch(batch_size)
-        total_te_loss = []
-        alter_gen_disc_tr = True
-        print("Num of train batches: {}".format(str(int(X_train.shape[0]/float(batch_size)))))
-        for n in range(epochs):
-            print("Training epoch {}...".format(str(n+1)))
-            #if (n+1) % 3 == 0:
-            #alter_gen_disc_tr = alter_gen_disc_tr
-            epo_gen_loss, epo_disc_loss, gen_true_loss, encoder, generator = train_model.start_training([dataset_in, dataset_out], enc_units, vocab_size, generator, encoder, parent_encoder_model, gen_encoder_model, discriminator, alter_gen_disc_tr)
-            print("Training loss at step {}: Generator true loss: {}, Generator loss: {}, Discriminator loss :{}".format(str(n+1), str(gen_true_loss), str(epo_gen_loss), str(epo_disc_loss)))
-            train_gen_loss.append(epo_gen_loss)
-            train_disc_loss.append(epo_disc_loss)
-            train_gen_true_loss.append(gen_true_loss)
-            for te_name in te_clade_files:
-                te_clade_df = pd.read_csv(te_name, sep="\t")
-                te_X = te_clade_df["X"]
-                te_y = te_clade_df["Y"]
-                print(te_clade_df.shape)
-                print("Num of test batches: {}".format(str(int(te_clade_df.shape[0]/float(batch_size)))))
-                print("Prediction on test data...")
-                te_loss = predict_sequence(te_X, te_y, LEN_AA, vocab_size, batch_size, encoder, generator)
-                total_te_loss.append(te_loss)
-        np.savetxt(TRAIN_GEN_LOSS, train_gen_loss)
-        np.savetxt(TRAIN_DISC_LOSS, train_disc_loss)
-        np.savetxt(TEST_LOSS, total_te_loss)
-        np.savetxt(TRAIN_GEN_TRUE_LOSS, train_gen_true_loss)'''
 
 
 def predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, batch_size, enc_path, dec_path):
@@ -213,21 +168,19 @@ def predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, bat
         batch_x_test = utils.convert_to_array(x)
         batch_y_test = utils.convert_to_array(y)
         if batch_x_test.shape[0] == batch_size:
-            new_tokens = tf.fill([batch_size, 1], 0)
+            # generated noise for variation in predicted sequences
             noise = tf.random.normal((batch_size, enc_units))
             enc_output, enc_state = loaded_encoder(batch_x_test, training=False)
+            # add noise to the encoder state
             enc_state = tf.math.add(enc_state, noise)
             dec_state = enc_state
-            #generated_logits, state = loaded_generator([new_tokens, enc_state], training=False)
-            #loss = SCE(batch_y_test, generated_logits)
-            
+            # generate seqs stepwise - teacher forcing
             generated_logits, _, loss = gen_step_predict(seq_len, batch_size, vocab_size, loaded_generator, dec_state, batch_y_test)
-            
+            # collect true_x, true_y and predicted_y into a dataframe
             p_y = tf.math.argmax(generated_logits, axis=-1)[1]
             one_x = utils.convert_to_string_list(batch_x_test[1])
             one_y = utils.convert_to_string_list(batch_y_test[1])
             pred_y = utils.convert_to_string_list(p_y)
-
             true_x.append(one_x)
             true_y.append(one_y)
             predicted_y.append(pred_y)
@@ -247,6 +200,7 @@ def predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, bat
 def gen_step_predict(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real_o):
     step_loss = tf.constant(0.0)
     pred_logits = np.zeros((batch_size, seq_len, vocab_size))
+    # set initial token
     i_token = tf.fill([batch_size, 1], 0)
     for t in tf.range(seq_len):
         o_token = real_o[:, t:t+1]
@@ -256,13 +210,14 @@ def gen_step_predict(seq_len, batch_size, vocab_size, gen_decoder, dec_state, re
         loss = SCE(o_token, dec_result)
         step_loss += loss
         dec_tokens = tf.math.argmax(dec_result, axis=-1)
+        # teacher forcing, set current output as the next input
         i_token = dec_tokens
     step_loss = step_loss / seq_len
     pred_logits = tf.convert_to_tensor(pred_logits)
-    print(real_o[1])
-    print()
-    print(tf.math.argmax(pred_logits, axis=-1)[1])
-    print("------------------")
+    #print(real_o[1])
+    #print()
+    #print(tf.math.argmax(pred_logits, axis=-1)[1])
+    #print("------------------")
     return pred_logits, gen_decoder, step_loss
 
 
@@ -272,4 +227,3 @@ if __name__ == "__main__":
     read_files()
     end_time = time.time()
     print("Program finished in {} seconds".format(str(np.round(end_time - start_time, 2))))
-     

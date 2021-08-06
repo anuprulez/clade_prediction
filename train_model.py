@@ -1,7 +1,7 @@
 import time
 import sys
 import os
-
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import random
 import pandas as pd
 import numpy as np
@@ -52,6 +52,7 @@ def gen_step_train(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real
         pred_logits[:, t, :] = np.reshape(dec_numpy, (dec_numpy.shape[0], dec_numpy.shape[2]))
         loss = m_loss(o_token, dec_result)
         step_loss += loss
+        # teacher forcing, actual output as the next input
         i_token = o_token
     step_loss = step_loss / seq_len
     pred_logits = tf.convert_to_tensor(pred_logits)
@@ -77,8 +78,6 @@ def pretrain_generator(inputs, gen_encoder, gen_decoder, enc_units, vocab_size, 
           enc_output, enc_state = gen_encoder(unrolled_x, training=True)
           enc_state = tf.math.add(enc_state, noise)
           dec_state = enc_state
-          #gen_logits, dec_state = gen_decoder([new_tokens, dec_state], training=True)
-          #gen_loss = m_loss(unrolled_y, gen_logits)
           gen_logits, gen_decoder, gen_loss = gen_step_train(seq_len, batch_size, vocab_size, gen_decoder, dec_state, unrolled_y)
           print("Pretrain Generator batch {}/{} step loss: {}".format(str(step), str(n_batches), str(gen_loss)))
           epo_avg_gen_loss.append(gen_loss)
