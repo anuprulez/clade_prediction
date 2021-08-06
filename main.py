@@ -32,8 +32,8 @@ TEST_LOSS = "data/generated_files/te_loss.txt"
 embedding_dim = 128
 batch_size = 32
 enc_units = 128
-pretrain_epochs = 2
-epochs = 2
+pretrain_epochs = 5
+epochs = 5
 LEN_AA = 1273
 
 # https://www.tensorflow.org/text/tutorials/nmt_with_attention
