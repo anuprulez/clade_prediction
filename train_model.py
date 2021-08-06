@@ -58,7 +58,7 @@ def gen_step_train(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real
     return pred_logits, gen_decoder, step_loss
 
 
-def pretrain_generator(inputs, enc_units, gen_encoder, gen_decoder):
+def pretrain_generator(inputs, enc_units, gen_encoder, gen_decoder, vocab_size, n_batches):
   input_tokens, target_tokens = inputs  
   epo_avg_gen_loss = list()
   for step, (x_batch_train, y_batch_train) in enumerate(zip(input_tokens, target_tokens)):
@@ -67,7 +67,6 @@ def pretrain_generator(inputs, enc_units, gen_encoder, gen_decoder):
       (_, input_mask, _, target_mask) = _preprocess(unrolled_x, unrolled_y)
       seq_len = unrolled_x.shape[1]
       batch_size = unrolled_x.shape[0]
-      vocab_size = 26
       with tf.GradientTape() as gen_tape:
 
           new_tokens = tf.fill([batch_size, seq_len], 0)
@@ -78,7 +77,7 @@ def pretrain_generator(inputs, enc_units, gen_encoder, gen_decoder):
           #gen_logits, dec_state = gen_decoder([new_tokens, dec_state], training=True)
           #gen_loss = m_loss(unrolled_y, gen_logits)
           gen_logits, gen_decoder, gen_loss = gen_step_train(seq_len, batch_size, vocab_size, gen_decoder, dec_state, unrolled_y)
-          print("Pretrain Generator batch {} step loss: {}".format(str(step), str(gen_loss)))
+          print("Pretrain Generator batch {}/{} step loss: {}".format(str(step), str(n_batches), str(gen_loss)))
           epo_avg_gen_loss.append(gen_loss)
       gradients_of_generator = gen_tape.gradient(gen_loss, gen_decoder.trainable_variables)
       pretrain_generator_optimizer.apply_gradients(zip(gradients_of_generator, gen_decoder.trainable_variables))
@@ -90,7 +89,7 @@ def pretrain_generator(inputs, enc_units, gen_encoder, gen_decoder):
   return np.mean(epo_avg_gen_loss), gen_encoder, gen_decoder
 
 
-def start_training(inputs, enc_units, generator, encoder, par_enc_model, gen_enc_model, discriminator, gen_disc_alter):
+def start_training(inputs, enc_units, vocab_size, generator, encoder, par_enc_model, gen_enc_model, discriminator, gen_disc_alter):
   input_tokens, target_tokens = inputs  
   epo_avg_gen_loss = list()
   epo_ave_gen_true_loss = list()
@@ -105,7 +104,6 @@ def start_training(inputs, enc_units, generator, encoder, par_enc_model, gen_enc
       (_, input_mask, _, target_mask) = _preprocess(unrolled_x, unrolled_y)
       seq_len = unrolled_x.shape[1]
       batch_size = unrolled_x.shape[0]
-      vocab_size = 26
       with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
 
           new_tokens = tf.fill([batch_size, seq_len], 0)

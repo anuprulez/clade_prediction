@@ -8,15 +8,11 @@ import numpy as np
 import logging
 import glob
 import tensorflow as tf
-
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
 
-import preprocess_sequences
+
 import utils
-import neural_network
-import train_model
-import masked_loss
+
 
 
 
@@ -33,7 +29,7 @@ epochs = 5
 LEN_AA = 1273
 vocab_size = 26
 seq_len = LEN_AA
-m_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
+SCE = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
 
 
 def test_trained_model():
@@ -59,7 +55,7 @@ def gen_step_predict(seq_len, batch_size, vocab_size, gen_decoder, dec_state, re
         dec_result, dec_state = gen_decoder([i_token, dec_state], training=False)
         dec_numpy = dec_result.numpy()
         pred_logits[:, t, :] = np.reshape(dec_numpy, (dec_numpy.shape[0], dec_numpy.shape[2]))
-        loss = m_loss(o_token, dec_result)
+        loss = SCE(o_token, dec_result)
         step_loss += loss
         dec_tokens = tf.math.argmax(dec_result, axis=-1)
         i_token = dec_tokens
@@ -70,12 +66,6 @@ def gen_step_predict(seq_len, batch_size, vocab_size, gen_decoder, dec_state, re
     print(tf.math.argmax(pred_logits, axis=-1)[1])
     print("------------------")
     return pred_logits, gen_decoder, step_loss
-
-
-def convert_to_string_list(l):
-    l = l.numpy()
-    l = [str(item) for item in l]
-    return ",".join(l)
 
 
 def predict_sequence(test_x, test_y, seq_len, vocab_size, batch_size):
@@ -104,9 +94,9 @@ def predict_sequence(test_x, test_y, seq_len, vocab_size, batch_size):
             generated_logits, _, loss = gen_step_predict(seq_len, batch_size, vocab_size, loaded_generator, dec_state, batch_y_test)
             
             p_y = tf.math.argmax(generated_logits, axis=-1)[1]
-            one_x = convert_to_string_list(batch_x_test[1])
-            one_y = convert_to_string_list(batch_y_test[1])
-            pred_y = convert_to_string_list(p_y)
+            one_x = utils.convert_to_string_list(batch_x_test[1])
+            one_y = utils.convert_to_string_list(batch_y_test[1])
+            pred_y = utils.convert_to_string_list(p_y)
 
             true_x.append(one_x)
             true_y.append(one_y)

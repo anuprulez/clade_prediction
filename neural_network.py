@@ -88,7 +88,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     #gen_model = tf.keras.Model([inputs, new_tokens, noise], [logits])
     # Save encoder's weights shared by discriminator's encoder model
     encoder_model.save_weights(ENC_WEIGHTS_SAVE_PATH)
-    return decoder_model, encoder_model
+    return encoder_model, decoder_model
 
 
 def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units):
