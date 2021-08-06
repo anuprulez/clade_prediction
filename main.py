@@ -93,11 +93,11 @@ def start_training(vocab_size):
         te_y = te_clade_df["Y"]
         print(te_clade_df.shape)
     
-    test_dataset_in = tf.data.Dataset.from_tensor_slices((test_x)).batch(batch_size)
-    test_dataset_out = tf.data.Dataset.from_tensor_slices((test_y)).batch(batch_size)
+    test_dataset_in = tf.data.Dataset.from_tensor_slices((te_X)).batch(batch_size)
+    test_dataset_out = tf.data.Dataset.from_tensor_slices((te_y)).batch(batch_size)
 
     # divide datasets into pretrain and train sets
-    X_pretrain, X_train, y_pretrain, y_train  = train_test_split(X, y, test_size=0.9)
+    X_pretrain, X_train, y_pretrain, y_train  = train_test_split(X, y, test_size=0.98)
 
     print("Pretraining generator...")
     print(X_pretrain.shape, y_pretrain.shape, X_train.shape, y_train.shape)
