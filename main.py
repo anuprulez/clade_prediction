@@ -92,12 +92,13 @@ def start_training(vocab_size):
         te_X = te_clade_df["X"]
         te_y = te_clade_df["Y"]
         print(te_clade_df.shape)
+
     
     test_dataset_in = tf.data.Dataset.from_tensor_slices((te_X)).batch(batch_size)
     test_dataset_out = tf.data.Dataset.from_tensor_slices((te_y)).batch(batch_size)
 
     # divide datasets into pretrain and train sets
-    X_pretrain, X_train, y_pretrain, y_train  = train_test_split(X, y, test_size=0.98)
+    X_pretrain, X_train, y_pretrain, y_train  = train_test_split(X, y, test_size=0.99)
 
     print("Pretraining generator...")
     print(X_pretrain.shape, y_pretrain.shape, X_train.shape, y_train.shape)
@@ -112,10 +113,10 @@ def start_training(vocab_size):
         pretrain_gen_loss.append(epo_pretrain_gen_loss)
         print("Pretrain: predicting on test datasets...")
         print("Num of test batches: {}".format(str(int(te_clade_df.shape[0]/float(batch_size)))))
-        logits, _, epo_pt_gen_te_loss = predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, batch_size, enc_path, dec_path)
+        epo_pt_gen_te_loss = predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, batch_size, PRETRAIN_ENC_MODEL, PRETRAIN_GEN_MODEL)
         pretrain_gen_test_loss.append(epo_pt_gen_te_loss)
     np.savetxt(PRETRAIN_GEN_LOSS, pretrain_gen_loss)
-    np.savetxt(PRETRAIN_GEN_TEST_LOSS, pretrain_gen_loss)
+    np.savetxt(PRETRAIN_GEN_TEST_LOSS, pretrain_gen_test_loss)
 
     #-----------------------------------------------------------------------
 
@@ -209,6 +210,8 @@ def predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, bat
             print("Test: Batch {} loss: {}".format(str(i), str(loss)))
             avg_test_loss.append(loss)
             i += 1
+        if i == 3:
+            break
     true_predicted_df = pd.DataFrame(list(zip(true_x, true_y, predicted_y)), columns=["True_X", "True_Y", "Predicted_Y"])
     true_predicted_df.to_csv(SAVE_TRUE_PRED_SEQ, index=None)
     mean_loss = np.mean(avg_test_loss)
