@@ -77,6 +77,9 @@ def start_training(vocab_size):
     tr_clade_files = glob.glob('data/train/*.csv')
     te_clade_files = glob.glob('data/test/*.csv')
 
+    #train_size = 40000
+    #test_size = 10000
+
     # load train data
     for name in tr_clade_files:
         tr_clade_df = pd.read_csv(name, sep="\t")
@@ -91,13 +94,23 @@ def start_training(vocab_size):
         te_y = te_clade_df["Y"]
         print(te_clade_df.shape)
 
+    #X = X[:train_size]
+    #y = y[:train_size]
+
+    #te_X = te_X[:test_size]
+    #te_y = te_y[:test_size]
+
+    print(X.shape, y.shape, te_X.shape, te_y.shape)
+
+    te_batch_size = te_X.shape[0]
+    print("Te batch size: {}".format(te_batch_size))
     # get test dataset as sliced tensors
-    test_dataset_in = tf.data.Dataset.from_tensor_slices((te_X)).batch(batch_size)
-    test_dataset_out = tf.data.Dataset.from_tensor_slices((te_y)).batch(batch_size)
+    test_dataset_in = tf.data.Dataset.from_tensor_slices((te_X)).batch(te_batch_size)
+    test_dataset_out = tf.data.Dataset.from_tensor_slices((te_y)).batch(te_batch_size)
     
-    n_test_batches = int(te_clade_df.shape[0]/float(batch_size))
+    n_test_batches = int(te_clade_df.shape[0]/float(te_batch_size))
     # divide datasets into pretrain and train sets
-    X_pretrain, X_train, y_pretrain, y_train  = train_test_split(X, y, test_size=0.7)
+    '''X_pretrain, X_train, y_pretrain, y_train  = train_test_split(X, y, test_size=0.7)
     # pretrain generator
     print("Pretraining generator...")
     print(X_pretrain.shape, y_pretrain.shape, X_train.shape, y_train.shape)
@@ -114,10 +127,11 @@ def start_training(vocab_size):
         pretrain_gen_loss.append(epo_pretrain_gen_loss)
         print("Pretrain: predicting on test datasets...")
         print("Num of test batches: {}".format(str(n_test_batches)))
-        epo_pt_gen_te_loss = predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, batch_size, PRETRAIN_ENC_MODEL, PRETRAIN_GEN_MODEL)
+        with tf.device('/device:cpu:0'):
+            epo_pt_gen_te_loss = predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, PRETRAIN_ENC_MODEL, PRETRAIN_GEN_MODEL)
         pretrain_gen_test_loss.append(epo_pt_gen_te_loss)
     np.savetxt(PRETRAIN_GEN_LOSS, pretrain_gen_loss)
-    np.savetxt(PRETRAIN_GEN_TEST_LOSS, pretrain_gen_test_loss)
+    np.savetxt(PRETRAIN_GEN_TEST_LOSS, pretrain_gen_test_loss)'''
 
     # create discriminator model
     disc_parent_encoder_model, disc_gen_encoder_model = neural_network.make_disc_par_gen_model(LEN_AA, vocab_size, embedding_dim, enc_units)
@@ -130,6 +144,8 @@ def start_training(vocab_size):
     train_disc_loss = list()
     train_te_loss = list()
     
+    X_train = X
+    y_train = y
     # get training dataset as sliced tensors
     dataset_in = tf.data.Dataset.from_tensor_slices((X_train)).batch(batch_size)
     dataset_out = tf.data.Dataset.from_tensor_slices((y_train)).batch(batch_size)
@@ -146,7 +162,8 @@ def start_training(vocab_size):
         # predict seq on test data
         print("Num of test batches: {}".format(str(n_test_batches)))
         print("Prediction on test data...")
-        epo_tr_gen_te_loss = predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, batch_size, TRAIN_ENC_MODEL, TRAIN_GEN_MODEL)
+        with tf.device('/device:cpu:0'):
+            epo_tr_gen_te_loss = predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, TRAIN_ENC_MODEL, TRAIN_GEN_MODEL)
         train_te_loss.append(epo_tr_gen_te_loss)
     
     # save loss files
@@ -156,17 +173,20 @@ def start_training(vocab_size):
     np.savetxt(TEST_LOSS, train_te_loss)
 
 
-def predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, batch_size, enc_path, dec_path):
+def predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, enc_path, dec_path):
     avg_test_loss = []
     i = 0
     loaded_encoder = tf.keras.models.load_model(enc_path)
     loaded_generator = tf.keras.models.load_model(dec_path)
-    true_x = list()
-    true_y = list()
-    predicted_y = list()
+    #true_x = list()
+    #true_y = list()
+    #predicted_y = list()
     for step, (x, y) in enumerate(zip(test_dataset_in, test_dataset_out)):
         batch_x_test = utils.convert_to_array(x)
         batch_y_test = utils.convert_to_array(y)
+        batch_size = batch_x_test.shape[0]
+        print(batch_x_test)
+        print("Test Batch size:".format(str(batch_size)))
         if batch_x_test.shape[0] == batch_size:
             # generated noise for variation in predicted sequences
             noise = tf.random.normal((batch_size, enc_units))
@@ -177,19 +197,19 @@ def predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, bat
             # generate seqs stepwise - teacher forcing
             generated_logits, _, loss = gen_step_predict(seq_len, batch_size, vocab_size, loaded_generator, dec_state, batch_y_test)
             # collect true_x, true_y and predicted_y into a dataframe
-            p_y = tf.math.argmax(generated_logits, axis=-1)[1]
-            one_x = utils.convert_to_string_list(batch_x_test[1])
-            one_y = utils.convert_to_string_list(batch_y_test[1])
-            pred_y = utils.convert_to_string_list(p_y)
-            true_x.append(one_x)
-            true_y.append(one_y)
-            predicted_y.append(pred_y)
+            #p_y = tf.math.argmax(generated_logits, axis=-1)[1]
+            #one_x = utils.convert_to_string_list(batch_x_test[1])
+            #one_y = utils.convert_to_string_list(batch_y_test[1])
+            #pred_y = utils.convert_to_string_list(p_y)
+            #true_x.append(one_x)
+            #true_y.append(one_y)
+            #predicted_y.append(pred_y)
 
             print("Test: Batch {} loss: {}".format(str(i), str(loss)))
             avg_test_loss.append(loss)
             i += 1
-    true_predicted_df = pd.DataFrame(list(zip(true_x, true_y, predicted_y)), columns=["True_X", "True_Y", "Predicted_Y"])
-    true_predicted_df.to_csv(SAVE_TRUE_PRED_SEQ, index=None)
+    #true_predicted_df = pd.DataFrame(list(zip(true_x, true_y, predicted_y)), columns=["True_X", "True_Y", "Predicted_Y"])
+    #true_predicted_df.to_csv(SAVE_TRUE_PRED_SEQ, index=None)
     mean_loss = np.mean(avg_test_loss)
     print("Total test loss: {}".format(str(mean_loss)))
     return mean_loss
