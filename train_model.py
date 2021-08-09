@@ -19,7 +19,7 @@ TRAIN_GEN_MODEL = "data/generated_files/gen_model"
 
 pretrain_generator_optimizer = tf.keras.optimizers.Adam(0.01)
 generator_optimizer = tf.keras.optimizers.Adam(1e-3)
-discriminator_optimizer = tf.keras.optimizers.Adam(3e-5)
+discriminator_optimizer = tf.keras.optimizers.Adam(1e-3)
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 m_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
 
@@ -77,7 +77,6 @@ def pretrain_generator(inputs, gen_encoder, gen_decoder, enc_units, vocab_size, 
           epo_avg_gen_loss.append(gen_loss)
       gradients_of_generator = gen_tape.gradient(gen_loss, gen_decoder.trainable_variables)
       pretrain_generator_optimizer.apply_gradients(zip(gradients_of_generator, gen_decoder.trainable_variables))
-
   # save model
   gen_encoder.save_weights(ENC_WEIGHTS_SAVE_PATH)
   tf.keras.models.save_model(gen_encoder, PRETRAIN_ENC_MODEL)
@@ -99,6 +98,11 @@ def start_training(inputs, encoder, decoder, par_enc_model, gen_enc_model, discr
           noise = tf.random.normal((batch_size, enc_units))
           # encode true parent
           enc_output, enc_state = encoder(unrolled_x, training=True)
+
+          # set weights from the generator's encoder
+          par_enc_model.load_weights(ENC_WEIGHTS_SAVE_PATH)
+          gen_enc_model.layers[1].set_weights(par_enc_model.layers[1].get_weights())
+
           # add noise to encoded state to have variations while generating sequences
           enc_state = tf.math.add(enc_state, noise)
           gen_loss = tf.constant(0.0)
@@ -113,7 +117,6 @@ def start_training(inputs, encoder, decoder, par_enc_model, gen_enc_model, discr
           gen_real_enc_state_y = gen_enc_model(real_y, training=True)
           # encode generated child sequences
           gen_enc_fake_state_x = gen_enc_model(generated_logits, training=True)
-
           # discriminate pairs of true parent and generated child sequences
           fake_output = discriminator([par_enc_real_state_x, gen_enc_fake_state_x], training=True)
           # discriminate pairs of true parent and true child sequences
@@ -132,6 +135,7 @@ def start_training(inputs, encoder, decoder, par_enc_model, gen_enc_model, discr
       generator_optimizer.apply_gradients(zip(gradients_of_generator, decoder.trainable_variables))
       gradients_of_discriminator = disc_tape.gradient(disc_loss, discriminator.trainable_variables)
       discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
+      encoder.save_weights(ENC_WEIGHTS_SAVE_PATH)
   # save model
   tf.keras.models.save_model(encoder, TRAIN_ENC_MODEL)
   tf.keras.models.save_model(decoder, TRAIN_GEN_MODEL)
