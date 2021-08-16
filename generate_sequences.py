@@ -84,12 +84,11 @@ def predict_sequence(test_x, test_y, seq_len, vocab_size, batch_size, loaded_enc
         one_x = utils.convert_to_string_list(batch_x_test)
         one_y = utils.convert_to_string_list(batch_y_test)
         pred_y = utils.convert_to_string_list(p_y)
-        true_x.append(one_x)
-        true_y.append(one_y)
-        predicted_y.append(pred_y)
-        #if num_te_batches // 10 > 0:
+        true_x.extend(one_x)
+        true_y.extend(one_y)
+        predicted_y.extend(pred_y)
         print("Batch {} finished".format(str(step)))
-        
+    print(len(true_x), len(true_y), len(predicted_y))
     true_predicted_df = pd.DataFrame(list(zip(true_x, true_y, predicted_y)), columns=["19A", "20A", "Generated"])
     df_path = "{}true_predicted_df.csv".format(RESULT_PATH)
     true_predicted_df.to_csv(df_path, index=None)
