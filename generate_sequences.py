@@ -45,7 +45,8 @@ def load_model_generated_sequences():
         te_X = te_clade_df["X"]
         te_y = te_clade_df["Y"]
         print(te_clade_df.shape)
-        te_loss = predict_sequence(te_X, te_y, LEN_AA, vocab_size, batch_size, loaded_encoder, loaded_generator, generating_factor)
+        with tf.device('/device:cpu:0'):
+            te_loss = predict_sequence(te_X, te_y, LEN_AA, vocab_size, batch_size, loaded_encoder, loaded_generator, generating_factor)
 
 
 def gen_step_predict(seq_len, batch_size, vocab_size, gen_decoder, dec_state, batch_y_test):
@@ -60,6 +61,7 @@ def gen_step_predict(seq_len, batch_size, vocab_size, gen_decoder, dec_state, ba
         i_token = dec_tokens
     pred_logits = tf.convert_to_tensor(pred_logits)
     return pred_logits
+
 
 def predict_sequence(test_x, test_y, seq_len, vocab_size, batch_size, loaded_encoder, loaded_generator, generating_factor):
     test_dataset_in = tf.data.Dataset.from_tensor_slices((test_x)).batch(batch_size)
@@ -78,9 +80,9 @@ def predict_sequence(test_x, test_y, seq_len, vocab_size, batch_size, loaded_enc
         enc_state = tf.math.add(enc_state, noise)
         dec_state = enc_state
         generated_logits = gen_step_predict(seq_len, batch_size, vocab_size, loaded_generator, dec_state, batch_y_test)
-        p_y = tf.math.argmax(generated_logits, axis=-1)[1]
-        one_x = utils.convert_to_string_list(batch_x_test[1])
-        one_y = utils.convert_to_string_list(batch_y_test[1])
+        p_y = tf.math.argmax(generated_logits, axis=-1)
+        one_x = utils.convert_to_string_list(batch_x_test)
+        one_y = utils.convert_to_string_list(batch_y_test)
         pred_y = utils.convert_to_string_list(p_y)
         true_x.append(one_x)
         true_y.append(one_y)
