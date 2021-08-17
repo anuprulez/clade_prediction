@@ -89,26 +89,26 @@ def plot_sequences():
 
     parent = df[df["Clade"] == "19A"]["Sequence"].tolist()
     mat_parent = get_frac_seq_mat(parent, min_pos, max_pos)
-    print(mat_parent)
+    print(mat_parent.shape)
 
     n_parent = mat_parent.shape[0]
 
     
     mat_true = get_frac_seq_mat(random.sample(c_seq_list, n_parent), min_pos, max_pos)
-    print(mat_true)
+    print(mat_true.shape)
     print("----")
     
 
     data_20A = df[df["Clade"] == "20A"]["Sequence"].tolist()
     mat_20A = get_frac_seq_mat(random.sample(data_20A, n_parent), min_pos, max_pos)
-    print(mat_20A)
+    print(mat_20A.shape)
     print("----")
     
     gen_sampled = random.sample(df_gen, n_parent)
     print(len(gen_sampled))
     
     mat_gen_sampled = get_frac_seq_mat(gen_sampled, min_pos, max_pos)
-    print(mat_gen_sampled)
+    print(mat_gen_sampled.shape)
     print("----")
 
     '''parent = df[df["Clade"] == "19A"]["Sequence"].tolist()
@@ -126,11 +126,11 @@ def plot_sequences():
     write_dict("data/generated_files/true_mutations_c_20A.json", true_mut)'''
 
     plt.rcParams.update({'font.size': 16})
-    fdict_min = 1
+    fdict_min = 0
     f_dict_max = 26
 
     fig, axs = plt.subplots(4)
-    fig.suptitle('19A, 20A, true (20B, 20C and 20E (EU1)) and generated child amino acid (AA) sequences of 20A')
+    fig.suptitle('D614G mutation: 19A, 20A, true (20B, 20C and 20E (EU1)) and generated child amino acid (AA) sequences of 20A')
     pos_labels = list(np.arange(min_pos, max_pos))
     pos_ticks = list(np.arange(0, len(pos_labels)))
     pos_labels = [i+1 for i in pos_labels]
@@ -138,18 +138,12 @@ def plot_sequences():
     color_ticks = list(np.arange(0, len(f_dict)))
     color_tick_labels = list(f_dict.values())
 
-
     ax0 = axs[0].imshow(mat_gen_sampled, cmap='Reds',  interpolation='nearest', aspect='auto', vmin=fdict_min, vmax=f_dict_max)
-    #fig.colorbar(ax0, ax=axs[0])
-    #cb0.set_ticks(color_ticks)
-    #cb0.ax.set_yticklabels(color_tick_labels, rotation='90')
-
     axs[0].set_title("Generated children of 20A")
     #axs[0].set_xlabel("Amino acid positions")
     axs[0].set_ylabel("AA Sequences")
     axs[0].set_xticks(pos_ticks)
     axs[0].set_xticklabels(pos_labels, rotation='vertical')
-    
 
     ax1 = axs[1].imshow(mat_true, cmap='Reds',  interpolation='nearest', aspect='auto', vmin=fdict_min, vmax=f_dict_max)
     #fig.colorbar(ax0, ax=axs[1])
@@ -179,7 +173,7 @@ def plot_sequences():
     cbar = fig.colorbar(ax0, cax=cbar_ax)
     cbar.set_ticks(color_ticks)
     cbar.ax.set_yticklabels(color_tick_labels, rotation='0')
-    
+
     plt.show()
 
     '''plt.ylim(0, to_show_len)
