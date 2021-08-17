@@ -2,7 +2,7 @@ import json
 import pandas as pd
 
 CLADES_PATH = "data/generated_files/samples_clades_S.json"
-GISAID = "data/ncov_global/ncov_global.json"
+GISAID = "data/ncov_global/hcov_global.json"
 SAMPLE_CLADE_MUTATION = "data/generated_files/sample_clade_mutation.csv"
 
 
@@ -57,6 +57,9 @@ def recursive_branch(obj, clade_info, all_sample_names):
                             if search_key in obj["branch_attrs"]["mutations"]:
                                 branch_nuc = obj["branch_attrs"]["mutations"][search_key]
                     all_sample_names.append(item["name"])
+                    #if item["name"] == "hCoV-19/USA/MD-MDH-0380/2020":
+                    if search_key in item["branch_attrs"]["mutations"]:
+                        print(item["name"], item["branch_attrs"]["mutations"][search_key])
                     if search_key in item["branch_attrs"]["mutations"]:
                         sample_name = item["name"]
                         if sample_name not in clade_info:
@@ -78,10 +81,11 @@ def get_item(item):
     return ref, alt, pos
     
 def combine_mutation(ch_ref, ch_pos, ch_alt):
-    print(ch_ref, ch_pos, ch_alt)
-    print("{}>{}>{}".format(ch_ref, ch_pos, ch_alt))
-    print()
-    return "{}>{}>{}".format(ch_ref, ch_pos, ch_alt)
+    #print(ch_ref, ch_pos, ch_alt)
+    #print("{}>{}>{}".format(ch_ref, ch_pos, ch_alt))
+    #print()
+    return "{}{}{}".format(ch_ref, ch_pos, ch_alt) #"{}>{}>{}".format(ch_ref, ch_pos, ch_alt)
+
 
 def nuc_parser(lst_nuc):
     parsed_nuc = list()
@@ -135,7 +139,8 @@ def get_nuc_clades():
         clade_nuc = clades[key][1][search_key]
         if clade_name not in parsed_nuc_clades:
             parsed_nuc_clades[clade_name] = list()
-        parsed_nuc = nuc_parser(clade_nuc)
+        #print(clade_name, clade_nuc)
+        parsed_nuc = clade_nuc #nuc_parser(clade_nuc)
         parsed_nuc_clades[clade_name].extend(parsed_nuc)
         all_clades_mutations.extend(parsed_nuc)
     u_all_clades_mutations = list(set(all_clades_mutations))
