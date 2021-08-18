@@ -91,5 +91,5 @@ def embedding_info(dict_json):
     
 def convert_to_string_list(l):
     l = l.numpy()
-    l = [str(item) for item in l]
-    return ",".join(l)
+    l = [",".join([str(i) for i in item]) for item in l]
+    return l

@@ -18,3 +18,4 @@ https://virological.org/t/recent-evolution-and-international-transmission-of-sar
 https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7709189/
 https://www.ecdc.europa.eu/sites/default/files/documents/SARS-CoV-2-variant-multiple-spike-protein-mutations-United-Kingdom.pdf
 https://www.cell.com/cell/pdf/S0092-8674(20)30820-5.pdf
+https://covariants.org/variants
