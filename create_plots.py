@@ -125,49 +125,55 @@ def plot_sequences():
 
     write_dict("data/generated_files/true_mutations_c_20A.json", true_mut)'''
 
+    cmap = "RdYlBu"
     plt.rcParams.update({'font.size': 16})
     fdict_min = 0
-    f_dict_max = 26
+    f_dict_max = 20
+    aa_dict = {"1": "A", "2": "R", "3": "N", "4": "D", "5": "C", "6": "Q", "7": "E", "8": "G", "9": "H", "10": "I", "11": "L", "12": "K", "13": "M", "14": "F", "15": "P", "17": "S", "19": "T", "20": "W", "21": "Y", "22": "V"}
+    aa_names = list(aa_dict.values())
+
+    #{1: "A", 5: "C", 4: "D", 7: "E", 14: "F", 8: "G", 9: "H", 10: "I", 12: "K", 11: "L", 13: "M", 3: "N", 15: "P", 6: "Q", 2: "R", 17: "S", 19: "T", 22: "V", 20: "W", 21: "Y"}
+    # {"1": "A", "2": "R", "3": "N", "4": "D", "5": "C", "6": "Q", "7": "E", "8": "G", "9": "H", "10": "I", "11": "L", "12": "K", "13": "M", "14": "F", "15": "P", "16": "O", "17": "S", "18": "U", "19": "T", "20": "W", "21": "Y", "22": "V", "23": "B", "24": "Z", "25": "X", "26": "J"}
 
     fig, axs = plt.subplots(4)
-    fig.suptitle('D614G mutation: 19A, 20A, true (20B, 20C and 20E (EU1)) and generated child amino acid (AA) sequences of 20A')
+    fig.suptitle('D614G mutation in spike protein: 19A, 20A, true (20B, 20C and 20E (EU1)) and generated child amino acid (AA) sequences of 20A')
     pos_labels = list(np.arange(min_pos, max_pos))
     pos_ticks = list(np.arange(0, len(pos_labels)))
     pos_labels = [i+1 for i in pos_labels]
 
-    color_ticks = list(np.arange(0, len(f_dict)))
-    color_tick_labels = list(f_dict.values())
+    color_ticks = list(np.arange(0, len(aa_dict)))
+    color_tick_labels = aa_names
 
-    ax0 = axs[0].imshow(mat_gen_sampled, cmap='Reds',  interpolation='nearest', aspect='auto', vmin=fdict_min, vmax=f_dict_max)
+    ax0 = axs[0].imshow(mat_gen_sampled, cmap=cmap,  interpolation='nearest', aspect='auto', vmin=fdict_min, vmax=f_dict_max)
     axs[0].set_title("Generated children of 20A")
     #axs[0].set_xlabel("Amino acid positions")
     axs[0].set_ylabel("AA Sequences")
     axs[0].set_xticks(pos_ticks)
-    axs[0].set_xticklabels(pos_labels, rotation='vertical')
+    axs[0].set_xticklabels(pos_labels, rotation='horizontal')
 
-    ax1 = axs[1].imshow(mat_true, cmap='Reds',  interpolation='nearest', aspect='auto', vmin=fdict_min, vmax=f_dict_max)
+    ax1 = axs[1].imshow(mat_true, cmap=cmap,  interpolation='nearest', aspect='auto', vmin=fdict_min, vmax=f_dict_max)
     #fig.colorbar(ax0, ax=axs[1])
     axs[1].set_title("True children of 20A")
     #axs[1].set_xlabel("Amino acid positions")
     axs[1].set_ylabel("AA Sequences")
     axs[1].set_xticks(pos_ticks)
-    axs[1].set_xticklabels(pos_labels, rotation='vertical')
+    axs[1].set_xticklabels(pos_labels, rotation='horizontal')
 
-    ax2 = axs[2].imshow(mat_20A, cmap='Reds',  interpolation='nearest', aspect='auto', vmin=fdict_min, vmax=f_dict_max)
+    ax2 = axs[2].imshow(mat_20A, cmap=cmap,  interpolation='nearest', aspect='auto', vmin=fdict_min, vmax=f_dict_max)
     #fig.colorbar(ax0, ax=axs[2])
     axs[2].set_title("20A")
     #axs[2].set_xlabel("Amino acid positions")
     axs[2].set_ylabel("AA Sequences")
     axs[2].set_xticks(pos_ticks)
-    axs[2].set_xticklabels(pos_labels, rotation='vertical')
+    axs[2].set_xticklabels(pos_labels, rotation='horizontal')
 
-    ax3 = axs[3].imshow(mat_parent, cmap='Reds',  interpolation='nearest', aspect='auto', vmin=fdict_min, vmax=f_dict_max)
+    ax3 = axs[3].imshow(mat_parent, cmap=cmap,  interpolation='nearest', aspect='auto', vmin=fdict_min, vmax=f_dict_max)
     #fig.colorbar(ax0, ax=axs[3])
     axs[3].set_title("19A")
-    axs[3].set_xlabel("Amino acid positions")
+    axs[3].set_xlabel("Spike protein: AA positions")
     axs[3].set_ylabel("AA Sequences")
     axs[3].set_xticks(pos_ticks)
-    axs[3].set_xticklabels(pos_labels, rotation='vertical')
+    axs[3].set_xticklabels(pos_labels, rotation='horizontal')
 
     cbar_ax = fig.add_axes([0.92, 0.15, 0.03, 0.7])
     cbar = fig.colorbar(ax0, cax=cbar_ax)
