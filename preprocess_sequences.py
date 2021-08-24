@@ -10,6 +10,8 @@ import h5py
 import utils
 
 LEN_AA = 1273
+edit_threshold = 6
+train_size = 0.8
 
 
 def get_samples_clades(path_seq_clades):
@@ -80,13 +82,26 @@ def make_cross_product(clade_in_clade_out, dataframe):
             print()
             total_samples += merged_size
             file_name = "data/merged_clades/{}_{}.csv".format(in_clade, out_clade)
-            train_size = 0.8
             cross_joined_df = cross_joined_df.sample(frac=1)
-
-            train_df = cross_joined_df.sample(frac=train_size, random_state=200)
-            
+            filtered_rows = list()
+            l_distance = list()
+            filtered_l_distance = list()
+            for index, item in cross_joined_df.iterrows():
+                x = item["Sequence_x"]
+                y = item["Sequence_y"]
+                l_dist = utils.compute_Levenshtein_dist(x, y)
+                l_distance.append(l_dist)
+                if l_dist > 0 and l_dist < edit_threshold:
+                    filtered_rows.append(item.tolist())
+                    filtered_l_distance.append(l_dist)
+            filtered_dataframe = pd.DataFrame(filtered_rows, columns=cross_joined_df.columns)
+            filtered_dataframe.to_csv(file_name, index=None)
+            np.savetxt("data/generated_files/l_distance.txt", l_distance)
+            np.savetxt("data/generated_files/filtered_l_distance.txt", filtered_l_distance)
+            print("Mean levenstein dist: {}".format(str(np.mean(l_distance))))
+            print("Mean filtered levenstein dist: {}".format(str(np.mean(filtered_l_distance))))
+            train_df = filtered_dataframe.sample(frac=train_size, random_state=200) #cross_joined_df.sample(frac=train_size, random_state=200)
             print("Converting to array...")
-            
             train_x = train_df["Sequence_x"].tolist()
             train_y = train_df["Sequence_y"].tolist()
             print(train_df.shape)

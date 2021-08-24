@@ -3,12 +3,17 @@ import json
 import pandas as pd
 import numpy as np
 import tensorflow as tf
+from Levenshtein import distance as lev_dist
 
 
 def make_kmers(seq, size):
     # remove all letters other than A,C,G and T
     #list(filter(lambda ch: ch in 'ACGT', kmers))
     return [seq[x:x+size] for x in range(len(seq) - size + 1)]
+
+
+def compute_Levenshtein_dist(seq_in, seq_out):
+    return lev_dist(seq_in, seq_out)
 
 
 def reconstruct_seq(kmers):
