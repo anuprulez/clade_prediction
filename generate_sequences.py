@@ -45,6 +45,7 @@ def load_model_generated_sequences():
         te_X = te_clade_df["X"]
         te_y = te_clade_df["Y"]
         print(te_clade_df.shape)
+        batch_size = te_clade_df.shape[0]
         with tf.device('/device:cpu:0'):
             te_loss = predict_sequence(te_X, te_y, LEN_AA, vocab_size, batch_size, loaded_encoder, loaded_generator, generating_factor)
 
