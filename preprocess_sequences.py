@@ -29,28 +29,28 @@ def get_samples_clades(path_seq_clades):
 
 def preprocess_seq(fasta_file, samples_clades):
     encoded_samples = list()
-    amino_acid_codes = "ARNDCQEGHILKMFPOSUTWYVBZXJ"
+    amino_acid_codes = "QNKWFPYLMTEIARGHSDVC" #"ARNDCQEGHILKMFPSTWYV"
     max_seq_size = LEN_AA
     aa_chars = utils.get_all_possible_words(amino_acid_codes)
     f_word_dictionaries, r_word_dictionaries = utils.get_words_indices(aa_chars)
+    u_list = list()
     for sequence in SeqIO.parse(fasta_file, "fasta"):
         row = list()
         seq_id = sequence.id.split("|")[1]
         sequence = str(sequence.seq)
         sequence = sequence.replace("*", '')
-        if seq_id in samples_clades:
+        if "X" not in sequence and seq_id in samples_clades and len(sequence) == LEN_AA:
             row.append(seq_id)
             clade_name = samples_clades[seq_id]
             clade_name = utils.format_clade_name(clade_name)
             row.append(clade_name)
-            seq_chars = [char for char in sequence]
+            seq_chars = list(sequence) #[char for char in sequence]
+            #u_list.extend(list(set(seq_chars)))
+            #print("".join(list(set(u_list))))
             indices_chars = [str(r_word_dictionaries[i]) for i in seq_chars]
-            if len(sequence) == LEN_AA:
-                #zeros = np.repeat('0', (LEN_AA - len(sequence)))
-                #indices_kmers = np.hstack([indices_chars, zeros])
-                joined_indices_kmers = ','.join(indices_chars)
-                row.append(joined_indices_kmers)
-                encoded_samples.append(row)
+            joined_indices_kmers = ','.join(indices_chars)
+            row.append(joined_indices_kmers)
+            encoded_samples.append(row)
     sample_clade_sequence_df = pd.DataFrame(encoded_samples, columns=["SampleName", "Clade", "Sequence"])
     sample_clade_sequence_df.to_csv("data/generated_files/sample_clade_sequence_df.csv", index=None)
     utils.save_as_json("data/generated_files/f_word_dictionaries.json", f_word_dictionaries)
