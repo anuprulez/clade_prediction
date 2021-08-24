@@ -80,12 +80,13 @@ def make_cross_product(clade_in_clade_out, dataframe):
             merged_size = in_len * out_len
             print("Merged size ({} * {}) : {}".format(str(in_len), str(out_len), merged_size))
             print()
-            total_samples += merged_size
+            #total_samples += merged_size
             file_name = "data/merged_clades/{}_{}.csv".format(in_clade, out_clade)
             cross_joined_df = cross_joined_df.sample(frac=1)
             filtered_rows = list()
             l_distance = list()
             filtered_l_distance = list()
+            print("Filtering sequences...")
             for index, item in cross_joined_df.iterrows():
                 x = item["Sequence_x"]
                 y = item["Sequence_y"]
@@ -98,14 +99,16 @@ def make_cross_product(clade_in_clade_out, dataframe):
             filtered_dataframe.to_csv(file_name, index=None)
             np.savetxt("data/generated_files/l_distance.txt", l_distance)
             np.savetxt("data/generated_files/filtered_l_distance.txt", filtered_l_distance)
-            print("Mean levenstein dist: {}".format(str(np.mean(l_distance))))
-            print("Mean filtered levenstein dist: {}".format(str(np.mean(filtered_l_distance))))
-            train_df = filtered_dataframe.sample(frac=train_size, random_state=200) #cross_joined_df.sample(frac=train_size, random_state=200)
+            print("Mean levenshtein dist: {}".format(str(np.mean(l_distance))))
+            print("Mean filtered levenshtein dist: {}".format(str(np.mean(filtered_l_distance))))
+            total_samples += len(filtered_dataframe.index)
+            print("Filtered dataframe size: {}".format(str(len(filtered_dataframe.index))))
+            train_df = filtered_dataframe.sample(frac=train_size, random_state=200)
             print("Converting to array...")
             train_x = train_df["Sequence_x"].tolist()
             train_y = train_df["Sequence_y"].tolist()
             print(train_df.shape)
-            test_df = cross_joined_df.drop(train_df.index)
+            test_df = filtered_dataframe.drop(train_df.index)
             print(test_df.shape)
             test_x = test_df["Sequence_x"].tolist()
             test_y = test_df["Sequence_y"].tolist()
@@ -117,7 +120,7 @@ def make_cross_product(clade_in_clade_out, dataframe):
             te_filename = "data/test/{}_{}.csv".format(in_clade, out_clade)
             merged_test_df = pd.DataFrame(list(zip(test_x, test_y)), columns=["X", "Y"])
             merged_test_df.to_csv(te_filename, sep="\t", index=None)
-
+            
     print()
     print("Total number of samples: {}".format(str(total_samples)))
     

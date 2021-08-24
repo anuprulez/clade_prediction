@@ -63,7 +63,7 @@ def read_files():
     
     print("Generating cross product...")
     preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df)
-    
+
     start_training(len(rev_dict))
 
 
