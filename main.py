@@ -23,7 +23,7 @@ import masked_loss
 PATH_PRE = "data/ncov_global/"
 PATH_SEQ = PATH_PRE + "spike_protein.fasta"
 PATH_SEQ_CLADE = PATH_PRE + "ncov_global.tsv"
-PATH_CLADES = "data/clade_in_clade_out_19A_20A.json" #"data/clade_in_clade_out.json"
+PATH_CLADES = "data/clade_in_clade_out.json" # "data/clade_in_clade_out.json" #  clade_in_clade_out_19A_20A
 
 PRETRAIN_GEN_LOSS = "data/generated_files/pretr_gen_loss.txt"
 PRETRAIN_GEN_TEST_LOSS = "data/generated_files/pretr_gen_test_loss.txt"
@@ -61,8 +61,10 @@ def read_files():
     encoded_sequence_df, forward_dict, rev_dict = preprocess_sequences.preprocess_seq(PATH_SEQ, samples_clades)
     print(clades_in_clades_out)    
     
+    sys.exit()
     print("Generating cross product...")
     preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df)
+    
     
     start_training(len(rev_dict))
 
