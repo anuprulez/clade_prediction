@@ -97,8 +97,6 @@ def start_training(inputs, encoder, decoder, par_enc_model, gen_enc_model, discr
       with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
           noise = tf.random.normal((batch_size, enc_units))
           # encode true parent
-          print(unrolled_x)
-          print(unrolled_x.shape, unrolled_y.shape)
           enc_output, enc_state = encoder(unrolled_x, training=True)
 
           # set weights from the generator's encoder
