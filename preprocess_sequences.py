@@ -10,6 +10,8 @@ import h5py
 import utils
 
 LEN_AA = 1273
+edit_threshold = 6
+train_size = 0.8
 
 
 def get_samples_clades(path_seq_clades):
@@ -27,28 +29,28 @@ def get_samples_clades(path_seq_clades):
 
 def preprocess_seq(fasta_file, samples_clades):
     encoded_samples = list()
-    amino_acid_codes = "ARNDCQEGHILKMFPOSUTWYVBZXJ"
+    amino_acid_codes = "QNKWFPYLMTEIARGHSDVC" #"ARNDCQEGHILKMFPSTWYV"
     max_seq_size = LEN_AA
     aa_chars = utils.get_all_possible_words(amino_acid_codes)
     f_word_dictionaries, r_word_dictionaries = utils.get_words_indices(aa_chars)
+    u_list = list()
     for sequence in SeqIO.parse(fasta_file, "fasta"):
         row = list()
         seq_id = sequence.id.split("|")[1]
         sequence = str(sequence.seq)
         sequence = sequence.replace("*", '')
-        if seq_id in samples_clades:
+        if "X" not in sequence and seq_id in samples_clades and len(sequence) == LEN_AA:
             row.append(seq_id)
             clade_name = samples_clades[seq_id]
             clade_name = utils.format_clade_name(clade_name)
             row.append(clade_name)
-            seq_chars = [char for char in sequence]
+            seq_chars = list(sequence) #[char for char in sequence]
+            #u_list.extend(list(set(seq_chars)))
+            #print("".join(list(set(u_list))))
             indices_chars = [str(r_word_dictionaries[i]) for i in seq_chars]
-            if len(sequence) == LEN_AA:
-                #zeros = np.repeat('0', (LEN_AA - len(sequence)))
-                #indices_kmers = np.hstack([indices_chars, zeros])
-                joined_indices_kmers = ','.join(indices_chars)
-                row.append(joined_indices_kmers)
-                encoded_samples.append(row)
+            joined_indices_kmers = ','.join(indices_chars)
+            row.append(joined_indices_kmers)
+            encoded_samples.append(row)
     sample_clade_sequence_df = pd.DataFrame(encoded_samples, columns=["SampleName", "Clade", "Sequence"])
     sample_clade_sequence_df.to_csv("data/generated_files/sample_clade_sequence_df.csv", index=None)
     utils.save_as_json("data/generated_files/f_word_dictionaries.json", f_word_dictionaries)
@@ -78,19 +80,35 @@ def make_cross_product(clade_in_clade_out, dataframe):
             merged_size = in_len * out_len
             print("Merged size ({} * {}) : {}".format(str(in_len), str(out_len), merged_size))
             print()
-            total_samples += merged_size
+            #total_samples += merged_size
             file_name = "data/merged_clades/{}_{}.csv".format(in_clade, out_clade)
-            train_size = 0.8
             cross_joined_df = cross_joined_df.sample(frac=1)
-
-            train_df = cross_joined_df.sample(frac=train_size, random_state=200)
-            
+            filtered_rows = list()
+            l_distance = list()
+            filtered_l_distance = list()
+            print("Filtering sequences...")
+            for index, item in cross_joined_df.iterrows():
+                x = item["Sequence_x"]
+                y = item["Sequence_y"]
+                l_dist = utils.compute_Levenshtein_dist(x, y)
+                l_distance.append(l_dist)
+                if l_dist > 0 and l_dist < edit_threshold:
+                    filtered_rows.append(item.tolist())
+                    filtered_l_distance.append(l_dist)
+            filtered_dataframe = pd.DataFrame(filtered_rows, columns=cross_joined_df.columns)
+            filtered_dataframe.to_csv(file_name, index=None)
+            np.savetxt("data/generated_files/l_distance.txt", l_distance)
+            np.savetxt("data/generated_files/filtered_l_distance.txt", filtered_l_distance)
+            print("Mean levenshtein dist: {}".format(str(np.mean(l_distance))))
+            print("Mean filtered levenshtein dist: {}".format(str(np.mean(filtered_l_distance))))
+            total_samples += len(filtered_dataframe.index)
+            print("Filtered dataframe size: {}".format(str(len(filtered_dataframe.index))))
+            train_df = filtered_dataframe.sample(frac=train_size, random_state=200)
             print("Converting to array...")
-            
             train_x = train_df["Sequence_x"].tolist()
             train_y = train_df["Sequence_y"].tolist()
             print(train_df.shape)
-            test_df = cross_joined_df.drop(train_df.index)
+            test_df = filtered_dataframe.drop(train_df.index)
             print(test_df.shape)
             test_x = test_df["Sequence_x"].tolist()
             test_y = test_df["Sequence_y"].tolist()
@@ -102,7 +120,7 @@ def make_cross_product(clade_in_clade_out, dataframe):
             te_filename = "data/test/{}_{}.csv".format(in_clade, out_clade)
             merged_test_df = pd.DataFrame(list(zip(test_x, test_y)), columns=["X", "Y"])
             merged_test_df.to_csv(te_filename, sep="\t", index=None)
-
+            
     print()
     print("Total number of samples: {}".format(str(total_samples)))
     
