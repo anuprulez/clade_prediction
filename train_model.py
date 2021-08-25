@@ -171,6 +171,7 @@ def start_training(inputs, encoder, decoder, par_enc_model, gen_enc_model, discr
           enc_state = tf.math.add(enc_state, noise)
           gen_loss = tf.constant(0.0)
           dec_state = enc_state
+
           # generate sequences
           generated_logits, decoder, gen_true_loss = gen_step_train(seq_len, batch_size, vocab_size, decoder, dec_state, unrolled_y)
           # reformat real output to one-hot encoding
@@ -186,18 +187,18 @@ def start_training(inputs, encoder, decoder, par_enc_model, gen_enc_model, discr
           # discriminate pairs of true parent and true child sequences
           real_output = discriminator([par_enc_real_state_x, gen_real_enc_state_y], training=True)
           # compute discriminator loss
-          disc_loss = discriminator_loss(real_output, fake_output)
+          total_disc_loss = discriminator_loss(real_output, fake_output)
           # compute generator loss - sum of wasserstein and SCE losses
-          gen_loss_wl = generator_loss(fake_output) #wasserstein_loss(tf.ones_like(fake_output), fake_output)
-          gen_loss = gen_loss_wl + gen_true_loss
-          print("Batch {}/{}, Generator W loss: {}, Generator true loss: {}, Generator loss: {}, Discriminator loss: {}".format(str(step), str(n_train_batches), str(gen_loss_wl), str(gen_true_loss), str(gen_loss.numpy()), str(disc_loss.numpy())))
-          epo_avg_gen_loss.append(gen_loss.numpy())
+          gen_fake_loss = generator_loss(fake_output) #wasserstein_loss(tf.ones_like(fake_output), fake_output)
+          total_gen_loss = gen_fake_loss + gen_true_loss
+          print("Batch {}/{}, Generator fake loss: {}, Generator true loss: {}, Total generator loss: {}, Total discriminator loss: {}".format(str(step), str(n_train_batches), str(gen_fake_loss.numpy()), str(gen_true_loss.numpy()), str(total_gen_loss.numpy()), str(total_disc_loss.numpy())))
+          epo_avg_gen_loss.append(total_gen_loss.numpy())
           epo_ave_gen_true_loss.append(gen_true_loss)
-          epo_avg_disc_loss.append(disc_loss.numpy())
+          epo_avg_disc_loss.append(total_disc_loss.numpy())
       # apply gradients
-      gradients_of_generator = gen_tape.gradient(gen_loss, decoder.trainable_variables)
+      gradients_of_generator = gen_tape.gradient(total_gen_loss, decoder.trainable_variables)
       generator_optimizer.apply_gradients(zip(gradients_of_generator, decoder.trainable_variables))
-      gradients_of_discriminator = disc_tape.gradient(disc_loss, discriminator.trainable_variables)
+      gradients_of_discriminator = disc_tape.gradient(total_disc_loss, discriminator.trainable_variables)
       discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
       encoder.save_weights(ENC_WEIGHTS_SAVE_PATH)
   # save model
