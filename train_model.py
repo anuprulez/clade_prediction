@@ -107,6 +107,7 @@ def start_training(inputs, encoder, decoder, par_enc_model, gen_enc_model, discr
           enc_state = tf.math.add(enc_state, noise)
           gen_loss = tf.constant(0.0)
           dec_state = enc_state
+
           # generate sequences
           generated_logits, decoder, gen_true_loss = gen_step_train(seq_len, batch_size, vocab_size, decoder, dec_state, unrolled_y)
           # reformat real output to one-hot encoding
