@@ -199,12 +199,13 @@ def plot_sequences(min_pos, max_pos):
 
 
 def plot_l_distance():
-    file_path = "data/generated_files/l_distance.txt"
+    file_path = "data/generated_files/filtered_l_distance.txt"
     with open(file_path, "r") as l_f:
         content = l_f.read()
     content = content.split("\n")
     content = content[:len(content) - 1]
     content = [float(i) for i in content]
+    print("Mean Levenshtein distance: {}".format(str(np.mean(content))))
     plt.hist(content, density=False, bins=30)
     plt.ylabel('Count')
     plt.xlabel('Levenstein distance')
@@ -214,11 +215,11 @@ if __name__ == "__main__":
     start_time = time.time()
     LEN_AA = 1273
     step = 25
-    for i in range(0, int(LEN_AA / float(step)) + 1):
+    '''for i in range(0, int(LEN_AA / float(step)) + 1):
         start = i * step + 1
         end = start + step - 1
         #print(start, end)
-        plot_sequences(start, end)
-    #plot_l_distance()
+        plot_sequences(start, end)'''
+    plot_l_distance()
     end_time = time.time()
     print("Program finished in {} seconds".format(str(np.round(end_time - start_time, 2))))

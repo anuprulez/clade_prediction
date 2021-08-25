@@ -3,6 +3,7 @@ import sys
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import random
+from random import choices
 import pandas as pd
 import numpy as np
 import logging
@@ -84,14 +85,77 @@ def pretrain_generator(inputs, gen_encoder, gen_decoder, enc_units, vocab_size, 
   return np.mean(epo_avg_gen_loss), gen_encoder, gen_decoder
 
 
+
+def balance_train_dataset(x, y, x_y_l):
+
+    lst_x = x
+    lst_y = y
+    #print(x_y_l)
+    l_dist = x_y_l.numpy()
+    u_l_dist = list(set(l_dist))
+    #print(u_l_dist)
+
+    batch_size = x.shape[0]
+    
+    n_samples = int(batch_size / float(len(u_l_dist)))
+
+    #print(n_samples)
+
+    bal_x = np.zeros((x.shape[0], x.shape[1]))
+    bal_y = np.zeros((y.shape[0], y.shape[1]))
+
+    #print(bal_x.shape, bal_y.shape)
+
+    ctr = 0
+    for l_val in u_l_dist:
+        l_val_indices = np.where(l_dist == int(l_val))
+        #print(l_val, l_val_indices)
+        len_indices = len(l_val_indices)
+
+        x_rows = np.array(lst_x[l_val_indices])
+        y_rows = np.array(lst_y[l_val_indices])
+
+        #print(x_rows.shape, y_rows.shape)
+
+        rand_x_rows = np.array(choices(x_rows, k=n_samples))
+        rand_y_rows = np.array(choices(y_rows, k=n_samples))
+
+        #print(rand_x_rows.shape, rand_y_rows.shape)
+
+        #print(ctr, ctr+n_samples)
+
+        bal_x[ctr:ctr+n_samples, :] = rand_x_rows
+        bal_y[ctr:ctr+n_samples, :] = rand_y_rows
+ 
+        #print(bal_x) 
+        #print()
+        #print(bal_y)
+
+        ctr += n_samples
+        #print("---")
+
+    bal_x = tf.convert_to_tensor(bal_x, dtype=tf.int32)
+    bal_y = tf.convert_to_tensor(bal_y, dtype=tf.int32)
+    
+    #print(bal_x) 
+    #print()
+    #print(bal_y)
+
+    return bal_x, bal_y
+
+
 def start_training(inputs, encoder, decoder, par_enc_model, gen_enc_model, discriminator, enc_units, vocab_size, n_train_batches):
-  input_tokens, target_tokens = inputs  
+  input_tokens, target_tokens, input_target_l_dist = inputs  
   epo_avg_gen_loss = list()
   epo_ave_gen_true_loss = list()
   epo_avg_disc_loss = list()
-  for step, (x_batch_train, y_batch_train) in enumerate(zip(input_tokens, target_tokens)):
+  for step, (x_batch_train, y_batch_train, l_dist_batch) in enumerate(zip(input_tokens, target_tokens, input_target_l_dist)):
       unrolled_x = utils.convert_to_array(x_batch_train)
       unrolled_y = utils.convert_to_array(y_batch_train)
+      
+      unrolled_x, unrolled_y = balance_train_dataset(unrolled_x, unrolled_y, l_dist_batch)
+
+      #sys.exit()
       seq_len = unrolled_x.shape[1]
       batch_size = unrolled_x.shape[0]
       with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:

@@ -2,6 +2,7 @@ import itertools
 import json
 import pandas as pd
 import numpy as np
+
 import tensorflow as tf
 from Levenshtein import distance as lev_dist
 
@@ -13,7 +14,8 @@ def make_kmers(seq, size):
 
 
 def compute_Levenshtein_dist(seq_in, seq_out):
-    return lev_dist(seq_in, seq_out)
+    return np.random.randint(1, 5)
+    #return lev_dist(seq_in, seq_out)
 
 
 def reconstruct_seq(kmers):
@@ -34,8 +36,8 @@ def convert_to_array(str_data):
     tolst = str_data.numpy()
     f_list = [item.decode("utf-8").split(",") for item in tolst]
     toarray = np.array([list(map(int, lst)) for lst in f_list])
-    tensor = tf.convert_to_tensor(toarray, dtype=tf.int32)
-    return tensor
+    #tensor = tf.convert_to_tensor(toarray, dtype=tf.int32)
+    return toarray
     
     
 def one_hot_encoding():
