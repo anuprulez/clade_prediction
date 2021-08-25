@@ -37,7 +37,7 @@ def load_model_generated_sequences():
     # load test data
     te_clade_files = glob.glob('data/test/*.csv')
     r_dict = utils.read_json(RESULT_PATH + "r_word_dictionaries.json")
-    vocab_size = len(r_dict)
+    vocab_size = len(r_dict) + 1
     total_te_loss = list()
     print("Loading trained model...")
     loaded_encoder = tf.keras.models.load_model(RESULT_PATH + "enc_model")
