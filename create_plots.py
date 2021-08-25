@@ -14,10 +14,11 @@ from matplotlib.lines import Line2D
 
 import utils
 
+results_path = "test_results/20A_20C/"
+clade_start = "20C"
+clade_end = ["20H (Beta, V2)", "20G", "21C (Epsilon)", "21F (Iota)"]
 
-PATH_PRE = "data/ncov_global/"
-PATH_SEQ_CLADE = PATH_PRE + "ncov_global.tsv"
-c_20A = ["20B", "20C", "20E (EU1)"] #["20B", "20C", "20E (EU1)", "21A (Delta)", "21B (Kappa)", "21D (Eta)"]
+#c_20A = ["20B", "20C", "20E (EU1)"] #["20B", "20C", "20E (EU1)", "21A (Delta)", "21B (Kappa)", "21D (Eta)"]
 
 
 def read_json(file_path):
@@ -65,11 +66,11 @@ def get_frac_seq_mat(list_seq, min_pos, max_pos):
 def plot_sequences():
     min_pos = 610
     max_pos = 615
-    f_dict = read_json("data/generated_files/f_word_dictionaries.json")
+    f_dict = read_json(results_path + "f_word_dictionaries.json")
 
-    df = pd.read_csv("data/generated_files/sample_clade_sequence_df.csv", sep=",")
+    df = pd.read_csv(results_path + "sample_clade_sequence_df.csv", sep=",")
 
-    df_tru_gen = pd.read_csv("test_results/19A_20A_19_Aug/true_predicted_df.csv", sep=",")
+    df_tru_gen = pd.read_csv(results_path + "true_predicted_df.csv", sep=",")
     
     df_gen = df_tru_gen["Generated"].tolist()
 
@@ -77,7 +78,7 @@ def plot_sequences():
 
     c_seq_list = list()
 
-    for c in c_20A:
+    for c in clade_end:
         u_list = list()
         df_clade = df[df["Clade"] == c]
         seq = df_clade["Sequence"]
