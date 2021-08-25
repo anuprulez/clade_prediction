@@ -25,16 +25,19 @@ enc_units = 128
 pretrain_epochs = 5
 epochs = 5
 LEN_AA = 1273
-vocab_size = 26
+#vocab_size = 26
 seq_len = LEN_AA
 
 clade_source = "20A"
 clade_start = "20C"
 
 
+
 def load_model_generated_sequences():
     # load test data
-    te_clade_files = glob.glob(RESULT_PATH + 'test/*.csv')
+    te_clade_files = glob.glob('data/test/*.csv')
+    r_dict = utils.read_json(RESULT_PATH + "r_word_dictionaries.json")
+    vocab_size = len(r_dict)
     total_te_loss = list()
     print("Loading trained model...")
     loaded_encoder = tf.keras.models.load_model(RESULT_PATH + "enc_model")
