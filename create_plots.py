@@ -15,7 +15,8 @@ from matplotlib.lines import Line2D
 import utils
 
 results_path = "test_results/20A_20C/"
-clade_start = "20C"
+clade_parent = "20A"
+clade_child = "20C"
 clade_end = ["20H (Beta, V2)", "20G", "21C (Epsilon)", "21F (Iota)"]
 
 #c_20A = ["20B", "20C", "20E (EU1)"] #["20B", "20C", "20E (EU1)", "21A (Delta)", "21B (Kappa)", "21D (Eta)"]
@@ -63,9 +64,9 @@ def get_frac_seq_mat(list_seq, min_pos, max_pos):
 
 
 
-def plot_sequences():
-    min_pos = 610
-    max_pos = 615
+def plot_sequences(min_pos, max_pos):
+    #min_pos = 1
+    #max_pos = 50
     f_dict = read_json(results_path + "f_word_dictionaries.json")
 
     df = pd.read_csv(results_path + "sample_clade_sequence_df.csv", sep=",")
@@ -74,41 +75,42 @@ def plot_sequences():
     
     df_gen = df_tru_gen["Generated"].tolist()
 
-    print(len(df_gen))
+    #print(len(df_gen))
+ 
+    # parent clade
+    parent = df[df["Clade"] == clade_parent]["Sequence"].tolist()
+    mat_parent = get_frac_seq_mat(parent, min_pos, max_pos)
+    print(mat_parent.shape)
+    print("----")
 
+    n_parent = mat_parent.shape[0]
+
+    # child clade
+    data_child = df[df["Clade"] == clade_child]["Sequence"].tolist()
+    mat_child = get_frac_seq_mat(data_child, min_pos, max_pos)
+    print(mat_child.shape)
+    print("----")
+
+    # true child > child clades
     c_seq_list = list()
 
     for c in clade_end:
         u_list = list()
         df_clade = df[df["Clade"] == c]
         seq = df_clade["Sequence"]
-        print(c, seq.shape)
+        #print(c, seq.shape)
         c_seq_list.extend(seq.tolist())
 
     len_c_seq = len(c_seq_list)
-    print(len(c_seq_list))
 
-    parent = df[df["Clade"] == "19A"]["Sequence"].tolist()
-    mat_parent = get_frac_seq_mat(parent, min_pos, max_pos)
-    print(mat_parent.shape)
-
-    n_parent = mat_parent.shape[0]
-
-    
-    mat_true = get_frac_seq_mat(random.sample(c_seq_list, n_parent), min_pos, max_pos)
+    mat_true = get_frac_seq_mat(c_seq_list, min_pos, max_pos)
     print(mat_true.shape)
     print("----")
-    
 
-    data_20A = df[df["Clade"] == "20A"]["Sequence"].tolist()
-    mat_20A = get_frac_seq_mat(random.sample(data_20A, n_parent), min_pos, max_pos)
-    print(mat_20A.shape)
-    print("----")
+    # generated child > child clades
+    #gen_sampled = random.sample(df_gen, n_parent)
     
-    gen_sampled = random.sample(df_gen, n_parent)
-    print(len(gen_sampled))
-    
-    mat_gen_sampled = get_frac_seq_mat(gen_sampled, min_pos, max_pos)
+    mat_gen_sampled = get_frac_seq_mat(df_gen, min_pos, max_pos)
     print(mat_gen_sampled.shape)
     print("----")
 
@@ -130,14 +132,14 @@ def plot_sequences():
     plt.rcParams.update({'font.size': 16})
     fdict_min = 0
     f_dict_max = 20
-    aa_dict = {"1": "A", "2": "R", "3": "N", "4": "D", "5": "C", "6": "Q", "7": "E", "8": "G", "9": "H", "10": "I", "11": "L", "12": "K", "13": "M", "14": "F", "15": "P", "17": "S", "19": "T", "20": "W", "21": "Y", "22": "V"}
+    aa_dict = f_dict #{"1": "A", "2": "R", "3": "N", "4": "D", "5": "C", "6": "Q", "7": "E", "8": "G", "9": "H", "10": "I", "11": "L", "12": "K", "13": "M", "14": "F", "15": "P", "17": "S", "19": "T", "20": "W", "21": "Y", "22": "V"}
     aa_names = list(aa_dict.values())
 
     #{1: "A", 5: "C", 4: "D", 7: "E", 14: "F", 8: "G", 9: "H", 10: "I", 12: "K", 11: "L", 13: "M", 3: "N", 15: "P", 6: "Q", 2: "R", 17: "S", 19: "T", 22: "V", 20: "W", 21: "Y"}
     # {"1": "A", "2": "R", "3": "N", "4": "D", "5": "C", "6": "Q", "7": "E", "8": "G", "9": "H", "10": "I", "11": "L", "12": "K", "13": "M", "14": "F", "15": "P", "16": "O", "17": "S", "18": "U", "19": "T", "20": "W", "21": "Y", "22": "V", "23": "B", "24": "Z", "25": "X", "26": "J"}
 
     fig, axs = plt.subplots(4)
-    fig.suptitle('D614G mutation in spike protein: 19A, 20A, true (20B, 20C and 20E (EU1)) and generated child amino acid (AA) sequences of 20A')
+    #fig.suptitle('D614G mutation in spike protein: 19A, 20A, true (20B, 20C and 20E (EU1)) and generated child amino acid (AA) sequences of 20A')
     pos_labels = list(np.arange(min_pos, max_pos))
     pos_ticks = list(np.arange(0, len(pos_labels)))
     pos_labels = [i+1 for i in pos_labels]
@@ -146,7 +148,7 @@ def plot_sequences():
     color_tick_labels = aa_names
 
     ax0 = axs[0].imshow(mat_gen_sampled, cmap=cmap,  interpolation='nearest', aspect='auto', vmin=fdict_min, vmax=f_dict_max)
-    axs[0].set_title("Generated children of 20A")
+    axs[0].set_title("Generated children of {}".format(clade_child))
     #axs[0].set_xlabel("Amino acid positions")
     axs[0].set_ylabel("AA Sequences")
     axs[0].set_xticks(pos_ticks)
@@ -154,15 +156,15 @@ def plot_sequences():
 
     ax1 = axs[1].imshow(mat_true, cmap=cmap,  interpolation='nearest', aspect='auto', vmin=fdict_min, vmax=f_dict_max)
     #fig.colorbar(ax0, ax=axs[1])
-    axs[1].set_title("True children of 20A")
+    axs[1].set_title("True children of {}".format(clade_child))
     #axs[1].set_xlabel("Amino acid positions")
     axs[1].set_ylabel("AA Sequences")
     axs[1].set_xticks(pos_ticks)
     axs[1].set_xticklabels(pos_labels, rotation='horizontal')
 
-    ax2 = axs[2].imshow(mat_20A, cmap=cmap,  interpolation='nearest', aspect='auto', vmin=fdict_min, vmax=f_dict_max)
+    ax2 = axs[2].imshow(mat_child, cmap=cmap,  interpolation='nearest', aspect='auto', vmin=fdict_min, vmax=f_dict_max)
     #fig.colorbar(ax0, ax=axs[2])
-    axs[2].set_title("20A")
+    axs[2].set_title(clade_child)
     #axs[2].set_xlabel("Amino acid positions")
     axs[2].set_ylabel("AA Sequences")
     axs[2].set_xticks(pos_ticks)
@@ -170,7 +172,7 @@ def plot_sequences():
 
     ax3 = axs[3].imshow(mat_parent, cmap=cmap,  interpolation='nearest', aspect='auto', vmin=fdict_min, vmax=f_dict_max)
     #fig.colorbar(ax0, ax=axs[3])
-    axs[3].set_title("19A")
+    axs[3].set_title(clade_parent)
     axs[3].set_xlabel("Spike protein: AA positions")
     axs[3].set_ylabel("AA Sequences")
     axs[3].set_xticks(pos_ticks)
@@ -210,7 +212,13 @@ def plot_l_distance():
 
 if __name__ == "__main__":
     start_time = time.time()
-    #plot_sequences()
-    plot_l_distance()
+    LEN_AA = 1273
+    step = 25
+    for i in range(0, int(LEN_AA / float(step)) + 1):
+        start = i * step + 1
+        end = start + step - 1
+        #print(start, end)
+        plot_sequences(start, end)
+    #plot_l_distance()
     end_time = time.time()
     print("Program finished in {} seconds".format(str(np.round(end_time - start_time, 2))))

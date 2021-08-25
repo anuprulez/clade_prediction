@@ -29,9 +29,9 @@ def wasserstein_loss(y_true, y_pred):
 
 
 def discriminator_loss(real_output, fake_output):
-    real_loss = wasserstein_loss(tf.ones_like(real_output), real_output)
+    real_loss = cross_entropy(tf.ones_like(real_output), real_output) #wasserstein_loss(tf.ones_like(real_output), real_output)
     #cross_entropy(tf.ones_like(real_output), real_output) #wasserstein_loss(tf.ones_like(real_output), real_output)
-    fake_loss = wasserstein_loss(tf.ones_like(fake_output), fake_output)
+    fake_loss = cross_entropy(tf.zeros_like(fake_output), fake_output) #wasserstein_loss(tf.ones_like(fake_output), fake_output)
     #cross_entropy(tf.zeros_like(fake_output), fake_output) #wasserstein_loss(tf.ones_like(fake_output), fake_output)
     total_loss = real_loss + fake_loss
     return total_loss
@@ -124,7 +124,7 @@ def start_training(inputs, encoder, decoder, par_enc_model, gen_enc_model, discr
           # compute discriminator loss
           disc_loss = discriminator_loss(real_output, fake_output)
           # compute generator loss - sum of wasserstein and SCE losses
-          gen_loss_wl = wasserstein_loss(tf.ones_like(fake_output), fake_output)
+          gen_loss_wl = generator_loss(fake_output) #wasserstein_loss(tf.ones_like(fake_output), fake_output)
           gen_loss = gen_loss_wl + gen_true_loss
           print("Batch {}/{}, Generator W loss: {}, Generator true loss: {}, Generator loss: {}, Discriminator loss: {}".format(str(step), str(n_train_batches), str(gen_loss_wl), str(gen_true_loss), str(gen_loss.numpy()), str(disc_loss.numpy())))
           epo_avg_gen_loss.append(gen_loss.numpy())
