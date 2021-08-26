@@ -14,31 +14,37 @@ import matplotlib.pyplot as plt
 import utils
 
 
-PATH_PRE = "data/ncov_global/"
-PATH_SEQ = PATH_PRE + "spike_protein.fasta"
-PATH_SEQ_CLADE = PATH_PRE + "ncov_global.tsv"
-PATH_CLADES = "data/clade_in_clade_out_19A_20A.json" #"data/clade_in_clade_out.json"
-RESULT_PATH = "test_results/19A_20A_19_Aug/"
+#PATH_PRE = "data/ncov_global/"
+#PATH_SEQ = PATH_PRE + "spike_protein.fasta"
+#PATH_SEQ_CLADE = PATH_PRE + "ncov_global.tsv"
+#PATH_CLADES = "data/clade_in_clade_out_19A_20A.json" #"data/clade_in_clade_out.json"
+RESULT_PATH = "data/generated_files/" #"test_results/20A_20C/"
 embedding_dim = 128
 batch_size = 32
 enc_units = 128
 pretrain_epochs = 5
 epochs = 5
 LEN_AA = 1273
-vocab_size = 26
+#vocab_size = 26
 seq_len = LEN_AA
+
+clade_source = "20A"
+clade_start = "20C"
+
 
 
 def load_model_generated_sequences():
     # load test data
     te_clade_files = glob.glob('data/test/*.csv')
+    r_dict = utils.read_json(RESULT_PATH + "r_word_dictionaries.json")
+    vocab_size = len(r_dict) + 1
     total_te_loss = list()
     print("Loading trained model...")
     loaded_encoder = tf.keras.models.load_model(RESULT_PATH + "enc_model")
     loaded_generator = tf.keras.models.load_model(RESULT_PATH + "gen_model")
     print(loaded_encoder)
     print(loaded_generator)
-    print("Generating sequences for 20A...")
+    print("Generating sequences for {}...".format(clade_start))
     generating_factor = 1
     for te_name in te_clade_files:
         te_clade_df = pd.read_csv(te_name, sep="\t")
@@ -90,7 +96,7 @@ def predict_sequence(test_x, test_y, seq_len, vocab_size, batch_size, loaded_enc
         predicted_y.extend(pred_y)
         print("Batch {} finished".format(str(step)))
     print(len(true_x), len(true_y), len(predicted_y))
-    true_predicted_df = pd.DataFrame(list(zip(true_x, true_y, predicted_y)), columns=["19A", "20A", "Generated"])
+    true_predicted_df = pd.DataFrame(list(zip(true_x, true_y, predicted_y)), columns=[clade_source, clade_start, "Generated"])
     df_path = "{}true_predicted_df.csv".format(RESULT_PATH)
     true_predicted_df.to_csv(df_path, index=None)
 

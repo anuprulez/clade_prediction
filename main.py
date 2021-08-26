@@ -38,6 +38,8 @@ PRETRAIN_GEN_MODEL = "data/generated_files/pretrain_gen_decoder"
 TRAIN_ENC_MODEL = "data/generated_files/enc_model"
 TRAIN_GEN_MODEL = "data/generated_files/gen_model"
 SAVE_TRUE_PRED_SEQ = "data/generated_files/true_predicted_df.csv"
+
+l_dist_name = "levenshtein_distance"
 LEN_AA = 1273
 SCE = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
 # Neural network parameters
@@ -54,25 +56,20 @@ seq_len = LEN_AA
 
 def read_files():
     samples_clades = preprocess_sequences.get_samples_clades(PATH_SEQ_CLADE)
-    
     clades_in_clades_out = utils.read_json(PATH_CLADES)
-
     print("Preprocessing sequences...")
     encoded_sequence_df, forward_dict, rev_dict = preprocess_sequences.preprocess_seq(PATH_SEQ, samples_clades)
     print(clades_in_clades_out)    
-    
     print("Generating cross product...")
     preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df)
-
     start_training(len(rev_dict) + 1)
 
 
 def start_training(vocab_size):
-        
     encoder, decoder = neural_network.make_generator_model(LEN_AA, vocab_size, embedding_dim, enc_units, batch_size)
     pretrain_gen_loss = list()
     pretrain_gen_test_loss = list()
-    
+
     print("Loading datasets...")
     tr_clade_files = glob.glob('data/train/*.csv')
     te_clade_files = glob.glob('data/test/*.csv')
@@ -85,6 +82,7 @@ def start_training(vocab_size):
         tr_clade_df = pd.read_csv(name, sep="\t")
         X = tr_clade_df["X"]
         y = tr_clade_df["Y"]
+        X_y_l = tr_clade_df[l_dist_name]
         print(tr_clade_df.shape)
 
     # load test data
@@ -107,7 +105,7 @@ def start_training(vocab_size):
     # get test dataset as sliced tensors
     test_dataset_in = tf.data.Dataset.from_tensor_slices((te_X)).batch(te_batch_size)
     test_dataset_out = tf.data.Dataset.from_tensor_slices((te_y)).batch(te_batch_size)
-    
+
     n_test_batches = int(te_clade_df.shape[0]/float(te_batch_size))
     # divide datasets into pretrain and train sets
     '''X_pretrain, X_train, y_pretrain, y_train  = train_test_split(X, y, test_size=0.7)
@@ -136,25 +134,26 @@ def start_training(vocab_size):
     # create discriminator model
     disc_parent_encoder_model, disc_gen_encoder_model = neural_network.make_disc_par_gen_model(LEN_AA, vocab_size, embedding_dim, enc_units)
     discriminator = neural_network.make_discriminator_model(LEN_AA, vocab_size, embedding_dim, enc_units)
-    
+
     # use the pretrained generator and train it along with discriminator
     print("Training Generator and Discriminator...")
     train_gen_loss = list()
     train_gen_true_loss = list()
     train_disc_loss = list()
     train_te_loss = list()
-    
+
     X_train = X
     y_train = y
     # get training dataset as sliced tensors
     dataset_in = tf.data.Dataset.from_tensor_slices((X_train)).batch(batch_size)
     dataset_out = tf.data.Dataset.from_tensor_slices((y_train)).batch(batch_size)
-    
+    in_out_l_dist = tf.data.Dataset.from_tensor_slices((X_y_l)).batch(batch_size)
+
     n_train_batches = int(X_train.shape[0]/float(batch_size))
     print("Num of train batches: {}".format(str(n_train_batches)))
     for n in range(epochs):
         print("Training epoch {}/{}...".format(str(n+1), str(epochs)))
-        epo_gen_loss, epo_disc_loss, gen_true_loss, encoder, decoder = train_model.start_training([dataset_in, dataset_out], encoder, decoder, disc_parent_encoder_model, disc_gen_encoder_model, discriminator, enc_units, vocab_size, n_train_batches)
+        epo_gen_loss, epo_disc_loss, gen_true_loss, encoder, decoder = train_model.start_training([dataset_in, dataset_out, in_out_l_dist], encoder, decoder, disc_parent_encoder_model, disc_gen_encoder_model, discriminator, enc_units, vocab_size, n_train_batches)
         print("Training loss at step {}/{}: Generator true loss: {}, Generator loss: {}, Discriminator loss :{}".format(str(n+1), str(epochs), str(gen_true_loss), str(epo_gen_loss), str(epo_disc_loss)))
         train_gen_loss.append(epo_gen_loss)
         train_disc_loss.append(epo_disc_loss)
@@ -165,7 +164,7 @@ def start_training(vocab_size):
         with tf.device('/device:cpu:0'):
             epo_tr_gen_te_loss = predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, TRAIN_ENC_MODEL, TRAIN_GEN_MODEL)
         train_te_loss.append(epo_tr_gen_te_loss)
-    
+
     # save loss files
     np.savetxt(TRAIN_GEN_LOSS, train_gen_loss)
     np.savetxt(TRAIN_DISC_LOSS, train_disc_loss)
