@@ -133,7 +133,7 @@ def make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units):
     x = tf.keras.layers.LeakyReLU(0.1)(x)
     x = tf.keras.layers.Dropout(0.2)(x)
     x = tf.keras.layers.BatchNormalization()(x)
-    output_class = tf.keras.layers.Dense(1, activation='sigmoid')(x)
+    output_class = tf.keras.layers.Dense(1, activation='linear')(x)
     
     disc_model = tf.keras.Model([input_parent, input_generated], [output_class])
     

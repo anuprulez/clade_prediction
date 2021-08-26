@@ -26,20 +26,20 @@ m_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
 
 
 def wasserstein_loss(y_true, y_pred):
-    return tf.math.reduce_mean(y_true * y_pred)
+    return tf.math.reduce_mean(tf.math.multiply(y_true, y_pred))
 
 
 def discriminator_loss(real_output, fake_output):
-    real_loss = cross_entropy(tf.ones_like(real_output), real_output) #wasserstein_loss(tf.ones_like(real_output), real_output)
+    real_loss = -tf.math.reduce_mean(real_output) #wasserstein_loss(tf.ones_like(real_output), real_output)
+    fake_loss = tf.math.reduce_mean(fake_output) #wasserstein_loss(-tf.ones_like(fake_output), fake_output)
     #cross_entropy(tf.ones_like(real_output), real_output) #wasserstein_loss(tf.ones_like(real_output), real_output)
-    fake_loss = cross_entropy(tf.zeros_like(fake_output), fake_output) #wasserstein_loss(tf.ones_like(fake_output), fake_output)
     #cross_entropy(tf.zeros_like(fake_output), fake_output) #wasserstein_loss(tf.ones_like(fake_output), fake_output)
-    total_loss = real_loss + fake_loss
-    return total_loss
+    return real_loss + fake_loss
 
 
 def generator_loss(fake_output):
-    return cross_entropy(tf.ones_like(fake_output), fake_output)
+    return -tf.math.reduce_mean(fake_output) #wasserstein_loss(tf.ones_like(fake_output), fake_output)
+    #cross_entropy(tf.ones_like(fake_output), fake_output)
 
 
 def gen_step_train(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real_o):
@@ -85,62 +85,28 @@ def pretrain_generator(inputs, gen_encoder, gen_decoder, enc_units, vocab_size, 
   return np.mean(epo_avg_gen_loss), gen_encoder, gen_decoder
 
 
-
 def balance_train_dataset(x, y, x_y_l):
-
     lst_x = x
     lst_y = y
-    #print(x_y_l)
     l_dist = x_y_l.numpy()
     u_l_dist = list(set(l_dist))
-    #print(u_l_dist)
-
     batch_size = x.shape[0]
-    
     n_samples = int(batch_size / float(len(u_l_dist)))
-
-    #print(n_samples)
-
     bal_x = np.zeros((x.shape[0], x.shape[1]))
     bal_y = np.zeros((y.shape[0], y.shape[1]))
-
-    #print(bal_x.shape, bal_y.shape)
-
     ctr = 0
     for l_val in u_l_dist:
         l_val_indices = np.where(l_dist == int(l_val))
-        #print(l_val, l_val_indices)
         len_indices = len(l_val_indices)
-
         x_rows = np.array(lst_x[l_val_indices])
         y_rows = np.array(lst_y[l_val_indices])
-
-        #print(x_rows.shape, y_rows.shape)
-
         rand_x_rows = np.array(choices(x_rows, k=n_samples))
         rand_y_rows = np.array(choices(y_rows, k=n_samples))
-
-        #print(rand_x_rows.shape, rand_y_rows.shape)
-
-        #print(ctr, ctr+n_samples)
-
         bal_x[ctr:ctr+n_samples, :] = rand_x_rows
         bal_y[ctr:ctr+n_samples, :] = rand_y_rows
- 
-        #print(bal_x) 
-        #print()
-        #print(bal_y)
-
         ctr += n_samples
-        #print("---")
-
     bal_x = tf.convert_to_tensor(bal_x, dtype=tf.int32)
     bal_y = tf.convert_to_tensor(bal_y, dtype=tf.int32)
-    
-    #print(bal_x) 
-    #print()
-    #print(bal_y)
-
     return bal_x, bal_y
 
 
@@ -155,7 +121,6 @@ def start_training(inputs, encoder, decoder, par_enc_model, gen_enc_model, discr
       
       unrolled_x, unrolled_y = balance_train_dataset(unrolled_x, unrolled_y, l_dist_batch)
 
-      #sys.exit()
       seq_len = unrolled_x.shape[1]
       batch_size = unrolled_x.shape[0]
       with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
@@ -176,16 +141,20 @@ def start_training(inputs, encoder, decoder, par_enc_model, gen_enc_model, discr
           generated_logits, decoder, gen_true_loss = gen_step_train(seq_len, batch_size, vocab_size, decoder, dec_state, unrolled_y)
           # reformat real output to one-hot encoding
           real_y = tf.one_hot(unrolled_y, depth=generated_logits.shape[-1], axis=-1)
+
           # encode parent sequences
           par_enc_real_state_x = par_enc_model(unrolled_x, training=True)
           # encode true child sequences
           gen_real_enc_state_y = gen_enc_model(real_y, training=True)
+
           # encode generated child sequences
           gen_enc_fake_state_x = gen_enc_model(generated_logits, training=True)
+
           # discriminate pairs of true parent and generated child sequences
           fake_output = discriminator([par_enc_real_state_x, gen_enc_fake_state_x], training=True)
           # discriminate pairs of true parent and true child sequences
           real_output = discriminator([par_enc_real_state_x, gen_real_enc_state_y], training=True)
+          
           # compute discriminator loss
           total_disc_loss = discriminator_loss(real_output, fake_output)
           # compute generator loss - sum of wasserstein and SCE losses
