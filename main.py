@@ -56,26 +56,20 @@ seq_len = LEN_AA
 
 def read_files():
     samples_clades = preprocess_sequences.get_samples_clades(PATH_SEQ_CLADE)
-    
     clades_in_clades_out = utils.read_json(PATH_CLADES)
-
     print("Preprocessing sequences...")
     encoded_sequence_df, forward_dict, rev_dict = preprocess_sequences.preprocess_seq(PATH_SEQ, samples_clades)
     print(clades_in_clades_out)    
-    
     print("Generating cross product...")
     preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df)
-
     start_training(len(rev_dict) + 1)
 
 
-
 def start_training(vocab_size):
-        
     encoder, decoder = neural_network.make_generator_model(LEN_AA, vocab_size, embedding_dim, enc_units, batch_size)
     pretrain_gen_loss = list()
     pretrain_gen_test_loss = list()
-    
+
     print("Loading datasets...")
     tr_clade_files = glob.glob('data/train/*.csv')
     te_clade_files = glob.glob('data/test/*.csv')
@@ -111,7 +105,7 @@ def start_training(vocab_size):
     # get test dataset as sliced tensors
     test_dataset_in = tf.data.Dataset.from_tensor_slices((te_X)).batch(te_batch_size)
     test_dataset_out = tf.data.Dataset.from_tensor_slices((te_y)).batch(te_batch_size)
-    
+
     n_test_batches = int(te_clade_df.shape[0]/float(te_batch_size))
     # divide datasets into pretrain and train sets
     '''X_pretrain, X_train, y_pretrain, y_train  = train_test_split(X, y, test_size=0.7)

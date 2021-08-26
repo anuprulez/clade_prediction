@@ -85,31 +85,6 @@ def pretrain_generator(inputs, gen_encoder, gen_decoder, enc_units, vocab_size, 
   return np.mean(epo_avg_gen_loss), gen_encoder, gen_decoder
 
 
-def balance_train_dataset(x, y, x_y_l):
-    lst_x = x
-    lst_y = y
-    l_dist = x_y_l.numpy()
-    u_l_dist = list(set(l_dist))
-    batch_size = x.shape[0]
-    n_samples = int(batch_size / float(len(u_l_dist)))
-    bal_x = np.zeros((x.shape[0], x.shape[1]))
-    bal_y = np.zeros((y.shape[0], y.shape[1]))
-    ctr = 0
-    for l_val in u_l_dist:
-        l_val_indices = np.where(l_dist == int(l_val))
-        len_indices = len(l_val_indices)
-        x_rows = np.array(lst_x[l_val_indices])
-        y_rows = np.array(lst_y[l_val_indices])
-        rand_x_rows = np.array(choices(x_rows, k=n_samples))
-        rand_y_rows = np.array(choices(y_rows, k=n_samples))
-        bal_x[ctr:ctr+n_samples, :] = rand_x_rows
-        bal_y[ctr:ctr+n_samples, :] = rand_y_rows
-        ctr += n_samples
-    bal_x = tf.convert_to_tensor(bal_x, dtype=tf.int32)
-    bal_y = tf.convert_to_tensor(bal_y, dtype=tf.int32)
-    return bal_x, bal_y
-
-
 def start_training(inputs, encoder, decoder, par_enc_model, gen_enc_model, discriminator, enc_units, vocab_size, n_train_batches):
   input_tokens, target_tokens, input_target_l_dist = inputs  
   epo_avg_gen_loss = list()
@@ -118,9 +93,8 @@ def start_training(inputs, encoder, decoder, par_enc_model, gen_enc_model, discr
   for step, (x_batch_train, y_batch_train, l_dist_batch) in enumerate(zip(input_tokens, target_tokens, input_target_l_dist)):
       unrolled_x = utils.convert_to_array(x_batch_train)
       unrolled_y = utils.convert_to_array(y_batch_train)
-      
-      unrolled_x, unrolled_y = balance_train_dataset(unrolled_x, unrolled_y, l_dist_batch)
-
+      # balance x and y in terms of levenshtein distance
+      unrolled_x, unrolled_y = utils.balance_train_dataset(unrolled_x, unrolled_y, l_dist_batch)
       seq_len = unrolled_x.shape[1]
       batch_size = unrolled_x.shape[0]
       with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
@@ -149,6 +123,9 @@ def start_training(inputs, encoder, decoder, par_enc_model, gen_enc_model, discr
 
           # encode generated child sequences
           gen_enc_fake_state_x = gen_enc_model(generated_logits, training=True)
+
+          # encode parent and not real child sequences
+          # TODO: take out sequences from a totally different clade and associate with parents
 
           # discriminate pairs of true parent and generated child sequences
           fake_output = discriminator([par_enc_real_state_x, gen_enc_fake_state_x], training=True)
