@@ -2,6 +2,8 @@ import itertools
 import json
 import pandas as pd
 import numpy as np
+import random
+from random import choices
 
 import tensorflow as tf
 from Levenshtein import distance as lev_dist

@@ -2,8 +2,7 @@ import time
 import sys
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-import random
-from random import choices
+
 import pandas as pd
 import numpy as np
 import logging
