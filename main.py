@@ -184,7 +184,6 @@ def predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, enc
         batch_x_test = utils.convert_to_array(x)
         batch_y_test = utils.convert_to_array(y)
         batch_size = batch_x_test.shape[0]
-        print(batch_x_test)
         print("Test Batch size:".format(str(batch_size)))
         if batch_x_test.shape[0] == batch_size:
             # generated noise for variation in predicted sequences

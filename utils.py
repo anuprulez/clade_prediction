@@ -19,7 +19,6 @@ def compute_Levenshtein_dist(seq_in, seq_out):
     #return np.random.randint(1, 5)
     return lev_dist(seq_in, seq_out)
 
-
 def reconstruct_seq(kmers):
     reconstructed_seq = []
     for i, km in enumerate(kmers):
