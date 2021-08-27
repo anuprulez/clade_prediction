@@ -85,12 +85,12 @@ def predict_multiple(test_x, test_y, seq_len, vocab_size, batch_size, loaded_enc
         print(batch_x_test.shape, batch_y_test.shape)
         print("Generating multiple sequences for each test sequence...")
         for i in range(generating_factor):
-            noise = tf.random.normal((batch_size, enc_units), stddev=1.0)
+            noise = tf.random.normal((batch_size, enc_units))
             print(noise.shape)
-            enc_output, enc_state = loaded_encoder(batch_y_test, training=False)
+            enc_output, enc_state = loaded_encoder(batch_x_test, training=False)
             enc_state = tf.math.add(enc_state, noise)
             dec_state = enc_state
-            generated_logits = gen_step_predict(seq_len, batch_size, vocab_size, loaded_generator, dec_state, batch_y_test)
+            generated_logits = gen_step_predict(seq_len, batch_size, vocab_size, loaded_generator, dec_state)
             p_y = tf.math.argmax(generated_logits, axis=-1)
 
             print(generated_logits.shape)
@@ -122,7 +122,7 @@ def predict_multiple(test_x, test_y, seq_len, vocab_size, batch_size, loaded_enc
     true_predicted_multiple.to_csv(df_path, index=None)
     
 
-def gen_step_predict(seq_len, batch_size, vocab_size, gen_decoder, dec_state, batch_y_test):
+def gen_step_predict(seq_len, batch_size, vocab_size, gen_decoder, dec_state):
     step_loss = tf.constant(0.0)
     pred_logits = np.zeros((batch_size, seq_len, vocab_size))
     i_token = tf.fill([batch_size, 1], 0)

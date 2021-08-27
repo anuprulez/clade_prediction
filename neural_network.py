@@ -14,7 +14,7 @@ import preprocess_sequences
 ENC_WEIGHTS_SAVE_PATH = "data/generated_files/generator_encoder_weights.h5"
 
 
-class Decoder(tf.keras.layers.Layer):
+'''class Decoder(tf.keras.layers.Layer):
   def __init__(self, output_vocab_size, embedding_dim, dec_units, seq_len, batch_size):
     super(Decoder, self).__init__()
     self.seq_len = seq_len
@@ -34,10 +34,13 @@ class Decoder(tf.keras.layers.Layer):
 
   def call(self, inputs, state=None, training=False):
       vectors = self.embedding(inputs)
+      #vectors = tf.keras.layers.Dropout(0.2)(vectors)
       rnn_output, state = self.gru(vectors, initial_state=state)
+      #rnn_output = tf.keras.layers.Dropout(0.2)(rnn_output)
       attention_vector = self.Wc(rnn_output)
+      #attention_vector = tf.keras.layers.Dropout(0.2)(attention_vector)
       logits = self.fc(attention_vector)
-      return logits, state
+      return logits, state'''
 
 
 def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_size):
@@ -54,6 +57,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     inputs = tf.keras.Input(shape=(seq_len,))
     # create model
     embed = gen_embedding(gen_inputs)
+    embed = tf.keras.layers.Dropout(0.2)(embed)
     gen_output, gen_state = gen_gru(embed)
     encoder_model = tf.keras.Model([gen_inputs], [gen_output, gen_state])
     # run model
@@ -75,8 +79,11 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     dec_fc = tf.keras.layers.Dense(vocab_size, use_bias=True, activation='softmax')
     
     vectors = dec_embedding(new_tokens)
+    vectors = tf.keras.layers.Dropout(0.2)(vectors)
     rnn_output, state = dec_gru(vectors, initial_state=e_state)
+    rnn_output = tf.keras.layers.Dropout(0.2)(rnn_output)
     attention_vector = dec_Wc(rnn_output)
+    attention_vector = tf.keras.layers.Dropout(0.2)(attention_vector)
     logits = dec_fc(attention_vector)
 
     decoder_model = tf.keras.Model([new_tokens, e_state], [logits, state])
@@ -108,6 +115,7 @@ def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units):
     # generated seq encoder model
     gen_inputs = tf.keras.Input(shape=(None, vocab_size))
     gen_enc_inputs = tf.keras.layers.Dense(embedding_dim, activation='linear', use_bias=False)(gen_inputs)
+    gen_enc_inputs = tf.keras.layers.Dropout(0.2)(gen_enc_inputs)
     gen_enc_outputs, gen_enc_state = enc_GRU(gen_enc_inputs)
     disc_gen_encoder_model = tf.keras.Model([gen_inputs], [gen_enc_state])
 
