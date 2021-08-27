@@ -28,9 +28,14 @@ PATH_CLADES = "data/specific_clade_in_out.json" # "data/clade_in_clade_out.json"
 PRETRAIN_GEN_LOSS = "data/generated_files/pretr_gen_loss.txt"
 PRETRAIN_GEN_TEST_LOSS = "data/generated_files/pretr_gen_test_loss.txt"
 
-TRAIN_GEN_LOSS = "data/generated_files/tr_gen_loss.txt"
+TRAIN_GEN_TOTAL_LOSS = "data/generated_files/tr_gen_total_loss.txt"
+TRAIN_GEN_FAKE_LOSS = "data/generated_files/tr_gen_fake_loss.txt"
 TRAIN_GEN_TRUE_LOSS = "data/generated_files/tr_gen_true_loss.txt"
-TRAIN_DISC_LOSS = "data/generated_files/tr_disc_loss.txt"
+
+TRAIN_DISC_TOTAL_LOSS = "data/generated_files/tr_disc_total_loss.txt"
+TRAIN_DISC_FAKE_LOSS = "data/generated_files/tr_disc_fake_loss.txt"
+TRAIN_DISC_TRUE_LOSS = "data/generated_files/tr_disc_true_loss.txt"
+
 TEST_LOSS = "data/generated_files/te_loss.txt"
 
 PRETRAIN_ENC_MODEL = "data/generated_files/pretrain_gen_encoder"
@@ -47,7 +52,7 @@ embedding_dim = 128
 batch_size = 32
 enc_units = 128
 pretrain_epochs = 5
-epochs = 5
+epochs = 10
 seq_len = LEN_AA
 
 
@@ -137,9 +142,12 @@ def start_training(vocab_size):
 
     # use the pretrained generator and train it along with discriminator
     print("Training Generator and Discriminator...")
-    train_gen_loss = list()
+    train_gen_total_loss = list()
     train_gen_true_loss = list()
-    train_disc_loss = list()
+    train_gen_fake_loss = list()
+    train_disc_total_loss = list()
+    train_disc_true_loss = list()
+    train_disc_fake_loss = list()
     train_te_loss = list()
 
     X_train = X
@@ -153,11 +161,18 @@ def start_training(vocab_size):
     print("Num of train batches: {}".format(str(n_train_batches)))
     for n in range(epochs):
         print("Training epoch {}/{}...".format(str(n+1), str(epochs)))
-        epo_gen_loss, epo_disc_loss, gen_true_loss, encoder, decoder = train_model.start_training([dataset_in, dataset_out, in_out_l_dist], encoder, decoder, disc_parent_encoder_model, disc_gen_encoder_model, discriminator, enc_units, vocab_size, n_train_batches)
-        print("Training loss at step {}/{}: Generator true loss: {}, Generator loss: {}, Discriminator loss :{}".format(str(n+1), str(epochs), str(gen_true_loss), str(epo_gen_loss), str(epo_disc_loss)))
-        train_gen_loss.append(epo_gen_loss)
-        train_disc_loss.append(epo_disc_loss)
-        train_gen_true_loss.append(gen_true_loss)
+        epo_gen_true_loss, epo_gen_fake_loss, epo_total_gen_loss, epo_disc_true_loss, epo_disc_fake_loss, epo_total_disc_loss, encoder, decoder = train_model.start_training([dataset_in, dataset_out, in_out_l_dist], encoder, decoder, disc_parent_encoder_model, disc_gen_encoder_model, discriminator, enc_units, vocab_size, n_train_batches)
+        #print("Training loss at step {}/{}: Generator true loss: {}, Generator loss: {}, Discriminator loss :{}".format(str(n+1), str(epochs), str(gen_true_loss), str(epo_gen_loss), str(epo_disc_loss)))
+        print("Training loss at step {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}, D true loss: {}, D fake loss: {}, Total D loss: {}".format(str(n+1), str(epochs), str(epo_gen_true_loss), str(epo_gen_fake_loss), str(epo_total_gen_loss), str(epo_disc_true_loss), str(epo_disc_fake_loss), str(epo_total_disc_loss)))
+
+        train_gen_total_loss.append(epo_total_gen_loss)
+        train_gen_true_loss.append(epo_gen_true_loss)
+        train_gen_fake_loss.append(epo_gen_fake_loss)
+
+        train_disc_total_loss.append(epo_total_disc_loss)
+        train_disc_true_loss.append(epo_disc_true_loss)
+        train_disc_fake_loss.append(epo_disc_fake_loss)
+
         # predict seq on test data
         print("Num of test batches: {}".format(str(n_test_batches)))
         print("Prediction on test data...")
@@ -166,9 +181,12 @@ def start_training(vocab_size):
         train_te_loss.append(epo_tr_gen_te_loss)
 
     # save loss files
-    np.savetxt(TRAIN_GEN_LOSS, train_gen_loss)
-    np.savetxt(TRAIN_DISC_LOSS, train_disc_loss)
+    np.savetxt(TRAIN_GEN_TOTAL_LOSS, train_gen_total_loss)
+    np.savetxt(TRAIN_GEN_FAKE_LOSS, train_gen_fake_loss)
     np.savetxt(TRAIN_GEN_TRUE_LOSS, train_gen_true_loss)
+    np.savetxt(TRAIN_DISC_FAKE_LOSS, train_disc_fake_loss)
+    np.savetxt(TRAIN_DISC_TRUE_LOSS, train_disc_true_loss)
+    np.savetxt(TRAIN_DISC_TOTAL_LOSS, train_disc_total_loss)
     np.savetxt(TEST_LOSS, train_te_loss)
 
 

@@ -29,16 +29,16 @@ def wasserstein_loss(y_true, y_pred):
     return tf.math.reduce_mean(tf.math.multiply(y_true, y_pred))
 
 
-def discriminator_loss(real_output, fake_output, not_par_child_output):
+def discriminator_loss(real_output, fake_output):
     # loss on real parent-child sequences
     real_loss = cross_entropy(tf.ones_like(real_output), real_output) #-tf.math.reduce_mean(real_output) #wasserstein_loss(tf.ones_like(real_output), real_output)
     # loss on real parent and generated child sequences
     fake_loss = cross_entropy(tf.zeros_like(fake_output), fake_output) #tf.math.reduce_mean(fake_output) #wasserstein_loss(-tf.ones_like(fake_output), fake_output)
     # loss on real sequences that are not parent-child
-    not_par_child_loss = cross_entropy(tf.zeros_like(not_par_child_output), not_par_child_output)
+    #not_par_child_loss = cross_entropy(tf.zeros_like(not_par_child_output), not_par_child_output)
     #cross_entropy(tf.ones_like(real_output), real_output) #wasserstein_loss(tf.ones_like(real_output), real_output)
     #cross_entropy(tf.zeros_like(fake_output), fake_output) #wasserstein_loss(tf.ones_like(fake_output), fake_output)
-    return real_loss + fake_loss + not_par_child_loss
+    return real_loss, fake_loss
 
 
 def generator_loss(fake_output):
@@ -91,9 +91,13 @@ def pretrain_generator(inputs, gen_encoder, gen_decoder, enc_units, vocab_size, 
 
 def start_training(inputs, encoder, decoder, par_enc_model, gen_enc_model, discriminator, enc_units, vocab_size, n_train_batches):
   input_tokens, target_tokens, input_target_l_dist = inputs  
-  epo_avg_gen_loss = list()
+  epo_avg_total_gen_loss = list()
   epo_ave_gen_true_loss = list()
-  epo_avg_disc_loss = list()
+  epo_avg_gen_fake_loss = list()
+
+  epo_avg_total_disc_loss = list()
+  epo_avg_disc_fake_loss = list()
+  epo_avg_disc_real_loss = list()
   for step, (x_batch_train, y_batch_train, l_dist_batch) in enumerate(zip(input_tokens, target_tokens, input_target_l_dist)):
       unrolled_x = utils.convert_to_array(x_batch_train)
       unrolled_y = utils.convert_to_array(y_batch_train)
@@ -135,17 +139,29 @@ def start_training(inputs, encoder, decoder, par_enc_model, gen_enc_model, discr
           not_par_child_output = discriminator([par_enc_real_state_x, par_enc_real_state_x], training=True)
           # discriminate pairs of true parent and true child sequences
           real_output = discriminator([par_enc_real_state_x, gen_real_enc_state_y], training=True)
-          
-          # compute discriminator loss
-          total_disc_loss = discriminator_loss(real_output, fake_output, not_par_child_output)
-          # compute generator loss - sum of wasserstein and SCE losses
-          gen_fake_loss = generator_loss(fake_output)
-          total_gen_loss = gen_fake_loss + gen_true_loss
-          print("Batch {}/{}, Generator fake loss: {}, Generator true loss: {}, Total generator loss: {}, Total discriminator loss: {}".format(str(step), str(n_train_batches), str(gen_fake_loss.numpy()), str(gen_true_loss.numpy()), str(total_gen_loss.numpy()), str(total_disc_loss.numpy())))
-          epo_avg_gen_loss.append(total_gen_loss.numpy())
-          epo_ave_gen_true_loss.append(gen_true_loss)
-          epo_avg_disc_loss.append(total_disc_loss.numpy())
 
+          # take halves of fake output - real parent and gen child and not parent-child sequences
+          h_fake_output = fake_output[:int(batch_size / 2)]
+          h_not_par_child_output = not_par_child_output[:int(batch_size / 2)]
+          # mix both fake outputs
+          merged_fake_output = tf.concat([h_fake_output, h_not_par_child_output], axis=0)
+
+          # compute discriminator loss
+          disc_real_loss, disc_fake_loss = discriminator_loss(real_output, merged_fake_output)
+          total_disc_loss = disc_real_loss + disc_fake_loss
+
+          # compute generator loss
+          gen_fake_loss = generator_loss(merged_fake_output)
+          total_gen_loss = gen_fake_loss + gen_true_loss
+          print("Batch {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}, D true loss: {}, D fake loss: {}, Total D loss: {}".format(str(step), str(n_train_batches), str(gen_true_loss.numpy()), str(gen_fake_loss.numpy()), str(total_gen_loss.numpy()), str(disc_real_loss.numpy()), str(disc_fake_loss.numpy()), str(total_disc_loss.numpy())))
+
+          epo_ave_gen_true_loss.append(gen_true_loss.numpy())
+          epo_avg_gen_fake_loss.append(gen_fake_loss.numpy())
+          epo_avg_total_gen_loss.append(total_gen_loss.numpy())
+
+          epo_avg_disc_fake_loss.append(disc_fake_loss.numpy())
+          epo_avg_disc_real_loss.append(disc_real_loss.numpy())
+          epo_avg_total_disc_loss.append(total_disc_loss.numpy())
       # apply gradients
       # train discriminator more that generator - 5 times discriminator, 1 time generator 
       if step % n_disc_iter == 0:
@@ -158,8 +174,7 @@ def start_training(inputs, encoder, decoder, par_enc_model, gen_enc_model, discr
           gradients_of_discriminator = disc_tape.gradient(total_disc_loss, discriminator.trainable_variables)
           disc_clipped_grad = [tf.clip_by_value(grad, -0.01, 0.01) for grad in gradients_of_discriminator]
           discriminator_optimizer.apply_gradients(zip(disc_clipped_grad, discriminator.trainable_variables))
-
   # save model
   tf.keras.models.save_model(encoder, TRAIN_ENC_MODEL)
   tf.keras.models.save_model(decoder, TRAIN_GEN_MODEL)
-  return np.mean(epo_avg_gen_loss), np.mean(epo_avg_disc_loss), np.mean(epo_ave_gen_true_loss), encoder, decoder
+  return np.mean(epo_ave_gen_true_loss), np.mean(epo_avg_gen_fake_loss), np.mean(epo_avg_total_gen_loss), np.mean(epo_avg_disc_real_loss), np.mean(epo_avg_disc_fake_loss), np.mean(epo_avg_total_disc_loss), encoder, decoder
