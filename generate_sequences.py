@@ -79,8 +79,8 @@ def predict_sequence(test_x, test_y, seq_len, vocab_size, batch_size, loaded_enc
     num_te_batches = int(len(test_x) / float(batch_size))
     print("Num test batches: {}".format(str(num_te_batches)))
     for step, (x, y) in enumerate(zip(test_dataset_in, test_dataset_out)):
-        batch_x_test = utils.convert_to_array(x)
-        batch_y_test = utils.convert_to_array(y)
+        batch_x_test = utils.pred_convert_to_array(x)
+        batch_y_test = utils.pred_convert_to_array(y)
         new_tokens = tf.fill([batch_size, 1], 0)
         noise = tf.random.normal((batch_size, enc_units))
         enc_output, enc_state = loaded_encoder(batch_y_test, training=False)
