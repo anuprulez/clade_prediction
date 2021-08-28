@@ -18,7 +18,7 @@ import utils
 #PATH_SEQ = PATH_PRE + "spike_protein.fasta"
 #PATH_SEQ_CLADE = PATH_PRE + "ncov_global.tsv"
 #PATH_CLADES = "data/clade_in_clade_out_19A_20A.json" #"data/clade_in_clade_out.json"
-RESULT_PATH = "data/generated_files/" #"test_results/20A_20C/"
+RESULT_PATH = "test_results/20A_20C_27Aug/"
 embedding_dim = 128
 batch_size = 32
 enc_units = 128
@@ -35,7 +35,8 @@ clade_start = "20C"
 
 def load_model_generated_sequences():
     # load test data
-    te_clade_files = glob.glob('data/test/*.csv')
+    #te_clade_files = glob.glob('data/test/*.csv')
+    te_clade_files = glob.glob(RESULT_PATH + 'test/*.csv')
     r_dict = utils.read_json(RESULT_PATH + "r_word_dictionaries.json")
     vocab_size = len(r_dict) + 1
     total_te_loss = list()
@@ -53,10 +54,75 @@ def load_model_generated_sequences():
         print(te_clade_df.shape)
         batch_size = te_clade_df.shape[0]
         with tf.device('/device:cpu:0'):
-            te_loss = predict_sequence(te_X, te_y, LEN_AA, vocab_size, batch_size, loaded_encoder, loaded_generator, generating_factor)
+            #te_loss = predict_sequence(te_X, te_y, LEN_AA, vocab_size, batch_size, loaded_encoder, loaded_generator, generating_factor)
+            predict_multiple(te_X, te_y, LEN_AA, vocab_size, batch_size, loaded_encoder, loaded_generator)
 
 
-def gen_step_predict(seq_len, batch_size, vocab_size, gen_decoder, dec_state, batch_y_test):
+def predict_multiple(test_x, test_y, seq_len, vocab_size, batch_size, loaded_encoder, loaded_generator, generating_factor=5):
+    batch_size = 1
+    test_cutoff = 5
+
+    rand_pos = np.random.randint(1, test_x.shape[0], test_cutoff)
+
+    test_x_rand = test_x[rand_pos]
+    text_y_rand = test_y[rand_pos]
+
+    test_dataset_in = tf.data.Dataset.from_tensor_slices((test_x_rand)).batch(batch_size)
+    test_dataset_out = tf.data.Dataset.from_tensor_slices((text_y_rand)).batch(batch_size)
+
+    true_x = list()
+    true_y = list()
+    predicted_y = list()
+
+    num_te_batches = int(len(test_x_rand) / float(batch_size))
+
+    print("Num test batches: {}".format(str(num_te_batches)))
+
+    for step, (x, y) in enumerate(zip(test_dataset_in, test_dataset_out)):
+        batch_x_test = utils.pred_convert_to_array(x)
+        batch_y_test = utils.pred_convert_to_array(y)
+        new_tokens = tf.fill([batch_size, 1], 0)
+        print(batch_x_test.shape, batch_y_test.shape)
+        print("Generating multiple sequences for each test sequence...")
+        for i in range(generating_factor):
+            noise = tf.random.normal((batch_size, enc_units))
+            print(noise.shape)
+            enc_output, enc_state = loaded_encoder(batch_x_test, training=False)
+            enc_state = tf.math.add(enc_state, noise)
+            dec_state = enc_state
+            generated_logits = gen_step_predict(seq_len, batch_size, vocab_size, loaded_generator, dec_state)
+            p_y = tf.math.argmax(generated_logits, axis=-1)
+
+            print(generated_logits.shape)
+            print(p_y.shape)
+
+            one_x = utils.convert_to_string_list(batch_x_test)
+            one_y = utils.convert_to_string_list(batch_y_test)
+            pred_y = utils.convert_to_string_list(p_y)
+
+            l_dist_y_pred = utils.compute_Levenshtein_dist(one_y[0], pred_y[0])
+            l_dist_x_pred = utils.compute_Levenshtein_dist(one_x[0], pred_y[0])
+            l_dist_x_y = utils.compute_Levenshtein_dist(one_x[0], one_y[0])
+            print("Levenshtein distance (y and pred): {}".format(str(l_dist_y_pred)))
+            print("Levenshtein distance (x and pred): {}".format(str(l_dist_x_pred)))
+            print("Levenshtein distance (x and y): {}".format(str(l_dist_x_y)))
+
+            if l_dist_y_pred > 0 and l_dist_y_pred < 60:
+                true_x.extend(one_x)
+                true_y.extend(one_y)
+                predicted_y.extend(pred_y)
+                print("----------")
+        print("Batch {} finished".format(str(step)))
+        print()
+        if step == test_cutoff:
+            break
+    print(len(true_x), len(true_y), len(predicted_y))
+    true_predicted_multiple = pd.DataFrame(list(zip(true_x, true_y, predicted_y)), columns=[clade_source, clade_start, "Generated"])
+    df_path = "{}true_predicted_multiple.csv".format(RESULT_PATH)
+    true_predicted_multiple.to_csv(df_path, index=None)
+    
+
+def gen_step_predict(seq_len, batch_size, vocab_size, gen_decoder, dec_state):
     step_loss = tf.constant(0.0)
     pred_logits = np.zeros((batch_size, seq_len, vocab_size))
     i_token = tf.fill([batch_size, 1], 0)
@@ -79,8 +145,8 @@ def predict_sequence(test_x, test_y, seq_len, vocab_size, batch_size, loaded_enc
     num_te_batches = int(len(test_x) / float(batch_size))
     print("Num test batches: {}".format(str(num_te_batches)))
     for step, (x, y) in enumerate(zip(test_dataset_in, test_dataset_out)):
-        batch_x_test = utils.convert_to_array(x)
-        batch_y_test = utils.convert_to_array(y)
+        batch_x_test = utils.pred_convert_to_array(x)
+        batch_y_test = utils.pred_convert_to_array(y)
         new_tokens = tf.fill([batch_size, 1], 0)
         noise = tf.random.normal((batch_size, enc_units))
         enc_output, enc_state = loaded_encoder(batch_y_test, training=False)
