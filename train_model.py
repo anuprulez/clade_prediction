@@ -19,10 +19,34 @@ TRAIN_GEN_MODEL = "data/generated_files/gen_model"
 
 pretrain_generator_optimizer = tf.keras.optimizers.Adam(0.01)
 generator_optimizer = tf.keras.optimizers.Adam(1e-3)
-discriminator_optimizer = tf.keras.optimizers.Adam(1e-3)
+discriminator_optimizer = tf.keras.optimizers.Adam(3e-5)
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 m_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
 n_disc_iter = 5
+
+
+def gradient_penalty(batch_size, real_seq, fake_seq, discriminator):
+    """ Calculates the gradient penalty.
+
+    This loss is calculated on an interpolated image
+    and added to the discriminator loss.
+    """
+    # Get the interpolated image
+    alpha = tf.random.normal([batch_size, 1, 1, 1], 0.0, 1.0)
+    diff = fake_seq - real_seq
+    interpolated = real_seq + alpha * diff
+
+    with tf.GradientTape() as gp_tape:
+        gp_tape.watch(interpolated)
+        # 1. Get the discriminator output for this interpolated image.
+        pred = discriminator(interpolated, training=True)
+
+    # 2. Calculate the gradients w.r.t to this interpolated image.
+    grads = gp_tape.gradient(pred, [interpolated])[0]
+    # 3. Calculate the norm of the gradients.
+    norm = tf.sqrt(tf.reduce_sum(tf.square(grads), axis=[1, 2, 3]))
+    gp = tf.reduce_mean((norm - 1.0) ** 2)
+    return gp
 
 
 def wasserstein_loss(y_true, y_pred):
@@ -31,18 +55,17 @@ def wasserstein_loss(y_true, y_pred):
 
 def discriminator_loss(real_output, fake_output):
     # loss on real parent-child sequences
-    real_loss = cross_entropy(tf.ones_like(real_output), real_output) #-tf.math.reduce_mean(real_output) #wasserstein_loss(tf.ones_like(real_output), real_output)
+    #real_loss = cross_entropy(tf.ones_like(real_output), real_output) #-tf.math.reduce_mean(real_output) #wasserstein_loss(tf.ones_like(real_output), real_output)
     # loss on real parent and generated child sequences
-    fake_loss = cross_entropy(tf.zeros_like(fake_output), fake_output) #tf.math.reduce_mean(fake_output) #wasserstein_loss(-tf.ones_like(fake_output), fake_output)
+    #fake_loss = cross_entropy(tf.zeros_like(fake_output), fake_output) #tf.math.reduce_mean(fake_output) #wasserstein_loss(-tf.ones_like(fake_output), fake_output)
     # loss on real sequences that are not parent-child
-    #not_par_child_loss = cross_entropy(tf.zeros_like(not_par_child_output), not_par_child_output)
-    #cross_entropy(tf.ones_like(real_output), real_output) #wasserstein_loss(tf.ones_like(real_output), real_output)
-    #cross_entropy(tf.zeros_like(fake_output), fake_output) #wasserstein_loss(tf.ones_like(fake_output), fake_output)
+    real_loss = -tf.math.reduce_mean(real_output)
+    fake_loss = tf.math.reduce_mean(fake_output)
     return real_loss, fake_loss
 
 
 def generator_loss(fake_output):
-    return cross_entropy(tf.ones_like(fake_output), fake_output) #-tf.math.reduce_mean(fake_output) #wasserstein_loss(tf.ones_like(fake_output), fake_output)
+    return -tf.math.reduce_mean(fake_output) #-tf.math.reduce_mean(fake_output) #wasserstein_loss(tf.ones_like(fake_output), fake_output)
     #cross_entropy(tf.ones_like(fake_output), fake_output)
 
 
