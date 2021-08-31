@@ -195,7 +195,12 @@ def start_training(inputs, encoder, decoder, disc_par_enc_model, disc_gen_enc_mo
           print("Applied gradient update on generator...")
 
       print("Batch {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}, D true loss: {}, D fake loss: {}, Total D loss: {}".format(str(step), str(n_train_batches), str(gen_true_loss.numpy()), str(gen_fake_loss.numpy()), str(total_gen_loss.numpy()), str(disc_real_loss.numpy()), str(disc_fake_loss.numpy()), str(total_disc_loss.numpy())))
-
+      epo_ave_gen_true_loss.append(gen_true_loss.numpy())
+      epo_avg_gen_fake_loss.append(gen_fake_loss.numpy())
+      epo_avg_total_gen_loss.append(total_gen_loss.numpy())
+      epo_avg_disc_fake_loss.append(disc_fake_loss.numpy())
+      epo_avg_disc_real_loss.append(disc_real_loss.numpy())
+      epo_avg_total_disc_loss.append(total_disc_loss.numpy())
       '''if step % n_disc_iter == 0:
           train_gen = not train_gen
 
