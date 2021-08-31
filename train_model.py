@@ -22,7 +22,7 @@ generator_optimizer = tf.keras.optimizers.Adam(1e-3)
 discriminator_optimizer = tf.keras.optimizers.Adam(3e-5)
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 m_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
-n_disc_iter = 5
+n_disc_iter = 2
 
 
 '''def gradient_penalty(batch_size, real_seq, fake_seq, discriminator):
