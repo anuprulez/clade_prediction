@@ -58,32 +58,31 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     # create model
     embed = gen_embedding(gen_inputs)
     embed = tf.keras.layers.Dropout(0.2)(embed)
+    embed = tf.keras.layers.BatchNormalization()(embed)
     gen_output, gen_state = gen_gru(embed)
     encoder_model = tf.keras.Model([gen_inputs], [gen_output, gen_state])
-    # run model
-    #enc_output, enc_state = encoder_model(inputs, training=True)
-    
+
     # Create decoder for Generator
-    #noise = tf.keras.Input(shape=(enc_units,))
     e_state = tf.keras.Input(shape=(enc_units,))
-    #enc_state = tf.math.add(enc_state, noise)
     new_tokens = tf.keras.Input(shape=(seq_len,))
     # define layers
-    dec_embedding = tf.keras.layers.Embedding(vocab_size,
-                                               embedding_dim)
+    dec_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
     dec_gru = tf.keras.layers.GRU(enc_units,
                                    return_sequences=True,
                                    return_state=True)
 
     dec_Wc = tf.keras.layers.Dense(enc_units, activation='relu', use_bias=True)
     dec_fc = tf.keras.layers.Dense(vocab_size, use_bias=True, activation='softmax')
-    
+
     vectors = dec_embedding(new_tokens)
     vectors = tf.keras.layers.Dropout(0.2)(vectors)
+    vectors = tf.keras.layers.BatchNormalization()(vectors)
     rnn_output, state = dec_gru(vectors, initial_state=e_state)
     rnn_output = tf.keras.layers.Dropout(0.2)(rnn_output)
+    rnn_output = tf.keras.layers.BatchNormalization()(rnn_output)
     attention_vector = dec_Wc(rnn_output)
     attention_vector = tf.keras.layers.Dropout(0.2)(attention_vector)
+    attention_vector = tf.keras.layers.BatchNormalization()(attention_vector)
     logits = dec_fc(attention_vector)
 
     decoder_model = tf.keras.Model([new_tokens, e_state], [logits, state])
@@ -109,13 +108,17 @@ def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units):
                                    recurrent_initializer='glorot_uniform')
 
     parent_inputs_embedding = enc_embedding(parent_inputs)
+    parent_inputs_embedding = tf.keras.layers.Dropout(0.2)(parent_inputs_embedding)
+    parent_inputs_embedding = tf.keras.layers.BatchNormalization()(parent_inputs_embedding)
     enc_outputs, enc_state = enc_GRU(parent_inputs_embedding)
+    
     disc_par_encoder_model = tf.keras.Model([parent_inputs], [enc_state])
 
     # generated seq encoder model
     gen_inputs = tf.keras.Input(shape=(None, vocab_size))
     gen_enc_inputs = tf.keras.layers.Dense(embedding_dim, activation='linear', use_bias=False)(gen_inputs)
     gen_enc_inputs = tf.keras.layers.Dropout(0.2)(gen_enc_inputs)
+    gen_enc_inputs = tf.keras.layers.BatchNormalization()(gen_enc_inputs)
     gen_enc_outputs, gen_enc_state = enc_GRU(gen_enc_inputs)
     disc_gen_encoder_model = tf.keras.Model([gen_inputs], [gen_enc_state])
 
@@ -132,15 +135,15 @@ def make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units):
     
     inputs_concatenated = tf.keras.layers.Concatenate()([input_parent + input_generated])
     x = tf.keras.layers.Dropout(0.2)(inputs_concatenated)
-    #x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.Dense(enc_units)(x)
     x = tf.keras.layers.LeakyReLU(0.1)(x)
     x = tf.keras.layers.Dropout(0.2)(x)
-    #x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.Dense(enc_units/2)(x)
     x = tf.keras.layers.LeakyReLU(0.1)(x)
     x = tf.keras.layers.Dropout(0.2)(x)
-    #x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.BatchNormalization()(x)
     output_class = tf.keras.layers.Dense(1, activation='linear')(x)
     
     disc_model = tf.keras.Model([input_parent, input_generated], [output_class])

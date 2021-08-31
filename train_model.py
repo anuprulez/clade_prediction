@@ -123,11 +123,9 @@ def start_training(inputs, encoder, decoder, disc_par_enc_model, disc_gen_enc_mo
 
           # add noise to encoded state to have variations while generating sequences
           enc_state = tf.math.add(enc_state, noise)
-          gen_loss = tf.constant(0.0)
-          dec_state = enc_state
 
           # generate sequences
-          generated_logits, decoder, gen_true_loss = gen_step_train(seq_len, batch_size, vocab_size, decoder, dec_state, unrolled_y, train_gen)
+          generated_logits, decoder, gen_true_loss = gen_step_train(seq_len, batch_size, vocab_size, decoder, enc_state, unrolled_y, train_gen)
           # reformat real output to one-hot encoding
           real_y = tf.one_hot(unrolled_y, depth=generated_logits.shape[-1], axis=-1)
 
