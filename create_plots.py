@@ -14,7 +14,7 @@ from matplotlib.lines import Line2D
 
 import utils
 
-results_path = "test_results/20A_20C_27Aug/"
+results_path = "test_results/20A_20C_30Aug/"
 clade_parent = "20A"
 clade_child = "20C"
 clade_end = ["20H (Beta, V2)", "20G", "21C (Epsilon)", "21F (Iota)"]
