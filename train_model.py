@@ -117,9 +117,9 @@ def start_training(inputs, encoder, decoder, disc_par_enc_model, disc_gen_enc_mo
           enc_output, enc_state = encoder(unrolled_x, training=train_gen)
 
           # set weights from the discriminator generator's encoder
-          #if not train_gen is True:
-          disc_par_enc_model.load_weights(ENC_WEIGHTS_SAVE_PATH)
-          disc_gen_enc_model.layers[1].set_weights(disc_par_enc_model.layers[1].get_weights())
+          if not train_gen is True:
+              disc_par_enc_model.load_weights(ENC_WEIGHTS_SAVE_PATH)
+              disc_gen_enc_model.layers[1].set_weights(disc_par_enc_model.layers[1].get_weights())
 
           # add noise to encoded state to have variations while generating sequences
           enc_state = tf.math.add(enc_state, noise)
