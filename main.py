@@ -153,15 +153,13 @@ def start_training(vocab_size):
     X_train = X
     y_train = y
     # get training dataset as sliced tensors
-    dataset_in = tf.data.Dataset.from_tensor_slices((X_train)).batch(batch_size)
-    dataset_out = tf.data.Dataset.from_tensor_slices((y_train)).batch(batch_size)
-    in_out_l_dist = tf.data.Dataset.from_tensor_slices((X_y_l)).batch(batch_size)
+    
 
     n_train_batches = int(X_train.shape[0]/float(batch_size))
     print("Num of train batches: {}".format(str(n_train_batches)))
     for n in range(epochs):
         print("Training epoch {}/{}...".format(str(n+1), str(epochs)))
-        epo_gen_true_loss, epo_gen_fake_loss, epo_total_gen_loss, epo_disc_true_loss, epo_disc_fake_loss, epo_total_disc_loss, encoder, decoder = train_model.start_training([dataset_in, dataset_out, in_out_l_dist], encoder, decoder, disc_parent_encoder_model, disc_gen_encoder_model, discriminator, enc_units, vocab_size, n_train_batches)
+        epo_gen_true_loss, epo_gen_fake_loss, epo_total_gen_loss, epo_disc_true_loss, epo_disc_fake_loss, epo_total_disc_loss, encoder, decoder = train_model.start_training([X_train, y_train, X_y_l], encoder, decoder, disc_parent_encoder_model, disc_gen_encoder_model, discriminator, enc_units, vocab_size, n_train_batches, batch_size)
         #print("Training loss at step {}/{}: Generator true loss: {}, Generator loss: {}, Discriminator loss :{}".format(str(n+1), str(epochs), str(gen_true_loss), str(epo_gen_loss), str(epo_disc_loss)))
         print("Training loss at step {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}, D true loss: {}, D fake loss: {}, Total D loss: {}".format(str(n+1), str(epochs), str(epo_gen_true_loss), str(epo_gen_fake_loss), str(epo_total_gen_loss), str(epo_disc_true_loss), str(epo_disc_fake_loss), str(epo_total_disc_loss)))
 
