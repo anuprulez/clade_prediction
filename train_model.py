@@ -22,7 +22,7 @@ generator_optimizer = tf.keras.optimizers.Adam(1e-3)
 discriminator_optimizer = tf.keras.optimizers.Adam(3e-5)
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 m_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
-n_disc_iter = 5
+n_disc_extra_iter = 3
 
 
 '''def gradient_penalty(batch_size, real_seq, fake_seq, discriminator):
@@ -106,6 +106,13 @@ def start_training(inputs, encoder, decoder, disc_par_enc_model, disc_gen_enc_mo
   gen_true_loss = tf.constant(0)
   total_gen_loss = tf.constant(0)
 
+  # randomize batches
+  rand_idx = np.random.randint(1, input_tokens.shape[0], input_tokens.shape[0])
+  input_tokens = input_tokens[rand_idx]
+  target_tokens = target_tokens[rand_idx]
+  input_target_l_dist = input_target_l_dist[rand_idx]
+  
+
   for step, (x_batch_train, y_batch_train, l_dist_batch) in enumerate(zip(input_tokens, target_tokens, input_target_l_dist)):
       unrolled_x = utils.convert_to_array(x_batch_train)
       unrolled_y = utils.convert_to_array(y_batch_train)
@@ -114,50 +121,50 @@ def start_training(inputs, encoder, decoder, disc_par_enc_model, disc_gen_enc_mo
       seq_len = unrolled_x.shape[1]
       batch_size = unrolled_x.shape[0]
 
-      if step % n_disc_iter == 0:
-          train_gen = not train_gen
+      #if step % n_disc_iter == 0:
+      #    train_gen = not train_gen
 
       noise = tf.random.normal((batch_size, enc_units))
       # set weights from the discriminator generator's encoder
       disc_par_enc_model.load_weights(ENC_WEIGHTS_SAVE_PATH)
       disc_gen_enc_model.layers[1].set_weights(disc_par_enc_model.layers[1].get_weights())
 
-      if not train_gen:
-          with tf.GradientTape() as disc_tape:
-              # encode true parent
-              enc_output, enc_state = encoder(unrolled_x, training=True)
-              # add noise to encoded state to have variations while generating sequences
-              enc_state = tf.math.add(enc_state, noise)
-              # generate sequences
-              generated_logits, decoder, _ = gen_step_train(seq_len, batch_size, vocab_size, decoder, enc_state, unrolled_y, True)
-              # reformat real output to one-hot encoding
-              real_y = tf.one_hot(unrolled_y, depth=generated_logits.shape[-1], axis=-1)
-              # encode parent sequences for discriminator
-              par_enc_real_state_x = disc_par_enc_model(unrolled_x, training=True)
-              # encode true child sequences for discriminator
-              gen_real_enc_state_y = disc_gen_enc_model(real_y, training=True)
-              # encode generated child sequences for discriminator
-              gen_enc_fake_state_x = disc_gen_enc_model(generated_logits, training=True)
-              # discriminate pairs of true parent and true child sequences
-              real_output = discriminator([par_enc_real_state_x, gen_real_enc_state_y], training=True)
-              # discriminate pairs of true parent and generated child sequences
-              fake_output = discriminator([par_enc_real_state_x, gen_enc_fake_state_x], training=True)
-              # discriminate pairs of real sequences but not parent-child
-              not_par_child_output = discriminator([par_enc_real_state_x, par_enc_real_state_x], training=True)
-              # take halves of fake output - real parent and gen child and not parent-child sequences
-              h_fake_output = fake_output[:int(batch_size / 2)]
-              h_not_par_child_output = not_par_child_output[:int(batch_size / 2)]
-              # mix both fake outputs
-              merged_fake_output = tf.concat([h_fake_output, h_not_par_child_output], axis=0)
-              # compute discriminator loss
-              disc_real_loss, disc_fake_loss = discriminator_loss(real_output, merged_fake_output)
-              total_disc_loss = disc_real_loss + disc_fake_loss
+      with tf.GradientTape() as disc_tape:
+          # encode true parent
+          enc_output, enc_state = encoder(unrolled_x, training=True)
+          # add noise to encoded state to have variations while generating sequences
+          enc_state = tf.math.add(enc_state, noise)
+          # generate sequences
+          generated_logits, decoder, _ = gen_step_train(seq_len, batch_size, vocab_size, decoder, enc_state, unrolled_y, True)
+          # reformat real output to one-hot encoding
+          real_y = tf.one_hot(unrolled_y, depth=generated_logits.shape[-1], axis=-1)
+          # encode parent sequences for discriminator
+          par_enc_real_state_x = disc_par_enc_model(unrolled_x, training=True)
+          # encode true child sequences for discriminator
+          gen_real_enc_state_y = disc_gen_enc_model(real_y, training=True)
+          # encode generated child sequences for discriminator
+          gen_enc_fake_state_x = disc_gen_enc_model(generated_logits, training=True)
+          # discriminate pairs of true parent and true child sequences
+          real_output = discriminator([par_enc_real_state_x, gen_real_enc_state_y], training=True)
+          # discriminate pairs of true parent and generated child sequences
+          fake_output = discriminator([par_enc_real_state_x, gen_enc_fake_state_x], training=True)
+          # discriminate pairs of real sequences but not parent-child
+          not_par_child_output = discriminator([par_enc_real_state_x, par_enc_real_state_x], training=True)
+          # take halves of fake output - real parent and gen child and not parent-child sequences
+          h_fake_output = fake_output[:int(batch_size / 2)]
+          h_not_par_child_output = not_par_child_output[:int(batch_size / 2)]
+          # mix both fake outputs
+          merged_fake_output = tf.concat([h_fake_output, h_not_par_child_output], axis=0)
+          # compute discriminator loss
+          disc_real_loss, disc_fake_loss = discriminator_loss(real_output, merged_fake_output)
+          total_disc_loss = disc_real_loss + disc_fake_loss
 
-          gradients_of_discriminator = disc_tape.gradient(total_disc_loss, discriminator.trainable_variables)
-          #disc_clipped_grad = [tf.clip_by_value(grad, -0.05, 0.05) for grad in gradients_of_discriminator]
-          discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
-          print("Applied gradient update on discriminator...")
-      else:
+      gradients_of_discriminator = disc_tape.gradient(total_disc_loss, discriminator.trainable_variables)
+      disc_clipped_grad = [tf.clip_by_value(grad, -0.05, 0.05) for grad in gradients_of_discriminator]
+      discriminator_optimizer.apply_gradients(zip(disc_clipped_grad, discriminator.trainable_variables))
+      print("Applied gradient update on discriminator...")
+
+      if step % n_disc_extra_iter == 0:
           with tf.GradientTape() as gen_tape:
               # encode true parent
               enc_output, enc_state = encoder(unrolled_x, training=True)
