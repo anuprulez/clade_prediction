@@ -19,11 +19,11 @@ TRAIN_GEN_MODEL = "data/generated_files/gen_model"
 
 pretrain_generator_optimizer = tf.keras.optimizers.Adam(0.01)
 generator_optimizer = tf.keras.optimizers.Adam(1e-3)
-discriminator_optimizer = tf.keras.optimizers.Adam(3e-5)
+discriminator_optimizer = tf.keras.optimizers.Adam(1e-3)
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 m_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
-n_disc_step = 5
-n_gen_step = 2
+n_disc_step = 15
+n_gen_step = 5
 test_perf_iter = 10
 
 
