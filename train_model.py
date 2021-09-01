@@ -127,9 +127,6 @@ def start_training(inputs, epo_step, encoder, decoder, disc_par_enc_model, disc_
       # balance x and y in terms of levenshtein distance
       unrolled_x, unrolled_y = utils.balance_train_dataset(unrolled_x, unrolled_y, l_dist_batch)
       seq_len = unrolled_x.shape[1]
-      
-      if step == 20:
-          break
 
       # find performance on test data every few batches
       if step > 0 and step % test_perf_iter == 0:
