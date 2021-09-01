@@ -128,10 +128,13 @@ def start_training(inputs, encoder, decoder, disc_par_enc_model, disc_gen_enc_mo
       unrolled_x, unrolled_y = utils.balance_train_dataset(unrolled_x, unrolled_y, l_dist_batch)
       seq_len = unrolled_x.shape[1]
       
+      if step == 20:
+          break
+
       # find performance on test data every few batches
-      if step % test_perf_iter == 0:
+      if step > 0 and step % test_perf_iter == 0:
           with tf.device('/device:cpu:0'):
-              _ = utils.predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, TRAIN_ENC_MODEL, TRAIN_GEN_MODEL)
+              _ = utils.predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, enc_units, TRAIN_ENC_MODEL, TRAIN_GEN_MODEL)
 
       noise = tf.random.normal((batch_size, enc_units))
       # set weights from the discriminator generator's encoder

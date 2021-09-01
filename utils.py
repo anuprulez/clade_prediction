@@ -8,6 +8,8 @@ from random import choices
 import tensorflow as tf
 from Levenshtein import distance as lev_dist
 
+SCE = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
+
 
 def make_kmers(seq, size):
     # remove all letters other than A,C,G and T
@@ -110,14 +112,14 @@ def convert_to_string_list(l):
     return l
 
 
-def predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, enc_path, dec_path):
+def predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, enc_units, enc_path, dec_path):
     avg_test_loss = []
     i = 0
     loaded_encoder = tf.keras.models.load_model(enc_path)
     loaded_generator = tf.keras.models.load_model(dec_path)
     for step, (x, y) in enumerate(zip(test_dataset_in, test_dataset_out)):
-        batch_x_test = utils.convert_to_array(x)
-        batch_y_test = utils.convert_to_array(y)
+        batch_x_test = convert_to_array(x)
+        batch_y_test = convert_to_array(y)
         batch_size = batch_x_test.shape[0]
         if batch_x_test.shape[0] == batch_size:
             # generated noise for variation in predicted sequences

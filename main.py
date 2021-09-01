@@ -52,7 +52,7 @@ embedding_dim = 128
 batch_size = 32
 enc_units = 128
 pretrain_epochs = 5
-epochs = 10
+epochs = 2
 seq_len = LEN_AA
 
 
@@ -176,7 +176,7 @@ def start_training(vocab_size):
         print("Num of test batches: {}".format(str(n_test_batches)))
         print("Prediction on test data...")
         with tf.device('/device:cpu:0'):
-            epo_tr_gen_te_loss = utils.predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, TRAIN_ENC_MODEL, TRAIN_GEN_MODEL)
+            epo_tr_gen_te_loss = utils.predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, enc_units, TRAIN_ENC_MODEL, TRAIN_GEN_MODEL)
         train_te_loss.append(epo_tr_gen_te_loss)
 
     # save loss files
