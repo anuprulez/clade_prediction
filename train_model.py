@@ -90,7 +90,7 @@ def gen_step_train(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real
     return pred_logits, gen_decoder, step_loss
 
 
-def start_training(inputs, encoder, decoder, disc_par_enc_model, disc_gen_enc_model, discriminator, enc_units, vocab_size, n_train_batches, batch_size, test_data_load):
+def start_training(inputs, epo_step, encoder, decoder, disc_par_enc_model, disc_gen_enc_model, discriminator, enc_units, vocab_size, n_train_batches, batch_size, test_data_load):
   X_train, y_train, X_y_l = inputs
   test_dataset_in, test_dataset_out = test_data_load
 
@@ -214,7 +214,7 @@ def start_training(inputs, encoder, decoder, disc_par_enc_model, disc_gen_enc_mo
           encoder.save_weights(ENC_WEIGHTS_SAVE_PATH)
           print("Applied gradient update on generator...")
 
-      print("Batch {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}, D true loss: {}, D fake loss: {}, Total D loss: {}".format(str(step), str(n_train_batches), str(gen_true_loss.numpy()), str(gen_fake_loss.numpy()), str(total_gen_loss.numpy()), str(disc_real_loss.numpy()), str(disc_fake_loss.numpy()), str(total_disc_loss.numpy())))
+      print("Tr step {}, Batch {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}, D true loss: {}, D fake loss: {}, Total D loss: {}".format(str(epo_step+1), str(step+1), str(n_train_batches), str(gen_true_loss.numpy()), str(gen_fake_loss.numpy()), str(total_gen_loss.numpy()), str(disc_real_loss.numpy()), str(disc_fake_loss.numpy()), str(total_disc_loss.numpy())))
       epo_ave_gen_true_loss.append(gen_true_loss.numpy())
       epo_avg_gen_fake_loss.append(gen_fake_loss.numpy())
       epo_avg_total_gen_loss.append(total_gen_loss.numpy())
