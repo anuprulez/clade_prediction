@@ -52,7 +52,7 @@ embedding_dim = 128
 batch_size = 32
 enc_units = 128
 pretrain_epochs = 5
-epochs = 2
+epochs = 10
 seq_len = LEN_AA
 
 
