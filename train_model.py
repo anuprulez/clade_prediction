@@ -149,26 +149,28 @@ def start_training(inputs, epo_step, encoder, decoder, disc_par_enc_model, disc_
               # generate sequences
               generated_logits, decoder, _ = gen_step_train(seq_len, batch_size, vocab_size, decoder, enc_state, unrolled_y, True)
               # reformat real output to one-hot encoding
-              real_y = tf.one_hot(unrolled_y, depth=generated_logits.shape[-1], axis=-1)
+              #real_y = tf.one_hot(unrolled_y, depth=generated_logits.shape[-1], axis=-1)
               # encode parent sequences for discriminator
-              par_enc_real_state_x = disc_par_enc_model(unrolled_x, training=True)
+              par_real_enc_state_x = disc_par_enc_model(unrolled_x, training=True)
               # encode true child sequences for discriminator
-              gen_real_enc_state_y = disc_gen_enc_model(real_y, training=True)
+              #gen_real_enc_state_y = disc_gen_enc_model(real_y, training=True)
+              gen_real_enc_state_y = disc_par_enc_model(unrolled_y, training=True)
               # encode generated child sequences for discriminator
-              gen_enc_fake_state_x = disc_gen_enc_model(generated_logits, training=True)
+              gen_fake_enc_state_y = disc_gen_enc_model(generated_logits, training=True)
               # discriminate pairs of true parent and true child sequences
-              real_output = discriminator([par_enc_real_state_x, gen_real_enc_state_y], training=True)
+              real_output = discriminator([par_real_enc_state_x, gen_real_enc_state_y], training=True)
+              #real_output = discriminator([gen_enc_fake_state_x, gen_real_enc_state_y], training=True)
               # discriminate pairs of true parent and generated child sequences
-              fake_output = discriminator([par_enc_real_state_x, gen_enc_fake_state_x], training=True)
+              fake_output = discriminator([par_real_enc_state_x, gen_fake_enc_state_y], training=True)
               # discriminate pairs of real sequences but not parent-child
-              not_par_child_output = discriminator([par_enc_real_state_x, par_enc_real_state_x], training=True)
+              not_par_child_output = discriminator([par_real_enc_state_x, par_real_enc_state_x], training=True)
               # take halves of fake output - real parent and gen child and not parent-child sequences
               h_fake_output = fake_output[:int(batch_size / 2)]
               h_not_par_child_output = not_par_child_output[:int(batch_size / 2)]
               # mix both fake outputs
               merged_fake_output = tf.concat([h_fake_output, h_not_par_child_output], axis=0)
               # compute discriminator loss
-              disc_real_loss, disc_fake_loss = discriminator_loss(real_output, merged_fake_output)
+              disc_real_loss, disc_fake_loss = discriminator_loss(real_output, fake_output)
               total_disc_loss = disc_real_loss + disc_fake_loss
 
           gradients_of_discriminator = disc_tape.gradient(total_disc_loss, discriminator.trainable_variables)
@@ -184,21 +186,20 @@ def start_training(inputs, epo_step, encoder, decoder, disc_par_enc_model, disc_
               # generate sequences
               generated_logits, decoder, gen_true_loss = gen_step_train(seq_len, batch_size, vocab_size, decoder, enc_state, unrolled_y, True)
               # reformat real output to one-hot encoding
-              real_y = tf.one_hot(unrolled_y, depth=generated_logits.shape[-1], axis=-1)
-
-              # encode parent sequences for discriminator
-              par_enc_real_state_x = disc_par_enc_model(unrolled_x, training=True)
+              #real_y = tf.one_hot(unrolled_y, depth=generated_logits.shape[-1], axis=-1)
+              par_real_enc_state_x = disc_par_enc_model(unrolled_x, training=True)
               # encode true child sequences for discriminator
-              gen_real_enc_state_y = disc_gen_enc_model(real_y, training=True)
+              #gen_real_enc_state_y = disc_gen_enc_model(real_y, training=True)
+              gen_real_enc_state_y = disc_par_enc_model(unrolled_y, training=True)
               # encode generated child sequences for discriminator
-              gen_enc_fake_state_x = disc_gen_enc_model(generated_logits, training=True)
-
+              gen_fake_enc_state_y = disc_gen_enc_model(generated_logits, training=True)
               # discriminate pairs of true parent and true child sequences
-              real_output = discriminator([par_enc_real_state_x, gen_real_enc_state_y], training=True)
+              real_output = discriminator([par_real_enc_state_x, gen_real_enc_state_y], training=True)
+              #real_output = discriminator([gen_enc_fake_state_x, gen_real_enc_state_y], training=True)
               # discriminate pairs of true parent and generated child sequences
-              fake_output = discriminator([par_enc_real_state_x, gen_enc_fake_state_x], training=True)
+              fake_output = discriminator([par_real_enc_state_x, gen_fake_enc_state_y], training=True)
               # discriminate pairs of real sequences but not parent-child
-              not_par_child_output = discriminator([par_enc_real_state_x, par_enc_real_state_x], training=True)
+              not_par_child_output = discriminator([par_real_enc_state_x, par_real_enc_state_x], training=True)
 
               # take halves of fake output - real parent and gen child and not parent-child sequences
               h_fake_output = fake_output[:int(batch_size / 2)]
@@ -206,7 +207,7 @@ def start_training(inputs, epo_step, encoder, decoder, disc_par_enc_model, disc_
               # mix both fake outputs
               merged_fake_output = tf.concat([h_fake_output, h_not_par_child_output], axis=0)
 
-              gen_fake_loss = generator_loss(merged_fake_output)
+              gen_fake_loss = generator_loss(fake_output)
               total_gen_loss = gen_fake_loss + gen_true_loss
 
           gradients_of_decoder = gen_tape.gradient(total_gen_loss, decoder.trainable_variables)
@@ -225,10 +226,11 @@ def start_training(inputs, epo_step, encoder, decoder, disc_par_enc_model, disc_
       epo_avg_disc_real_loss.append(disc_real_loss.numpy())
       epo_avg_total_disc_loss.append(total_disc_loss.numpy())
       print("Running ave. of total disc loss: {}".format(str(np.mean(epo_avg_total_disc_loss))))
+      # save model
+      print("Saving model...")
+      tf.keras.models.save_model(encoder, TRAIN_ENC_MODEL)
+      tf.keras.models.save_model(decoder, TRAIN_GEN_MODEL)
       print()
-  # save model
-  tf.keras.models.save_model(encoder, TRAIN_ENC_MODEL)
-  tf.keras.models.save_model(decoder, TRAIN_GEN_MODEL)
   return np.mean(epo_ave_gen_true_loss), np.mean(epo_avg_gen_fake_loss), np.mean(epo_avg_total_gen_loss), np.mean(epo_avg_disc_real_loss), np.mean(epo_avg_disc_fake_loss), np.mean(epo_avg_total_disc_loss), encoder, decoder
 
 
