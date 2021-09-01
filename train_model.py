@@ -133,6 +133,7 @@ def start_training(inputs, epo_step, encoder, decoder, disc_par_enc_model, disc_
 
       # find performance on test data every few batches
       if step > 0 and step % test_perf_iter == 0:
+          print("Prediction on test data...")
           with tf.device('/device:cpu:0'):
               _ = utils.predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, enc_units, TRAIN_ENC_MODEL, TRAIN_GEN_MODEL)
 
