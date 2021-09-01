@@ -22,7 +22,8 @@ generator_optimizer = tf.keras.optimizers.Adam(1e-3)
 discriminator_optimizer = tf.keras.optimizers.Adam(3e-5)
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 m_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
-n_disc_extra_iter = 2
+n_disc_step = 5
+n_gen_step = 2
 test_perf_iter = 10
 
 
@@ -134,10 +135,11 @@ def start_training(inputs, epo_step, encoder, decoder, disc_par_enc, disc_gen_en
           with tf.device('/device:cpu:0'):
               _ = utils.predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, enc_units, TRAIN_ENC_MODEL, TRAIN_GEN_MODEL)'''
 
-      if not train_gen == True:
+      disc_gen = step % n_disc_step
+
+      if disc_gen in list(range(0, n_disc_step - n_gen_step)):
           print("Applying gradient update on discriminator...")
           with tf.GradientTape() as disc_tape:
-
               real_x, real_y, fake_y, encoder, decoder, disc_par_enc, disc_gen_enc, _ = get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, encoder, decoder, disc_par_enc, disc_gen_enc)
 
               # discriminate pairs of true parent and true child sequences
@@ -152,28 +154,24 @@ def start_training(inputs, epo_step, encoder, decoder, disc_par_enc, disc_gen_en
               # mix both fake outputs
               merged_fake_output = tf.concat([h_fake_output, h_not_par_child_output], axis=0)
               # compute discriminator loss
-              disc_real_loss, disc_fake_loss = discriminator_loss(real_output, merged_fake_output)
+              disc_real_loss, disc_fake_loss = discriminator_loss(real_output, fake_output)
               total_disc_loss = disc_real_loss + disc_fake_loss
 
           gradients_of_discriminator = disc_tape.gradient(total_disc_loss, discriminator.trainable_variables)
           #disc_clipped_grad = [tf.clip_by_value(grad, -0.05, 0.05) for grad in gradients_of_discriminator]
           discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
-          #print("Applied gradient update on discriminator...")
 
-      if train_gen == True:
+      else:
           print("Applying gradient update on generator...")
           with tf.GradientTape() as gen_tape:
-
               real_x, real_y, fake_y, encoder, decoder, disc_par_enc, disc_gen_enc, gen_true_loss = get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, encoder, decoder, disc_par_enc, disc_gen_enc)
 
               # discriminate pairs of true parent and true child sequences
               real_output = discriminator([real_x, real_y], training=True)
-              #real_output = discriminator([gen_enc_fake_state_x, gen_real_enc_state_y], training=True)
               # discriminate pairs of true parent and generated child sequences
               fake_output = discriminator([real_x, fake_y], training=True)
               # discriminate pairs of real sequences but not parent-child
               not_par_child_output = discriminator([real_x, real_x], training=True)
-
               # take halves of fake output - real parent and gen child and not parent-child sequences
               h_fake_output = fake_output[:int(batch_size / 2)]
               h_not_par_child_output = not_par_child_output[:int(batch_size / 2)]
@@ -186,10 +184,6 @@ def start_training(inputs, epo_step, encoder, decoder, disc_par_enc, disc_gen_en
           gradients_of_decoder = gen_tape.gradient(total_gen_loss, decoder.trainable_variables)
           generator_optimizer.apply_gradients(zip(gradients_of_decoder, decoder.trainable_variables))
           encoder.save_weights(ENC_WEIGHTS_SAVE_PATH)
-          #print("Applied gradient update on generator...")
-
-      if step % n_disc_extra_iter == n_disc_extra_iter - 1:
-          train_gen = not train_gen
 
       print("Tr step {}, Batch {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}, D true loss: {}, D fake loss: {}, Total D loss: {}".format(str(epo_step+1), str(step+1), str(n_train_batches), str(gen_true_loss.numpy()), str(gen_fake_loss.numpy()), str(total_gen_loss.numpy()), str(disc_real_loss.numpy()), str(disc_fake_loss.numpy()), str(total_disc_loss.numpy())))
       epo_ave_gen_true_loss.append(gen_true_loss.numpy())

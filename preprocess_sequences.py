@@ -101,9 +101,6 @@ def make_cross_product(clade_in_clade_out, dataframe):
                     n_item.append(l_dist)
                     filtered_rows.append(n_item)
                     filtered_l_distance.append(l_dist)
-            print(len(filtered_l_distance), len(filtered_rows))
-            
-            
             filtered_dataframe = pd.DataFrame(filtered_rows, columns=cross_columns)
             filtered_dataframe.to_csv(file_name, index=None)
 
