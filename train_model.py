@@ -174,9 +174,9 @@ def start_training(inputs, epo_step, encoder, decoder, disc_par_enc_model, disc_
           gradients_of_discriminator = disc_tape.gradient(total_disc_loss, discriminator.trainable_variables)
           disc_clipped_grad = [tf.clip_by_value(grad, -0.05, 0.05) for grad in gradients_of_discriminator]
           discriminator_optimizer.apply_gradients(zip(disc_clipped_grad, discriminator.trainable_variables))
-          print("Applied gradient update on discriminator...")
+          #print("Applied gradient update on discriminator...")
 
-      if step % n_disc_extra_iter == 0:
+      if train_gen == True:
           print("Applying gradient update on generator...")
           with tf.GradientTape() as gen_tape:
               # encode true parent
@@ -212,7 +212,7 @@ def start_training(inputs, epo_step, encoder, decoder, disc_par_enc_model, disc_
           gradients_of_decoder = gen_tape.gradient(total_gen_loss, decoder.trainable_variables)
           generator_optimizer.apply_gradients(zip(gradients_of_decoder, decoder.trainable_variables))
           encoder.save_weights(ENC_WEIGHTS_SAVE_PATH)
-          print("Applied gradient update on generator...")
+          #print("Applied gradient update on generator...")
 
       if step % n_disc_extra_iter == n_disc_extra_iter - 1:
           train_gen = not train_gen
