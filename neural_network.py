@@ -125,18 +125,17 @@ def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units):
 def make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units):   
     input_parent = tf.keras.Input(shape=(enc_units,))
     input_generated = tf.keras.Input(shape=(enc_units,))
-    
     inputs_concatenated = tf.keras.layers.Concatenate()([input_parent + input_generated])
     x = tf.keras.layers.Dropout(0.2)(inputs_concatenated)
-    #x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.Dense(enc_units)(x)
     x = tf.keras.layers.LeakyReLU(0.1)(x)
     x = tf.keras.layers.Dropout(0.2)(x)
-    #x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.Dense(enc_units/2)(x)
     x = tf.keras.layers.LeakyReLU(0.1)(x)
     x = tf.keras.layers.Dropout(0.2)(x)
-    #x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.BatchNormalization()(x)
     output_class = tf.keras.layers.Dense(1, activation='linear')(x)
     
     disc_model = tf.keras.Model([input_parent, input_generated], [output_class])

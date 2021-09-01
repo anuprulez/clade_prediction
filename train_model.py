@@ -22,7 +22,8 @@ generator_optimizer = tf.keras.optimizers.Adam(1e-3)
 discriminator_optimizer = tf.keras.optimizers.Adam(3e-5)
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 m_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
-n_disc_iter = 5
+n_disc_extra_iter = 5
+test_perf_iter = 10
 
 
 '''def gradient_penalty(batch_size, real_seq, fake_seq, discriminator):
@@ -89,8 +90,22 @@ def gen_step_train(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real
     return pred_logits, gen_decoder, step_loss
 
 
-def start_training(inputs, encoder, decoder, disc_par_enc_model, disc_gen_enc_model, discriminator, enc_units, vocab_size, n_train_batches):
-  input_tokens, target_tokens, input_target_l_dist = inputs  
+def start_training(inputs, encoder, decoder, disc_par_enc_model, disc_gen_enc_model, discriminator, enc_units, vocab_size, n_train_batches, batch_size, test_data_load):
+  X_train, y_train, X_y_l = inputs
+  test_dataset_in, test_dataset_out = test_data_load
+
+  # randomize batches
+  rand_idx = np.random.randint(0, X_train.shape[0], X_train.shape[0])
+  X_train = X_train[rand_idx]
+  y_train = y_train[rand_idx]
+  X_y_l = X_y_l[rand_idx]
+
+  assert len(rand_idx) == X_train.shape[0]
+  
+  input_tokens = tf.data.Dataset.from_tensor_slices((X_train)).batch(batch_size)
+  target_tokens = tf.data.Dataset.from_tensor_slices((y_train)).batch(batch_size)
+  input_target_l_dist = tf.data.Dataset.from_tensor_slices((X_y_l)).batch(batch_size)
+
   epo_avg_total_gen_loss = list()
   epo_ave_gen_true_loss = list()
   epo_avg_gen_fake_loss = list()
@@ -112,17 +127,21 @@ def start_training(inputs, encoder, decoder, disc_par_enc_model, disc_gen_enc_mo
       # balance x and y in terms of levenshtein distance
       unrolled_x, unrolled_y = utils.balance_train_dataset(unrolled_x, unrolled_y, l_dist_batch)
       seq_len = unrolled_x.shape[1]
-      batch_size = unrolled_x.shape[0]
+      
+      if step == 20:
+          break
 
-      if step % n_disc_iter == 0:
-          train_gen = not train_gen
+      # find performance on test data every few batches
+      if step > 0 and step % test_perf_iter == 0:
+          with tf.device('/device:cpu:0'):
+              _ = utils.predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, enc_units, TRAIN_ENC_MODEL, TRAIN_GEN_MODEL)
 
       noise = tf.random.normal((batch_size, enc_units))
       # set weights from the discriminator generator's encoder
       disc_par_enc_model.load_weights(ENC_WEIGHTS_SAVE_PATH)
       disc_gen_enc_model.layers[1].set_weights(disc_par_enc_model.layers[1].get_weights())
 
-      if not train_gen:
+      if step % n_disc_extra_iter > 0:
           with tf.GradientTape() as disc_tape:
               # encode true parent
               enc_output, enc_state = encoder(unrolled_x, training=True)
@@ -154,10 +173,11 @@ def start_training(inputs, encoder, decoder, disc_par_enc_model, disc_gen_enc_mo
               total_disc_loss = disc_real_loss + disc_fake_loss
 
           gradients_of_discriminator = disc_tape.gradient(total_disc_loss, discriminator.trainable_variables)
-          #disc_clipped_grad = [tf.clip_by_value(grad, -0.05, 0.05) for grad in gradients_of_discriminator]
-          discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
+          disc_clipped_grad = [tf.clip_by_value(grad, -0.05, 0.05) for grad in gradients_of_discriminator]
+          discriminator_optimizer.apply_gradients(zip(disc_clipped_grad, discriminator.trainable_variables))
           print("Applied gradient update on discriminator...")
-      else:
+
+      if step % n_disc_extra_iter == 0:
           with tf.GradientTape() as gen_tape:
               # encode true parent
               enc_output, enc_state = encoder(unrolled_x, training=True)
@@ -195,7 +215,12 @@ def start_training(inputs, encoder, decoder, disc_par_enc_model, disc_gen_enc_mo
           print("Applied gradient update on generator...")
 
       print("Batch {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}, D true loss: {}, D fake loss: {}, Total D loss: {}".format(str(step), str(n_train_batches), str(gen_true_loss.numpy()), str(gen_fake_loss.numpy()), str(total_gen_loss.numpy()), str(disc_real_loss.numpy()), str(disc_fake_loss.numpy()), str(total_disc_loss.numpy())))
-
+      epo_ave_gen_true_loss.append(gen_true_loss.numpy())
+      epo_avg_gen_fake_loss.append(gen_fake_loss.numpy())
+      epo_avg_total_gen_loss.append(total_gen_loss.numpy())
+      epo_avg_disc_fake_loss.append(disc_fake_loss.numpy())
+      epo_avg_disc_real_loss.append(disc_real_loss.numpy())
+      epo_avg_total_disc_loss.append(total_disc_loss.numpy())
       '''if step % n_disc_iter == 0:
           train_gen = not train_gen
 

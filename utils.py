@@ -8,6 +8,8 @@ from random import choices
 import tensorflow as tf
 from Levenshtein import distance as lev_dist
 
+SCE = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
+
 
 def make_kmers(seq, size):
     # remove all letters other than A,C,G and T
@@ -108,6 +110,52 @@ def convert_to_string_list(l):
     l = l.numpy()
     l = [",".join([str(i) for i in item]) for item in l]
     return l
+
+
+def predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, enc_units, enc_path, dec_path):
+    avg_test_loss = []
+    i = 0
+    loaded_encoder = tf.keras.models.load_model(enc_path)
+    loaded_generator = tf.keras.models.load_model(dec_path)
+    for step, (x, y) in enumerate(zip(test_dataset_in, test_dataset_out)):
+        batch_x_test = convert_to_array(x)
+        batch_y_test = convert_to_array(y)
+        batch_size = batch_x_test.shape[0]
+        if batch_x_test.shape[0] == batch_size:
+            # generated noise for variation in predicted sequences
+            noise = tf.random.normal((batch_size, enc_units))
+            enc_output, enc_state = loaded_encoder(batch_x_test, training=False)
+            # add noise to the encoder state
+            enc_state = tf.math.add(enc_state, noise)
+            dec_state = enc_state
+            # generate seqs stepwise - teacher forcing
+            generated_logits, _, loss = gen_step_predict(seq_len, batch_size, vocab_size, loaded_generator, dec_state, batch_y_test)
+            print("Test: Batch {} true loss: {}".format(str(i), str(loss)))
+            avg_test_loss.append(loss)
+            i += 1
+    mean_loss = np.mean(avg_test_loss)
+    print("Total test loss: {}".format(str(mean_loss)))
+    return mean_loss
+
+
+def gen_step_predict(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real_o):
+    step_loss = tf.constant(0.0)
+    pred_logits = np.zeros((batch_size, seq_len, vocab_size))
+    # set initial token
+    i_token = tf.fill([batch_size, 1], 0)
+    for t in tf.range(seq_len):
+        o_token = real_o[:, t:t+1]
+        dec_result, dec_state = gen_decoder([i_token, dec_state], training=False)
+        dec_numpy = dec_result.numpy()
+        pred_logits[:, t, :] = np.reshape(dec_numpy, (dec_numpy.shape[0], dec_numpy.shape[2]))
+        loss = SCE(o_token, dec_result)
+        step_loss += loss
+        dec_tokens = tf.math.argmax(dec_result, axis=-1)
+        # teacher forcing, set current output as the next input
+        i_token = dec_tokens
+    step_loss = step_loss / seq_len
+    pred_logits = tf.convert_to_tensor(pred_logits)
+    return pred_logits, gen_decoder, step_loss
 
 
 def balance_train_dataset(x, y, x_y_l):
