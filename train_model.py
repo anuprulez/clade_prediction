@@ -22,7 +22,8 @@ generator_optimizer = tf.keras.optimizers.Adam(1e-3)
 discriminator_optimizer = tf.keras.optimizers.Adam(3e-5)
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 m_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
-n_disc_extra_iter = 3
+n_disc_extra_iter = 5
+test_perf_iter = 10
 
 
 '''def gradient_penalty(batch_size, real_seq, fake_seq, discriminator):
@@ -89,8 +90,9 @@ def gen_step_train(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real
     return pred_logits, gen_decoder, step_loss
 
 
-def start_training(inputs, encoder, decoder, disc_par_enc_model, disc_gen_enc_model, discriminator, enc_units, vocab_size, n_train_batches, batch_size):
+def start_training(inputs, encoder, decoder, disc_par_enc_model, disc_gen_enc_model, discriminator, enc_units, vocab_size, n_train_batches, batch_size, test_data_load):
   X_train, y_train, X_y_l = inputs
+  test_dataset_in, test_dataset_out = test_data_load
 
   # randomize batches
   rand_idx = np.random.randint(0, X_train.shape[0], X_train.shape[0])
@@ -125,10 +127,11 @@ def start_training(inputs, encoder, decoder, disc_par_enc_model, disc_gen_enc_mo
       # balance x and y in terms of levenshtein distance
       unrolled_x, unrolled_y = utils.balance_train_dataset(unrolled_x, unrolled_y, l_dist_batch)
       seq_len = unrolled_x.shape[1]
-      #batch_size = unrolled_x.shape[0]
-
-      #if step % n_disc_iter == 0:
-      #    train_gen = not train_gen
+      
+      # find performance on test data every few batches
+      if step % test_perf_iter == 0:
+          with tf.device('/device:cpu:0'):
+              _ = utils.predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, TRAIN_ENC_MODEL, TRAIN_GEN_MODEL)
 
       noise = tf.random.normal((batch_size, enc_units))
       # set weights from the discriminator generator's encoder
