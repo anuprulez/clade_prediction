@@ -178,7 +178,7 @@ def start_training(inputs, epo_step, encoder, decoder, disc_par_enc, disc_gen_en
               # mix both fake outputs
               merged_fake_output = tf.concat([h_fake_output, h_not_par_child_output], axis=0)
 
-              gen_fake_loss = generator_loss(merged_fake_output)
+              gen_fake_loss = generator_loss(fake_output)
               total_gen_loss = gen_fake_loss + gen_true_loss
 
           gradients_of_decoder = gen_tape.gradient(total_gen_loss, decoder.trainable_variables)
