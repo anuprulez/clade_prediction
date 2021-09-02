@@ -22,8 +22,8 @@ generator_optimizer = tf.keras.optimizers.Adam(1e-3)
 discriminator_optimizer = tf.keras.optimizers.Adam(1e-3)
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 m_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
-n_disc_step = 15
-n_gen_step = 5
+n_disc_step = 8
+n_gen_step = 3
 test_perf_iter = 10
 
 
@@ -52,6 +52,7 @@ def generator_loss(fake_output):
 def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, encoder, decoder, disc_par_enc_model, disc_gen_enc_model):
 
     noise = tf.random.normal((batch_size, enc_units))
+    print(noise.shape)
     # set weights from the discriminator generator's encoder
     disc_par_enc_model.load_weights(ENC_WEIGHTS_SAVE_PATH)
     disc_gen_enc_model.layers[1].set_weights(disc_par_enc_model.layers[1].get_weights())
@@ -128,6 +129,7 @@ def start_training(inputs, epo_step, encoder, decoder, disc_par_enc, disc_gen_en
       # balance x and y in terms of levenshtein distance
       unrolled_x, unrolled_y = utils.balance_train_dataset(unrolled_x, unrolled_y, l_dist_batch)
       seq_len = unrolled_x.shape[1]
+      batch_size = unrolled_x.shape[0]
 
       # find performance on test data every few batches
       '''if step > 0 and step % test_perf_iter == 0:
