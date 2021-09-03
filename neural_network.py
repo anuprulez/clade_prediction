@@ -81,7 +81,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     rnn_output = tf.keras.layers.Dropout(0.2)(rnn_output)
     rnn_output = tf.keras.layers.BatchNormalization()(rnn_output)
     attention_vector = dec_Wc(rnn_output)
-    attention_vector = tf.keras.layers.LeakyReLU(0.1)(attention_vector)
+    #attention_vector = tf.keras.layers.LeakyReLU(0.1)(attention_vector)
     attention_vector = tf.keras.layers.Dropout(0.2)(attention_vector)
     attention_vector = tf.keras.layers.BatchNormalization()(attention_vector)
     logits = dec_fc(attention_vector)
@@ -109,7 +109,7 @@ def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units):
     # generated seq encoder model
     gen_inputs = tf.keras.Input(shape=(None, vocab_size))
     gen_enc_inputs = tf.keras.layers.Dense(embedding_dim, use_bias=False)(gen_inputs)
-    gen_enc_inputs = tf.keras.layers.LeakyReLU(0.1)(gen_enc_inputs)
+    #gen_enc_inputs = tf.keras.layers.LeakyReLU(0.1)(gen_enc_inputs)
     gen_enc_inputs = tf.keras.layers.Dropout(0.2)(gen_enc_inputs)
     gen_enc_inputs = tf.keras.layers.BatchNormalization()(gen_enc_inputs)
     gen_enc_outputs, gen_enc_state = enc_GRU(gen_enc_inputs)
@@ -123,20 +123,19 @@ def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units):
 
 
 def make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units):
-    momentum = 0.5
     parent_state = tf.keras.Input(shape=(enc_units,))
     generated_state = tf.keras.Input(shape=(enc_units,))
     x = tf.keras.layers.Concatenate()([parent_state, generated_state])
-    x = tf.keras.layers.Dropout(0.2)(x)
-    x = tf.keras.layers.Normalization()(x)
-    x = tf.keras.layers.Dense(enc_units)(x)
+    x = tf.keras.layers.Dropout(0.3)(x)
+    x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.Dense(enc_units/2)(x)
     x = tf.keras.layers.LeakyReLU(0.1)(x)
-    x = tf.keras.layers.Dropout(0.2)(x)
-    x = tf.keras.layers.Normalization()(x)
-    x = tf.keras.layers.Dense(enc_units / 2)(x)
+    x = tf.keras.layers.Dropout(0.3)(x)
+    x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.Dense(enc_units/4)(x)
     x = tf.keras.layers.LeakyReLU(0.1)(x)
-    x = tf.keras.layers.Dropout(0.2)(x)
-    x = tf.keras.layers.Normalization()(x)
-    output_class = tf.keras.layers.Dense(1)(x)
+    x = tf.keras.layers.Dropout(0.3)(x)
+    x = tf.keras.layers.BatchNormalization()(x)
+    output_class = tf.keras.layers.Dense(1, activation="linear")(x)
     disc_model = tf.keras.Model([parent_state, generated_state], [output_class])
     return disc_model
