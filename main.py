@@ -89,14 +89,12 @@ def start_training(vocab_size):
         X = tr_clade_df["X"]
         y = tr_clade_df["Y"]
         X_y_l = tr_clade_df[l_dist_name]
-        print(tr_clade_df.shape)
 
     # load test data
     for te_name in te_clade_files:
         te_clade_df = pd.read_csv(te_name, sep="\t")
         te_X = te_clade_df["X"]
         te_y = te_clade_df["Y"]
-        print(te_clade_df.shape)
 
     #X = X[:train_size]
     #y = y[:train_size]
@@ -104,6 +102,7 @@ def start_training(vocab_size):
     #te_X = te_X[:test_size]
     #te_y = te_y[:test_size]
 
+    print("train and test data sizes")
     print(X.shape, y.shape, te_X.shape, te_y.shape)
 
     te_batch_size = te_X.shape[0]

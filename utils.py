@@ -48,8 +48,8 @@ def pred_convert_to_array(str_data):
     f_list = [item.decode("utf-8").split(",") for item in tolst]
     toarray = np.array([list(map(int, lst)) for lst in f_list])
     return tf.convert_to_tensor(toarray, dtype=tf.int32)
-    
-    
+
+  
 def one_hot_encoding():
     encoded_seq = list()
     for char in sequence:
