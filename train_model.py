@@ -124,7 +124,7 @@ def start_training(inputs, epo_step, encoder, decoder, disc_par_enc, disc_gen_en
       unrolled_x = utils.convert_to_array(x_batch_train)
       unrolled_y = utils.convert_to_array(y_batch_train)
       # balance x and y in terms of levenshtein distance
-      unrolled_x, unrolled_y = utils.balance_train_dataset(unrolled_x, unrolled_y, l_dist_batch)
+      #unrolled_x, unrolled_y = utils.balance_train_dataset(unrolled_x, unrolled_y, l_dist_batch)
       seq_len = unrolled_x.shape[1]
       batch_size = unrolled_x.shape[0]
 
@@ -144,7 +144,7 @@ def start_training(inputs, epo_step, encoder, decoder, disc_par_enc, disc_gen_en
               # discriminate pairs of true parent and true child sequences
               real_output = discriminator([real_x, real_y], training=True)
               # discriminate pairs of true parent and generated child sequences
-              fake_output = discriminator([real_x, real_x], training=True)
+              fake_output = discriminator([real_x, fake_y], training=True)
               # discriminate pairs of real sequences but not parent-child
               '''not_par_child_output = discriminator([real_x, real_x], training=True)
               # take halves of fake output - real parent and gen child and not parent-child sequences
@@ -164,7 +164,7 @@ def start_training(inputs, epo_step, encoder, decoder, disc_par_enc, disc_gen_en
           with tf.GradientTape() as gen_tape:
               real_x, real_y, fake_y, encoder, decoder, disc_par_enc, disc_gen_enc, gen_true_loss = get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, encoder, decoder, disc_par_enc, disc_gen_enc)
               # discriminate pairs of true parent and generated child sequences
-              fake_output = discriminator([real_x, real_x], training=True)
+              fake_output = discriminator([real_x, fake_y], training=True)
               # discriminate pairs of real sequences but not parent-child
               #not_par_child_output = discriminator([real_x, real_x], training=True)
               # take halves of fake output - real parent and gen child and not parent-child sequences
