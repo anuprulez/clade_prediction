@@ -8,8 +8,8 @@ import numpy as np
 import logging
 import tensorflow as tf
 import h5py
-
 import utils
+
 
 ENC_WEIGHTS_SAVE_PATH = "data/generated_files/generator_encoder_weights.h5"
 PRETRAIN_ENC_MODEL = "data/generated_files/pretrain_gen_encoder"
@@ -17,13 +17,14 @@ PRETRAIN_GEN_MODEL = "data/generated_files/pretrain_gen_decoder"
 TRAIN_ENC_MODEL = "data/generated_files/enc_model"
 TRAIN_GEN_MODEL = "data/generated_files/gen_model"
 
+
 pretrain_generator_optimizer = tf.keras.optimizers.Adam(0.01)
 generator_optimizer = tf.keras.optimizers.Adam(1e-3)
 discriminator_optimizer = tf.keras.optimizers.Adam(1e-3)
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 m_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
-n_disc_step = 8
-n_gen_step = 3
+n_disc_step = 15
+n_gen_step = 5
 test_perf_iter = 10
 
 
@@ -160,7 +161,7 @@ def start_training(inputs, epo_step, encoder, decoder, disc_par_enc, disc_gen_en
               total_disc_loss = disc_real_loss + disc_fake_loss
 
           gradients_of_discriminator = disc_tape.gradient(total_disc_loss, discriminator.trainable_variables)
-          #disc_clipped_grad = [tf.clip_by_value(grad, -0.05, 0.05) for grad in gradients_of_discriminator]
+          #disc_clipped_grad = [tf.clip_by_value(grad, -0.01, 0.01) for grad in gradients_of_discriminator]
           discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
 
       else:

@@ -122,20 +122,21 @@ def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units):
     return disc_par_encoder_model, disc_gen_encoder_model
 
 
-def make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units):   
+def make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units):
+    momentum = 0.5
     parent_state = tf.keras.Input(shape=(enc_units,))
     generated_state = tf.keras.Input(shape=(enc_units,))
-    inputs_concatenated = tf.keras.layers.Concatenate()([parent_state, generated_state])
-    x = tf.keras.layers.Dropout(0.2)(inputs_concatenated)
-    #x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.Concatenate()([parent_state, generated_state])
+    x = tf.keras.layers.Dropout(0.2)(x)
+    x = tf.keras.layers.Normalization()(x)
     x = tf.keras.layers.Dense(enc_units)(x)
     x = tf.keras.layers.LeakyReLU(0.1)(x)
     x = tf.keras.layers.Dropout(0.2)(x)
-    #x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.Normalization()(x)
     x = tf.keras.layers.Dense(enc_units / 2)(x)
     x = tf.keras.layers.LeakyReLU(0.1)(x)
     x = tf.keras.layers.Dropout(0.2)(x)
-    #x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.Normalization()(x)
     output_class = tf.keras.layers.Dense(1)(x)
     disc_model = tf.keras.Model([parent_state, generated_state], [output_class])
     return disc_model

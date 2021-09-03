@@ -53,7 +53,7 @@ batch_size = 32
 enc_units = 128
 pretrain_epochs = 5
 epochs = 10
-n_test_train_samples = 500
+n_test_train_samples = 1000
 seq_len = LEN_AA
 
 
@@ -151,9 +151,12 @@ def start_training(vocab_size):
     train_disc_fake_loss = list()
     train_te_loss = list()
 
-    X_train = X[:n_test_train_samples]
-    y_train = y[:n_test_train_samples]
-    X_y_l = X_y_l[:n_test_train_samples]
+    X_train = X
+    y_train = y
+
+    #X_train = X[:n_test_train_samples]
+    #y_train = y[:n_test_train_samples]
+    #X_y_l = X_y_l[:n_test_train_samples]
     # get training dataset as sliced tensors
     
 
