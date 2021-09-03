@@ -52,7 +52,8 @@ embedding_dim = 128
 batch_size = 32
 enc_units = 128
 pretrain_epochs = 5
-epochs = 2
+epochs = 10
+n_test_train_samples = 1000
 seq_len = LEN_AA
 
 
@@ -88,14 +89,12 @@ def start_training(vocab_size):
         X = tr_clade_df["X"]
         y = tr_clade_df["Y"]
         X_y_l = tr_clade_df[l_dist_name]
-        print(tr_clade_df.shape)
 
     # load test data
     for te_name in te_clade_files:
         te_clade_df = pd.read_csv(te_name, sep="\t")
         te_X = te_clade_df["X"]
         te_y = te_clade_df["Y"]
-        print(te_clade_df.shape)
 
     #X = X[:train_size]
     #y = y[:train_size]
@@ -103,6 +102,7 @@ def start_training(vocab_size):
     #te_X = te_X[:test_size]
     #te_y = te_y[:test_size]
 
+    print("train and test data sizes")
     print(X.shape, y.shape, te_X.shape, te_y.shape)
 
     te_batch_size = te_X.shape[0]
@@ -152,6 +152,10 @@ def start_training(vocab_size):
 
     X_train = X
     y_train = y
+
+    #X_train = X[:n_test_train_samples]
+    #y_train = y[:n_test_train_samples]
+    #X_y_l = X_y_l[:n_test_train_samples]
     # get training dataset as sliced tensors
     
 
@@ -160,7 +164,7 @@ def start_training(vocab_size):
     test_data_load = [test_dataset_in, test_dataset_out]
     for n in range(epochs):
         print("Training epoch {}/{}...".format(str(n+1), str(epochs)))
-        epo_gen_true_loss, epo_gen_fake_loss, epo_total_gen_loss, epo_disc_true_loss, epo_disc_fake_loss, epo_total_disc_loss, encoder, decoder = train_model.start_training([X_train, y_train, X_y_l], encoder, decoder, disc_parent_encoder_model, disc_gen_encoder_model, discriminator, enc_units, vocab_size, n_train_batches, batch_size, test_data_load)
+        epo_gen_true_loss, epo_gen_fake_loss, epo_total_gen_loss, epo_disc_true_loss, epo_disc_fake_loss, epo_total_disc_loss, encoder, decoder = train_model.start_training([X_train, y_train, X_y_l], n, encoder, decoder, disc_parent_encoder_model, disc_gen_encoder_model, discriminator, enc_units, vocab_size, n_train_batches, batch_size, test_data_load)
 
         print("Training loss at step {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}, D true loss: {}, D fake loss: {}, Total D loss: {}".format(str(n+1), str(epochs), str(epo_gen_true_loss), str(epo_gen_fake_loss), str(epo_total_gen_loss), str(epo_disc_true_loss), str(epo_disc_fake_loss), str(epo_total_disc_loss)))
 

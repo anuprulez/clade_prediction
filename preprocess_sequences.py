@@ -86,14 +86,18 @@ def make_cross_product(clade_in_clade_out, dataframe):
             cross_joined_df = cross_joined_df.sample(frac=1)
             cross_columns = list(cross_joined_df.columns)
             cross_columns.append(l_dist_name)
-            
+
             filtered_rows = list()
             l_distance = list()
             filtered_l_distance = list()
+            parent = list()
+            child = list()
             print("Filtering sequences...")
             for index, item in cross_joined_df.iterrows():
                 x = item["Sequence_x"]
                 y = item["Sequence_y"]
+                parent.append(x)
+                child.append(y)
                 l_dist = utils.compute_Levenshtein_dist(x, y)
                 l_distance.append(l_dist)
                 if l_dist > 0 and l_dist < edit_threshold:
@@ -101,11 +105,11 @@ def make_cross_product(clade_in_clade_out, dataframe):
                     n_item.append(l_dist)
                     filtered_rows.append(n_item)
                     filtered_l_distance.append(l_dist)
-            print(len(filtered_l_distance), len(filtered_rows))
-            
-            
             filtered_dataframe = pd.DataFrame(filtered_rows, columns=cross_columns)
             filtered_dataframe.to_csv(file_name, index=None)
+
+            print("Unique parents: {}".format(str(len(list(set(parent))))))
+            print("Unique children: {}".format(str(len(list(set(child))))))
 
             np.savetxt("data/generated_files/l_distance.txt", l_distance)
             np.savetxt("data/generated_files/filtered_l_distance.txt", filtered_l_distance)
@@ -121,23 +125,20 @@ def make_cross_product(clade_in_clade_out, dataframe):
             train_x = train_df["Sequence_x"].tolist()
             train_y = train_df["Sequence_y"].tolist()
             train_l_dist = train_df[l_dist_name].tolist()
-            print(train_df.shape)
 
-            merged_train_df = pd.DataFrame(list(zip(train_x, train_y, train_l_dist)), columns=["X", "Y", l_dist_name])          
-            print(merged_train_df)
+            merged_train_df = pd.DataFrame(list(zip(train_x, train_y, train_l_dist)), columns=["X", "Y", l_dist_name])
             tr_filename = "data/train/{}_{}.csv".format(in_clade, out_clade)
             merged_train_df.to_csv(tr_filename, sep="\t", index=None)
 
             test_df = filtered_dataframe.drop(train_df.index)
-            print(test_df.shape)
             test_x = test_df["Sequence_x"].tolist()
             test_y = test_df["Sequence_y"].tolist()
             test_l_dist = test_df[l_dist_name].tolist()
-            
+
             te_filename = "data/test/{}_{}.csv".format(in_clade, out_clade)
             merged_test_df = pd.DataFrame(list(zip(test_x, test_y, test_l_dist)), columns=["X", "Y", l_dist_name])
+            merged_test_df = merged_test_df.drop_duplicates()
             merged_test_df.to_csv(te_filename, sep="\t", index=None)
-            
     print()
     print("Total number of samples: {}".format(str(total_samples)))
     
