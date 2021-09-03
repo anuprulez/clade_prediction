@@ -19,8 +19,8 @@ TRAIN_GEN_MODEL = "data/generated_files/gen_model"
 
 
 pretrain_generator_optimizer = tf.keras.optimizers.Adam(0.01)
-generator_optimizer = tf.keras.optimizers.Adam(learning_rate=0.1, beta_1=0.5)
-discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=0.1, beta_1=0.5)
+generator_optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3, beta_1=0.5)
+discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5, beta_1=0.5)
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 m_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
 n_disc_step = 10
@@ -144,7 +144,7 @@ def start_training(inputs, epo_step, encoder, decoder, disc_par_enc, disc_gen_en
               # discriminate pairs of true parent and true child sequences
               real_output = discriminator([real_x, real_y], training=True)
               # discriminate pairs of true parent and generated child sequences
-              fake_output = discriminator([real_x, fake_y], training=True)
+              fake_output = discriminator([real_x, real_x], training=True)
               # discriminate pairs of real sequences but not parent-child
               '''not_par_child_output = discriminator([real_x, real_x], training=True)
               # take halves of fake output - real parent and gen child and not parent-child sequences
@@ -163,11 +163,8 @@ def start_training(inputs, epo_step, encoder, decoder, disc_par_enc, disc_gen_en
           print("Applying gradient update on generator...")
           with tf.GradientTape() as gen_tape:
               real_x, real_y, fake_y, encoder, decoder, disc_par_enc, disc_gen_enc, gen_true_loss = get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, encoder, decoder, disc_par_enc, disc_gen_enc)
-
-              # discriminate pairs of true parent and true child sequences
-              #real_output = discriminator([real_x, real_y], training=True)
               # discriminate pairs of true parent and generated child sequences
-              fake_output = discriminator([real_x, fake_y], training=True)
+              fake_output = discriminator([real_x, real_x], training=True)
               # discriminate pairs of real sequences but not parent-child
               #not_par_child_output = discriminator([real_x, real_x], training=True)
               # take halves of fake output - real parent and gen child and not parent-child sequences
