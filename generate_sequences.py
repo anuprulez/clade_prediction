@@ -14,14 +14,14 @@ import matplotlib.pyplot as plt
 import utils
 
 
-RESULT_PATH = "test_results/20A_20C_30Aug/"
+RESULT_PATH = "test_results/20A_20C_06Sept_20EPO/"
 enc_units = 128
 LEN_AA = 1273
 seq_len = LEN_AA
 
 clade_source = "20A"
 clade_start = "20C"
-
+generating_factor = 20
 
 
 def load_model_generated_sequences():
@@ -37,7 +37,6 @@ def load_model_generated_sequences():
     print(loaded_encoder)
     print(loaded_generator)
     print("Generating sequences for {}...".format(clade_start))
-    generating_factor = 1
     for te_name in te_clade_files:
         te_clade_df = pd.read_csv(te_name, sep="\t")
         te_X = te_clade_df["X"]
@@ -49,11 +48,11 @@ def load_model_generated_sequences():
             predict_multiple(te_X, te_y, LEN_AA, vocab_size, batch_size, loaded_encoder, loaded_generator)
 
 
-def predict_multiple(test_x, test_y, seq_len, vocab_size, batch_size, loaded_encoder, loaded_generator, generating_factor=10):
-    batch_size = 1
+def predict_multiple(test_x, test_y, seq_len, vocab_size, batch_size, loaded_encoder, loaded_generator):
+    batch_size = test_x.shape[0]
     test_cutoff = 1 #test_x.shape[0]
 
-    rand_pos = np.random.randint(1, test_x.shape[0], test_cutoff)
+    rand_pos = np.random.randint(1, test_x.shape[0], batch_size)
 
     test_x_rand = test_x[rand_pos]
     text_y_rand = test_y[rand_pos]
@@ -76,8 +75,8 @@ def predict_multiple(test_x, test_y, seq_len, vocab_size, batch_size, loaded_enc
         print(batch_x_test.shape, batch_y_test.shape)
         print("Generating multiple sequences for each test sequence...")
         for i in range(generating_factor):
-            noise = tf.random.normal((batch_size, enc_units), stddev=2.0)
-            enc_output, enc_state = loaded_encoder(batch_x_test, training=False)
+            noise = tf.random.normal((batch_size, enc_units), stddev=1.0)
+            enc_output, enc_state = loaded_encoder(batch_y_test, training=False)
             enc_state = tf.math.add(enc_state, noise)
             dec_state = enc_state
             generated_logits = gen_step_predict(seq_len, batch_size, vocab_size, loaded_generator, dec_state)
@@ -94,16 +93,17 @@ def predict_multiple(test_x, test_y, seq_len, vocab_size, batch_size, loaded_enc
             print("Levenshtein distance (x and pred): {}".format(str(l_dist_x_pred)))
             print("Levenshtein distance (x and y): {}".format(str(l_dist_x_y)))
 
-            if l_dist_x_pred > 0 and l_dist_x_pred < 10:
-                true_x.extend(one_x)
-                true_y.extend(one_y)
-                predicted_y.extend(pred_y)
+            #if l_dist_x_pred > 0 and l_dist_x_pred < 10:
+            true_x.extend(one_x)
+            true_y.extend(one_y)
+            predicted_y.extend(pred_y)
+            print("Generation iter {} done".format(str(i+1)))
             print("----------")
         print("Batch {} finished".format(str(step)))
         print()
     print(len(true_x), len(true_y), len(predicted_y))
     true_predicted_multiple = pd.DataFrame(list(zip(true_x, true_y, predicted_y)), columns=[clade_source, clade_start, "Generated"])
-    df_path = "{}true_predicted_multiple.csv".format(RESULT_PATH)
+    df_path = "{}true_predicted_multiple_te_y.csv".format(RESULT_PATH)
     true_predicted_multiple.to_csv(df_path, index=None)
     
 

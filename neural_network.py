@@ -50,7 +50,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     gen_inputs = tf.keras.Input(shape=(seq_len,))
     gen_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
     gen_gru = tf.keras.layers.GRU(enc_units, 
-    				go_backwards=True,
+    				go_backwards=False,
     				return_sequences=True,
     				return_state=True,
     				recurrent_initializer='glorot_uniform')
@@ -95,7 +95,7 @@ def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units):
     parent_inputs = tf.keras.Input(shape=(seq_len,))
     enc_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
     enc_GRU = tf.keras.layers.GRU(enc_units,
-                                   go_backwards=True,
+                                   go_backwards=False,
                                    return_sequences=True,
                                    return_state=True,
                                    recurrent_initializer='glorot_uniform')

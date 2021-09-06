@@ -124,7 +124,7 @@ def start_training(inputs, epo_step, encoder, decoder, disc_par_enc, disc_gen_en
       unrolled_x = utils.convert_to_array(x_batch_train)
       unrolled_y = utils.convert_to_array(y_batch_train)
       # balance x and y in terms of levenshtein distance
-      #unrolled_x, unrolled_y = utils.balance_train_dataset(unrolled_x, unrolled_y, l_dist_batch)
+      unrolled_x, unrolled_y = utils.balance_train_dataset(unrolled_x, unrolled_y, l_dist_batch)
       seq_len = unrolled_x.shape[1]
       batch_size = unrolled_x.shape[0]
 
