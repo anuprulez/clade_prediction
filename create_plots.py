@@ -10,6 +10,8 @@ import glob
 import json
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+from scipy.stats import spearmanr
+from scipy.stats.mstats import pearsonr
 
 
 import utils
@@ -135,7 +137,6 @@ def plot_sequences(min_pos, max_pos):
     aa_dict = f_dict
     aa_names = list(aa_dict.values())
 
-
     fig, axs = plt.subplots(4)
     #fig.suptitle('D614G mutation in spike protein: 19A, 20A, true (20B, 20C and 20E (EU1)) and generated child amino acid (AA) sequences of 20A')
     pos_labels = list(np.arange(min_pos, max_pos))
@@ -212,7 +213,7 @@ def plot_l_distance():
 
 
 def plot_mutation_counts():
-    file_name = "true_predicted_multiple_te_x_50times.csv"
+    file_name = "true_predicted_multiple_te_x_1times.csv"
     df_true_pred = pd.read_csv(results_path + file_name, sep=",")
     #df_true_pred = df_true_pred[:100]
     print(df_true_pred)
@@ -238,106 +239,68 @@ def plot_mutation_counts():
             first_aa = [f_dict[j] for j in first]
             sec_aa = [f_dict[j] for j in sec]
             third_aa = [f_dict[j] for j in third]
-
-            intersection_f_s = set(sec_aa).difference(set(first_aa))
-            intersection_f_t = set(third_aa).difference(set(first_aa))
-            intersection_s_t = set(third_aa).difference(set(sec_aa))
         
             first_mut = first_aa[0]
             second_mut = sec_aa[0]
             third_mut = third_aa[0]
 
-            if first_mut != "X" and second_mut != "X":
-
-                if len(intersection_f_s) > 0:
-                    key = "{}>{}".format(first_mut, second_mut)
-                    if key not in parent_child:
-                        parent_child[key] = 0
-                    parent_child[key] += 1
+            if first_mut != second_mut:
+                key = "{}>{}".format(first_mut, second_mut)
+                if key not in parent_child:
+                    parent_child[key] = 0
+                parent_child[key] += 1
         
-            if first_mut != "X" and third_mut != "X":
-                if len(intersection_f_t) > 0:
-                    key = "{}>{}".format(first_mut, third_mut)
-                    if key not in parent_gen:
-                        parent_gen[key] = 0
-                    parent_gen[key] += 1
+            if first_mut != third_mut:
+                key = "{}>{}".format(first_mut, third_mut)
+                if key not in parent_gen:
+                    parent_gen[key] = 0
+                parent_gen[key] += 1
         
-                
+ 
     write_dict(results_path + "parent_child.json", parent_child)
     write_dict(results_path + "parent_gen.json", parent_gen)
 
     aa_list = list('QNKWFPYLMTEIARGHSDVC')
 
-    '''parent_child = dict(sorted(parent_child.items(), key=lambda item: item[1], reverse=True))
+    test_size = df_true_pred.shape[0]
+
+    parent_child = dict(sorted(parent_child.items(), key=lambda item: item[1], reverse=True))
     print(parent_child)
     print()
     parent_gen = dict(sorted(parent_gen.items(), key=lambda item: item[1], reverse=True))
     print(parent_gen)
     print()
 
-    aa_list = list('QNKWFPYLMTEIARGHSDVC')
-    par_child_x_list = list()
-    par_child_y_list = list()
-    par_child_count = list()
+    par_child_mat = get_mat(aa_list, parent_child, test_size)
 
-    par_gen_x_list = list()
-    par_gen_y_list = list()
-    par_gen_count = list()
+    par_gen_mat = get_mat(aa_list, parent_gen, test_size)
+    print("Preparing train data...")
+    tr_par_child_mat = get_train_mat()
 
-    for mut in aa_list:
-        mut_split = "{}>{}".format()
-        par_child_x_list.append(mut_split[1])
-        par_child_y_list.append(mut_split[0])
-        par_child_count.append({mut: parent_child[mut]})
+    pearson_corr_te_par_child_par_gen_mut = pearsonr(par_child_mat, par_gen_mat)
 
-        par_gen_x_list.append(mut_split[1])
-        par_gen_y_list.append(mut_split[0])
+    pearson_corr_tr_par_child_par_gen_mut = pearsonr(tr_par_child_mat, par_gen_mat)
 
-        if mut in parent_gen:
-            par_gen_count.append({mut: parent_gen[mut]})
-        else:
-            par_gen_count.append({mut: 0})
+    pearson_corr_tr_par_child_mut = pearsonr(tr_par_child_mat, par_child_mat)
 
+    #print("Spearman correlation between par-child mut and par-gen mut: {}".format(str(sp_corr)))
+    print("Pearson correlation between train par-child mut: {}".format(str(pearson_corr_tr_par_child_mut)))
+    print("Pearson correlation between train par-child mut and par-gen mut: {}".format(str(pearson_corr_tr_par_child_par_gen_mut)))
+    print("Pearson correlation between test par-child mut and par-gen mut: {}".format(str(pearson_corr_te_par_child_par_gen_mut)))
 
-    par_child_y_list = list(set(par_child_y_list))
-    par_child_x_list = list(set(par_child_x_list))
+    cmap = "Spectral" #"RdYlBu"
+    plt.rcParams.update({'font.size': 8})
 
-    par_gen_y_list = list(set(par_child_y_list))
-    par_gen_x_list = list(set(par_child_x_list))
-
-    print(par_child_y_list)
-    print()
-    print(par_child_y_list)
-    print()
-    print(par_child_count)
-    print()
-    print()
-    print(par_gen_y_list)
-    print()
-    print(par_gen_x_list)
-    print()
-    print(par_gen_count)
-    print()'''
-
-    par_child_mat = get_mat(aa_list, parent_child)
-    print()
-    par_gen_mat = get_mat(aa_list, parent_gen)
-
-
-    cmap = "RdYlBu"
-    #plt.rcParams.update({'font.size': 16}
-
-    fig, axs = plt.subplots(2)
+    fig, axs = plt.subplots(3)
 
     pos_ticks = list(np.arange(0, len(aa_list)))
     pos_labels = aa_list
 
-    color_ticks = list(np.arange(0, len(aa_list)))
-    color_tick_labels = aa_list
     interpolation = "none"
 
-    ax0 = axs[0].imshow(par_child_mat, cmap=cmap,  interpolation=interpolation, aspect='auto')
-    axs[0].set_title("Parent-child mutation frequency")
+    
+    ax0 = axs[0].imshow(tr_par_child_mat, cmap=cmap,  interpolation=interpolation, aspect='auto')
+    axs[0].set_title("Train parent-child mutation frequency")
     axs[0].set_ylabel("From")
     axs[0].set_xlabel("To")
     axs[0].set_xticks(pos_ticks)
@@ -345,8 +308,9 @@ def plot_mutation_counts():
     axs[0].set_yticks(pos_ticks)
     axs[0].set_yticklabels(pos_labels, rotation='horizontal')
 
-    ax0 = axs[1].imshow(par_gen_mat, cmap=cmap,  interpolation=interpolation, aspect='auto')
-    axs[1].set_title("Parent-generated mutation frequency")
+
+    ax1 = axs[1].imshow(par_child_mat, cmap=cmap,  interpolation=interpolation, aspect='auto')
+    axs[1].set_title("Test parent-child mutation frequency")
     axs[1].set_ylabel("From")
     axs[1].set_xlabel("To")
     axs[1].set_xticks(pos_ticks)
@@ -354,15 +318,109 @@ def plot_mutation_counts():
     axs[1].set_yticks(pos_ticks)
     axs[1].set_yticklabels(pos_labels, rotation='horizontal')
 
+
+    ax2 = axs[2].imshow(par_gen_mat, cmap=cmap,  interpolation=interpolation, aspect='auto')
+    axs[2].set_title("Test parent-generated mutation frequency")
+    axs[2].set_ylabel("From")
+    axs[2].set_xlabel("To")
+    axs[2].set_xticks(pos_ticks)
+    axs[2].set_xticklabels(pos_labels, rotation='horizontal')
+    axs[2].set_yticks(pos_ticks)
+    axs[2].set_yticklabels(pos_labels, rotation='horizontal')
+
     cbar_ax = fig.add_axes([0.92, 0.15, 0.03, 0.7])
     cbar = fig.colorbar(ax0, cax=cbar_ax)
-    #cbar.set_ticks(color_ticks)
-    #cbar.ax.set_yticklabels(color_tick_labels, rotation='0')
 
+    plt.show()
+
+    # plot differences 
+
+    diff_tr_par_child_te_par_child = par_child_mat - tr_par_child_mat
+    diff_te_par_gen_te_par_child = par_gen_mat - par_child_mat
+    diff_tr_par_child_te_par_gen = par_gen_mat - tr_par_child_mat
+
+    cmap = "RdBu"
+    fig, axs = plt.subplots(3)
+
+    ax0 = axs[0].imshow(diff_tr_par_child_te_par_child, cmap=cmap,  interpolation=interpolation, aspect='auto', vmin=-0.2, vmax=0.2)
+    axs[0].set_title("Test vs training")
+    axs[0].set_ylabel("From")
+    axs[0].set_xlabel("To")
+    axs[0].set_xticks(pos_ticks)
+    axs[0].set_xticklabels(pos_labels, rotation='horizontal')
+    axs[0].set_yticks(pos_ticks)
+    axs[0].set_yticklabels(pos_labels, rotation='horizontal')
+
+
+    ax1 = axs[1].imshow(diff_te_par_gen_te_par_child, cmap=cmap,  interpolation=interpolation, aspect='auto', vmin=-0.2, vmax=0.2)
+    axs[1].set_title("Generated vs test")
+    axs[1].set_ylabel("From")
+    axs[1].set_xlabel("To")
+    axs[1].set_xticks(pos_ticks)
+    axs[1].set_xticklabels(pos_labels, rotation='horizontal')
+    axs[1].set_yticks(pos_ticks)
+    axs[1].set_yticklabels(pos_labels, rotation='horizontal')
+
+
+    ax2 = axs[2].imshow(diff_tr_par_child_te_par_gen, cmap=cmap,  interpolation=interpolation, aspect='auto', vmin=-0.2, vmax=0.2)
+    axs[2].set_title("Generated vs training")
+    axs[2].set_ylabel("From")
+    axs[2].set_xlabel("To")
+    axs[2].set_xticks(pos_ticks)
+    axs[2].set_xticklabels(pos_labels, rotation='horizontal')
+    axs[2].set_yticks(pos_ticks)
+    axs[2].set_yticklabels(pos_labels, rotation='horizontal')
+
+    cbar_ax = fig.add_axes([0.92, 0.15, 0.03, 0.7])
+    cbar = fig.colorbar(ax0, cax=cbar_ax)
+    #cbar.set_ylim(-0.2, 0.2)
     plt.show()
     
 
-def get_mat(aa_list, ct_dict):
+def get_train_mat():
+    file_name = "train/20A_20C.csv"
+    df = pd.read_csv(results_path + file_name, sep="\t")
+    #df_true_pred = df_true_pred[:100]
+    print(df)
+    cols = list(df.columns)
+    tr_parent_child = dict()
+
+    f_dict = read_json(results_path + "f_word_dictionaries.json")
+
+    # compare differences at positions
+    space = 1
+    for index, row in df.iterrows():
+        true_x = row["X"].split(",")
+        true_y = row["Y"].split(",")
+
+        for i in range(len(true_x)):
+            first = true_x[i:i+space]
+            sec = true_y[i:i+space]
+
+            first_aa = [f_dict[j] for j in first]
+            sec_aa = [f_dict[j] for j in sec]
+        
+            first_mut = first_aa[0]
+            second_mut = sec_aa[0]
+
+            if first_mut != second_mut:
+                key = "{}>{}".format(first_mut, second_mut)
+                if key not in tr_parent_child:
+                    tr_parent_child[key] = 0
+                tr_parent_child[key] += 1
+
+    write_dict(results_path + "tr_parent_child.json", tr_parent_child)
+
+    aa_list = list('QNKWFPYLMTEIARGHSDVC')
+
+    tr_parent_child = dict(sorted(tr_parent_child.items(), key=lambda item: item[1], reverse=True))
+    print(tr_parent_child)
+    print()
+
+    return get_mat(aa_list, tr_parent_child, df.shape[0])
+
+
+def get_mat(aa_list, ct_dict, size):
     mat = np.zeros((len(aa_list), len(aa_list)))
 
     for i, mut_y in enumerate(aa_list):
@@ -371,7 +429,7 @@ def get_mat(aa_list, ct_dict):
             if key in ct_dict:
                 mat[i, j] = ct_dict[key]
                 print(i, j, key, ct_dict[key])
-    return mat
+    return mat / size
 
 
 
