@@ -14,7 +14,7 @@ from matplotlib.lines import Line2D
 
 import utils
 
-results_path = "test_results/20A_20C_30Aug/"
+results_path = "test_results/20A_20C_06Sept_20EPO/"
 clade_parent = "20A"
 clade_child = "20C"
 clade_end = ["20H (Beta, V2)", "20G", "21C (Epsilon)", "21F (Iota)"]
@@ -210,15 +210,181 @@ def plot_l_distance():
     plt.xlabel('Levenstein distance')
     plt.show()
 
+
+def plot_mutation_counts():
+    file_name = "true_predicted_multiple_te_x_50times.csv"
+    df_true_pred = pd.read_csv(results_path + file_name, sep=",")
+    #df_true_pred = df_true_pred[:100]
+    print(df_true_pred)
+    cols = list(df_true_pred.columns)
+    parent_child = dict()
+    parent_gen = dict()
+    child_gen = dict()
+
+    f_dict = read_json(results_path + "f_word_dictionaries.json")
+
+    # compare differences at positions
+    space = 1
+    for index, row in df_true_pred.iterrows():
+        true_x = row[cols[0]].split(",")
+        true_y = row[cols[1]].split(",")
+        pred_y = row[cols[2]].split(",")
+
+        for i in range(len(true_x)):
+            first = true_x[i:i+space]
+            sec = true_y[i:i+space]
+            third = pred_y[i:i+space]
+
+            first_aa = [f_dict[j] for j in first]
+            sec_aa = [f_dict[j] for j in sec]
+            third_aa = [f_dict[j] for j in third]
+
+            intersection_f_s = set(sec_aa).difference(set(first_aa))
+            intersection_f_t = set(third_aa).difference(set(first_aa))
+            intersection_s_t = set(third_aa).difference(set(sec_aa))
+        
+            first_mut = first_aa[0]
+            second_mut = sec_aa[0]
+            third_mut = third_aa[0]
+
+            if first_mut != "X" and second_mut != "X":
+
+                if len(intersection_f_s) > 0:
+                    key = "{}>{}".format(first_mut, second_mut)
+                    if key not in parent_child:
+                        parent_child[key] = 0
+                    parent_child[key] += 1
+        
+            if first_mut != "X" and third_mut != "X":
+                if len(intersection_f_t) > 0:
+                    key = "{}>{}".format(first_mut, third_mut)
+                    if key not in parent_gen:
+                        parent_gen[key] = 0
+                    parent_gen[key] += 1
+        
+                
+    write_dict(results_path + "parent_child.json", parent_child)
+    write_dict(results_path + "parent_gen.json", parent_gen)
+
+    aa_list = list('QNKWFPYLMTEIARGHSDVC')
+
+    '''parent_child = dict(sorted(parent_child.items(), key=lambda item: item[1], reverse=True))
+    print(parent_child)
+    print()
+    parent_gen = dict(sorted(parent_gen.items(), key=lambda item: item[1], reverse=True))
+    print(parent_gen)
+    print()
+
+    aa_list = list('QNKWFPYLMTEIARGHSDVC')
+    par_child_x_list = list()
+    par_child_y_list = list()
+    par_child_count = list()
+
+    par_gen_x_list = list()
+    par_gen_y_list = list()
+    par_gen_count = list()
+
+    for mut in aa_list:
+        mut_split = "{}>{}".format()
+        par_child_x_list.append(mut_split[1])
+        par_child_y_list.append(mut_split[0])
+        par_child_count.append({mut: parent_child[mut]})
+
+        par_gen_x_list.append(mut_split[1])
+        par_gen_y_list.append(mut_split[0])
+
+        if mut in parent_gen:
+            par_gen_count.append({mut: parent_gen[mut]})
+        else:
+            par_gen_count.append({mut: 0})
+
+
+    par_child_y_list = list(set(par_child_y_list))
+    par_child_x_list = list(set(par_child_x_list))
+
+    par_gen_y_list = list(set(par_child_y_list))
+    par_gen_x_list = list(set(par_child_x_list))
+
+    print(par_child_y_list)
+    print()
+    print(par_child_y_list)
+    print()
+    print(par_child_count)
+    print()
+    print()
+    print(par_gen_y_list)
+    print()
+    print(par_gen_x_list)
+    print()
+    print(par_gen_count)
+    print()'''
+
+    par_child_mat = get_mat(aa_list, parent_child)
+    print()
+    par_gen_mat = get_mat(aa_list, parent_gen)
+
+
+    cmap = "RdYlBu"
+    #plt.rcParams.update({'font.size': 16}
+
+    fig, axs = plt.subplots(2)
+
+    pos_ticks = list(np.arange(0, len(aa_list)))
+    pos_labels = aa_list
+
+    color_ticks = list(np.arange(0, len(aa_list)))
+    color_tick_labels = aa_list
+    interpolation = "none"
+
+    ax0 = axs[0].imshow(par_child_mat, cmap=cmap,  interpolation=interpolation, aspect='auto')
+    axs[0].set_title("Parent-child mutation frequency")
+    axs[0].set_ylabel("From")
+    axs[0].set_xlabel("To")
+    axs[0].set_xticks(pos_ticks)
+    axs[0].set_xticklabels(pos_labels, rotation='horizontal')
+    axs[0].set_yticks(pos_ticks)
+    axs[0].set_yticklabels(pos_labels, rotation='horizontal')
+
+    ax0 = axs[1].imshow(par_gen_mat, cmap=cmap,  interpolation=interpolation, aspect='auto')
+    axs[1].set_title("Parent-generated mutation frequency")
+    axs[1].set_ylabel("From")
+    axs[1].set_xlabel("To")
+    axs[1].set_xticks(pos_ticks)
+    axs[1].set_xticklabels(pos_labels, rotation='horizontal')
+    axs[1].set_yticks(pos_ticks)
+    axs[1].set_yticklabels(pos_labels, rotation='horizontal')
+
+    cbar_ax = fig.add_axes([0.92, 0.15, 0.03, 0.7])
+    cbar = fig.colorbar(ax0, cax=cbar_ax)
+    #cbar.set_ticks(color_ticks)
+    #cbar.ax.set_yticklabels(color_tick_labels, rotation='0')
+
+    plt.show()
+    
+
+def get_mat(aa_list, ct_dict):
+    mat = np.zeros((len(aa_list), len(aa_list)))
+
+    for i, mut_y in enumerate(aa_list):
+        for j, mut_x in enumerate(aa_list):
+            key = "{}>{}".format(mut_y, mut_x)
+            if key in ct_dict:
+                mat[i, j] = ct_dict[key]
+                print(i, j, key, ct_dict[key])
+    return mat
+
+
+
 if __name__ == "__main__":
     start_time = time.time()
-    LEN_AA = 1273
+    '''LEN_AA = 1273
     step = 50
     for i in range(0, int(LEN_AA / float(step)) + 1):
         start = i * step
         end = start + step
         #print(start, end)
         plot_sequences(start, end)
-    #plot_l_distance()
+    #plot_l_distance()'''
+    plot_mutation_counts()
     end_time = time.time()
     print("Program finished in {} seconds".format(str(np.round(end_time - start_time, 2))))
