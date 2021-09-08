@@ -276,7 +276,7 @@ def plot_mutation_counts():
     print()
 
     par_child_mat = get_mat(aa_list, parent_child, test_size)
-
+    print()
     par_gen_mat = get_mat(aa_list, parent_gen, test_size)
 
     print("Preparing train data...")
@@ -308,7 +308,7 @@ def plot_mutation_counts():
 
     # generate plots
 
-    cmap = "Spectral" #"RdYlBu"
+    cmap = "Blues" #"RdYlBu" Spectral
     plt.rcParams.update({'font.size': 8})
 
     fig, axs = plt.subplots(3)
@@ -319,7 +319,7 @@ def plot_mutation_counts():
     interpolation = "none"
 
     ax0 = axs[0].imshow(tr_par_child_mat, cmap=cmap,  interpolation=interpolation, aspect='auto')
-    axs[0].set_title("Train parent-child mutation frequency")
+    axs[0].set_title("(A) Train parent-child mutation frequency")
     axs[0].set_ylabel("From")
     axs[0].set_xlabel("To")
     axs[0].set_xticks(pos_ticks)
@@ -328,7 +328,7 @@ def plot_mutation_counts():
     axs[0].set_yticklabels(pos_labels, rotation='horizontal')
 
     ax1 = axs[1].imshow(par_child_mat, cmap=cmap,  interpolation=interpolation, aspect='auto')
-    axs[1].set_title("Test parent-child mutation frequency")
+    axs[1].set_title("(B) Test parent-child mutation frequency")
     axs[1].set_ylabel("From")
     axs[1].set_xlabel("To")
     axs[1].set_xticks(pos_ticks)
@@ -337,7 +337,7 @@ def plot_mutation_counts():
     axs[1].set_yticklabels(pos_labels, rotation='horizontal')
 
     ax2 = axs[2].imshow(par_gen_mat, cmap=cmap,  interpolation=interpolation, aspect='auto')
-    axs[2].set_title("Test parent-generated mutation frequency")
+    axs[2].set_title("(C) Test parent-generated mutation frequency")
     axs[2].set_ylabel("From")
     axs[2].set_xlabel("To")
     axs[2].set_xticks(pos_ticks)
@@ -347,7 +347,7 @@ def plot_mutation_counts():
 
     cbar_ax = fig.add_axes([0.92, 0.15, 0.03, 0.7])
     cbar = fig.colorbar(ax0, cax=cbar_ax)
-
+    plt.suptitle("Mutation frequency in test, train and generated datasets. Pearson correlation of A & B: {}, A & C: {}, B & C: {}".format(str(np.round(pearson_corr_tr_par_child_mut[0], 2)), str(np.round(pearson_corr_tr_par_child_par_gen_mut[0], 2)), str(np.round(pearson_corr_te_par_child_par_gen_mut[0], 2))))
     plt.show()
 
     # plot differences 
@@ -358,8 +358,10 @@ def plot_mutation_counts():
 
     cmap = "RdBu"
     fig, axs = plt.subplots(3)
+    vmin = -0.08
+    vmax = 0.08
 
-    ax0 = axs[0].imshow(diff_tr_par_child_te_par_child, cmap=cmap,  interpolation=interpolation, aspect='auto', vmin=-0.2, vmax=0.2)
+    ax0 = axs[0].imshow(diff_tr_par_child_te_par_child, cmap=cmap,  interpolation=interpolation, aspect='auto', vmin=vmin, vmax=vmax) # , 
     axs[0].set_title("Test vs training")
     axs[0].set_ylabel("From")
     axs[0].set_xlabel("To")
@@ -368,7 +370,7 @@ def plot_mutation_counts():
     axs[0].set_yticks(pos_ticks)
     axs[0].set_yticklabels(pos_labels, rotation='horizontal')
 
-    ax1 = axs[1].imshow(diff_te_par_gen_te_par_child, cmap=cmap,  interpolation=interpolation, aspect='auto', vmin=-0.2, vmax=0.2)
+    ax1 = axs[1].imshow(diff_te_par_gen_te_par_child, cmap=cmap,  interpolation=interpolation, aspect='auto', vmin=vmin, vmax=vmax)
     axs[1].set_title("Generated vs test")
     axs[1].set_ylabel("From")
     axs[1].set_xlabel("To")
@@ -377,7 +379,7 @@ def plot_mutation_counts():
     axs[1].set_yticks(pos_ticks)
     axs[1].set_yticklabels(pos_labels, rotation='horizontal')
 
-    ax2 = axs[2].imshow(diff_tr_par_child_te_par_gen, cmap=cmap,  interpolation=interpolation, aspect='auto', vmin=-0.2, vmax=0.2)
+    ax2 = axs[2].imshow(diff_tr_par_child_te_par_gen, cmap=cmap,  interpolation=interpolation, aspect='auto', vmin=vmin, vmax=vmax)
     axs[2].set_title("Generated vs training")
     axs[2].set_ylabel("From")
     axs[2].set_xlabel("To")
@@ -388,7 +390,7 @@ def plot_mutation_counts():
 
     cbar_ax = fig.add_axes([0.92, 0.15, 0.03, 0.7])
     cbar = fig.colorbar(ax0, cax=cbar_ax)
-    #cbar.set_ylim(-0.2, 0.2)
+    plt.suptitle("Delta of mutation frequency plots")
     plt.show()
     
 
@@ -444,7 +446,7 @@ def get_mat(aa_list, ct_dict, size):
             key = "{}>{}".format(mut_y, mut_x)
             if key in ct_dict:
                 mat[i, j] = ct_dict[key]
-                #print(i, j, key, ct_dict[key])
+                print(i, j, key, ct_dict[key])
     return mat / size
 
 
