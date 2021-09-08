@@ -16,7 +16,7 @@ from scipy.stats.mstats import pearsonr
 
 import utils
 
-results_path = "test_results/20A_20C_06Sept_20EPO/"
+results_path = "test_results/20A_20C_08Sept/" #20A_20C_06Sept_20EPO
 clade_parent = "20A"
 clade_child = "20C"
 clade_end = ["20H (Beta, V2)", "20G", "21C (Epsilon)", "21F (Iota)"]
@@ -212,6 +212,8 @@ def plot_l_distance():
     plt.show()
 
 
+######################## 
+
 def plot_mutation_counts():
     file_name = "true_predicted_multiple_te_x_1times.csv"
     df_true_pred = pd.read_csv(results_path + file_name, sep=",")
@@ -255,8 +257,7 @@ def plot_mutation_counts():
                 if key not in parent_gen:
                     parent_gen[key] = 0
                 parent_gen[key] += 1
-        
- 
+
     write_dict(results_path + "parent_child.json", parent_child)
     write_dict(results_path + "parent_gen.json", parent_gen)
 
@@ -265,28 +266,47 @@ def plot_mutation_counts():
     test_size = df_true_pred.shape[0]
 
     parent_child = dict(sorted(parent_child.items(), key=lambda item: item[1], reverse=True))
-    print(parent_child)
+    print("Test: Mutation freq between parent-child: {}".format(parent_child))
+    print("Test: # Mutations between parent-child: {}".format(str(len(parent_child))))
     print()
+
     parent_gen = dict(sorted(parent_gen.items(), key=lambda item: item[1], reverse=True))
-    print(parent_gen)
+    print("Test: Mutation freq between parent-gen: {}".format(parent_gen))
+    print("Test: # Mutations between parent-child: {}".format(str(len(parent_gen))))
     print()
 
     par_child_mat = get_mat(aa_list, parent_child, test_size)
 
     par_gen_mat = get_mat(aa_list, parent_gen, test_size)
+
     print("Preparing train data...")
-    tr_par_child_mat = get_train_mat()
-
-    pearson_corr_te_par_child_par_gen_mut = pearsonr(par_child_mat, par_gen_mat)
-
-    pearson_corr_tr_par_child_par_gen_mut = pearsonr(tr_par_child_mat, par_gen_mat)
+    tr_par_child_mat, tr_parent_child  = get_train_mat()
 
     pearson_corr_tr_par_child_mut = pearsonr(tr_par_child_mat, par_child_mat)
+    pearson_corr_tr_par_child_par_gen_mut = pearsonr(tr_par_child_mat, par_gen_mat)
+    pearson_corr_te_par_child_par_gen_mut = pearsonr(par_child_mat, par_gen_mat)
 
-    #print("Spearman correlation between par-child mut and par-gen mut: {}".format(str(sp_corr)))
-    print("Pearson correlation between train par-child mut: {}".format(str(pearson_corr_tr_par_child_mut)))
-    print("Pearson correlation between train par-child mut and par-gen mut: {}".format(str(pearson_corr_tr_par_child_par_gen_mut)))
+    print("Pearson correlation between train and test par-child mut: {}".format(str(pearson_corr_tr_par_child_mut)))
+    print("Pearson correlation between train par-child mut and test par-gen mut: {}".format(str(pearson_corr_tr_par_child_par_gen_mut)))
     print("Pearson correlation between test par-child mut and par-gen mut: {}".format(str(pearson_corr_te_par_child_par_gen_mut)))
+
+    tr_par_child_keys = list(tr_parent_child.keys())
+    te_par_child_keys = list(parent_child.keys())
+    te_par_gen_keys = list(parent_gen.keys())
+
+    print("Size of mutations - tr par-child, te par-child, te par-gen")
+    print(len(tr_parent_child), len(parent_child), len(parent_gen))
+
+    intersection_tr_par_child_te_par_child = len(list(set(tr_par_child_keys).intersection(set(te_par_child_keys)))) / float(len(tr_parent_child))
+    print("% intersection between tr par-child and te par-child: {}".format(str(np.round(intersection_tr_par_child_te_par_child, 2))))
+
+    intersection_tr_par_child_te_par_gen = len(list(set(tr_par_child_keys).intersection(set(te_par_gen_keys)))) / float(len(tr_parent_child))
+    print("% intersection between tr par-child and te par-gen: {}".format(str(np.round(intersection_tr_par_child_te_par_gen, 2))))
+
+    intersection_te_par_child_te_par_gen = len(list(set(te_par_child_keys).intersection(set(te_par_gen_keys)))) / float(len(te_par_child_keys))
+    print("% intersection between te par-child and te par-gen: {}".format(str(np.round(intersection_te_par_child_te_par_gen, 2)))) 
+
+    # generate plots
 
     cmap = "Spectral" #"RdYlBu"
     plt.rcParams.update({'font.size': 8})
@@ -298,7 +318,6 @@ def plot_mutation_counts():
 
     interpolation = "none"
 
-    
     ax0 = axs[0].imshow(tr_par_child_mat, cmap=cmap,  interpolation=interpolation, aspect='auto')
     axs[0].set_title("Train parent-child mutation frequency")
     axs[0].set_ylabel("From")
@@ -308,7 +327,6 @@ def plot_mutation_counts():
     axs[0].set_yticks(pos_ticks)
     axs[0].set_yticklabels(pos_labels, rotation='horizontal')
 
-
     ax1 = axs[1].imshow(par_child_mat, cmap=cmap,  interpolation=interpolation, aspect='auto')
     axs[1].set_title("Test parent-child mutation frequency")
     axs[1].set_ylabel("From")
@@ -317,7 +335,6 @@ def plot_mutation_counts():
     axs[1].set_xticklabels(pos_labels, rotation='horizontal')
     axs[1].set_yticks(pos_ticks)
     axs[1].set_yticklabels(pos_labels, rotation='horizontal')
-
 
     ax2 = axs[2].imshow(par_gen_mat, cmap=cmap,  interpolation=interpolation, aspect='auto')
     axs[2].set_title("Test parent-generated mutation frequency")
@@ -351,7 +368,6 @@ def plot_mutation_counts():
     axs[0].set_yticks(pos_ticks)
     axs[0].set_yticklabels(pos_labels, rotation='horizontal')
 
-
     ax1 = axs[1].imshow(diff_te_par_gen_te_par_child, cmap=cmap,  interpolation=interpolation, aspect='auto', vmin=-0.2, vmax=0.2)
     axs[1].set_title("Generated vs test")
     axs[1].set_ylabel("From")
@@ -360,7 +376,6 @@ def plot_mutation_counts():
     axs[1].set_xticklabels(pos_labels, rotation='horizontal')
     axs[1].set_yticks(pos_ticks)
     axs[1].set_yticklabels(pos_labels, rotation='horizontal')
-
 
     ax2 = axs[2].imshow(diff_tr_par_child_te_par_gen, cmap=cmap,  interpolation=interpolation, aspect='auto', vmin=-0.2, vmax=0.2)
     axs[2].set_title("Generated vs training")
@@ -414,10 +429,11 @@ def get_train_mat():
     aa_list = list('QNKWFPYLMTEIARGHSDVC')
 
     tr_parent_child = dict(sorted(tr_parent_child.items(), key=lambda item: item[1], reverse=True))
-    print(tr_parent_child)
+    print("Train: Mutation freq between parent-child: {}".format(tr_parent_child))
+    print("Train: # Mutations between parent-child: {}".format(str(len(tr_parent_child))))
     print()
 
-    return get_mat(aa_list, tr_parent_child, df.shape[0])
+    return get_mat(aa_list, tr_parent_child, df.shape[0]), tr_parent_child
 
 
 def get_mat(aa_list, ct_dict, size):
@@ -428,7 +444,7 @@ def get_mat(aa_list, ct_dict, size):
             key = "{}>{}".format(mut_y, mut_x)
             if key in ct_dict:
                 mat[i, j] = ct_dict[key]
-                print(i, j, key, ct_dict[key])
+                #print(i, j, key, ct_dict[key])
     return mat / size
 
 
