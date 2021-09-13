@@ -14,14 +14,14 @@ import matplotlib.pyplot as plt
 import utils
 
 
-RESULT_PATH = "test_results/20A_20C_08Sept/"
+RESULT_PATH = "test_results/20A_20C_13Sept_CPU/"
 enc_units = 128
 LEN_AA = 1273
 seq_len = LEN_AA
 
 clade_source = "20A"
 clade_start = "20C"
-generating_factor = 20
+generating_factor = 5
 
 
 def load_model_generated_sequences():
@@ -31,11 +31,11 @@ def load_model_generated_sequences():
     r_dict = utils.read_json(RESULT_PATH + "r_word_dictionaries.json")
     vocab_size = len(r_dict) + 1
     total_te_loss = list()
-    print("Loading trained model from {}...".format(RESULT_PATH))
-    loaded_encoder = tf.keras.models.load_model(RESULT_PATH + "enc_model")
-    loaded_generator = tf.keras.models.load_model(RESULT_PATH + "gen_model")
-    print(loaded_encoder)
-    print(loaded_generator)
+    #print("Loading trained model from {}...".format(RESULT_PATH))
+    #loaded_encoder = tf.keras.models.load_model(RESULT_PATH + "enc_model")
+    #loaded_generator = tf.keras.models.load_model(RESULT_PATH + "gen_model")
+    #print(loaded_encoder)
+    #print(loaded_generator)
     print("Generating sequences for {}...".format(clade_start))
     for te_name in te_clade_files:
         te_clade_df = pd.read_csv(te_name, sep="\t")
@@ -45,10 +45,10 @@ def load_model_generated_sequences():
         batch_size = te_clade_df.shape[0]
         with tf.device('/device:cpu:0'):
             #te_loss = predict_sequence(te_X, te_y, LEN_AA, vocab_size, batch_size, loaded_encoder, loaded_generator, generating_factor)
-            predict_multiple(te_X, te_y, LEN_AA, vocab_size, batch_size, loaded_encoder, loaded_generator)
+            predict_multiple(te_X, te_y, LEN_AA, vocab_size, batch_size)
 
 
-def predict_multiple(test_x, test_y, seq_len, vocab_size, batch_size, loaded_encoder, loaded_generator):
+def predict_multiple(test_x, test_y, seq_len, vocab_size, batch_size):
     batch_size = test_x.shape[0]
 
     rand_pos = np.random.randint(1, test_x.shape[0], batch_size)
@@ -71,14 +71,21 @@ def predict_multiple(test_x, test_y, seq_len, vocab_size, batch_size, loaded_enc
         batch_x_test = utils.pred_convert_to_array(x)
         batch_y_test = utils.pred_convert_to_array(y)
         print(batch_x_test.shape, batch_y_test.shape)
-        noise = tf.random.normal((batch_size, enc_units))
         print("Generating multiple sequences for each test sequence...")
         for i in range(generating_factor):
-            #noise = tf.random.normal((batch_size, enc_units))
+
+            print("Generating for iter {}".format(str(i+1)))
+            print("Loading trained model from {}...".format(RESULT_PATH))
+            loaded_encoder = tf.keras.models.load_model(RESULT_PATH + "enc_model")
+            loaded_generator = tf.keras.models.load_model(RESULT_PATH + "gen_model")
+            
+            noise = tf.random.normal((batch_size, enc_units))
+
             enc_output, enc_state = loaded_encoder(batch_x_test, training=False)
             enc_state = tf.math.add(enc_state, noise)
+
             print(batch_x_test.shape, noise.shape, enc_state.shape)
-            #dec_state = enc_state
+
             generated_logits = gen_step_predict(seq_len, batch_size, vocab_size, loaded_generator, enc_state)
             p_y = tf.math.argmax(generated_logits, axis=-1)
 
@@ -90,6 +97,7 @@ def predict_multiple(test_x, test_y, seq_len, vocab_size, batch_size, loaded_enc
             for k in range(0, len(one_x)):
                l_dist_x_pred = utils.compute_Levenshtein_dist(one_x[k], pred_y[k])
                l_x_gen.append(l_dist_x_pred)
+            print(l_x_gen)
                   
             print("Step:{}, mean levenshtein distance (x and pred): {}".format(str(i+1), str(np.mean(l_x_gen))))
 
