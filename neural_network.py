@@ -27,11 +27,13 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     				return_sequences=True,
     				return_state=True,
     				recurrent_initializer='glorot_uniform')
+    g_noise = tf.keras.layers.GaussianNoise(1.0)
     inputs = tf.keras.Input(shape=(seq_len,))
     # create model
     embed = gen_embedding(gen_inputs)
     embed = tf.keras.layers.Dropout(DROPOUT)(embed)
     gen_output, gen_state = gen_gru(embed)
+    gen_state = g_noise(gen_state)
     encoder_model = tf.keras.Model([gen_inputs], [gen_output, gen_state])
 
     # Create decoder for Generator
@@ -68,10 +70,11 @@ def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units):
                                    return_sequences=True,
                                    return_state=True,
                                    recurrent_initializer='glorot_uniform')
-
+    g_noise = tf.keras.layers.GaussianNoise(1.0)
     parent_inputs_embedding = enc_embedding(parent_inputs)
     parent_inputs_embedding = tf.keras.layers.Dropout(DROPOUT)(parent_inputs_embedding)
     enc_outputs, enc_state = enc_GRU(parent_inputs_embedding)
+    enc_state = g_noise(enc_state)
     disc_par_encoder_model = tf.keras.Model([parent_inputs], [enc_state])
 
     # generated seq encoder model
@@ -79,9 +82,11 @@ def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units):
     gen_enc_inputs = tf.keras.layers.Dense(embedding_dim, use_bias=False)(gen_inputs)
     gen_enc_inputs = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(gen_enc_inputs)
     gen_enc_inputs = tf.keras.layers.Dropout(DROPOUT)(gen_enc_inputs)
+    g_noise = tf.keras.layers.GaussianNoise(1.0)
     gen_enc_outputs, gen_enc_state = enc_GRU(gen_enc_inputs)
+    gen_enc_state = g_noise(gen_enc_state)
     disc_gen_encoder_model = tf.keras.Model([gen_inputs], [gen_enc_state])
-
+     
     # initialize weights of discriminator's encoder model for parent and generated seqs
     disc_par_encoder_model.load_weights(ENC_WEIGHTS_SAVE_PATH)
     disc_gen_encoder_model.layers[1].set_weights(enc_embedding.get_weights())
