@@ -43,6 +43,7 @@ PRETRAIN_GEN_MODEL = "data/generated_files/pretrain_gen_decoder"
 TRAIN_ENC_MODEL = "data/generated_files/enc_model"
 TRAIN_GEN_MODEL = "data/generated_files/gen_model"
 SAVE_TRUE_PRED_SEQ = "data/generated_files/true_predicted_df.csv"
+TR_MUT_INDICES = "data/generated_files/tr_mut_indices.json"
 
 l_dist_name = "levenshtein_distance"
 LEN_AA = 1273
@@ -52,7 +53,7 @@ embedding_dim = 128
 batch_size = 32
 enc_units = 128
 pretrain_epochs = 5
-epochs = 20
+epochs = 10
 n_test_train_samples = 1000
 seq_len = LEN_AA
 
@@ -68,10 +69,10 @@ def read_files():
     print(clades_in_clades_out)    
     print("Generating cross product...")
     preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df)
-    start_training(len(rev_dict) + 1)
+    start_training(len(rev_dict) + 1, forward_dict, rev_dict)
 
 
-def start_training(vocab_size):
+def start_training(vocab_size, forward_dict, rev_dict):
     encoder, decoder = neural_network.make_generator_model(LEN_AA, vocab_size, embedding_dim, enc_units, batch_size)
     pretrain_gen_loss = list()
     pretrain_gen_test_loss = list()
@@ -79,9 +80,6 @@ def start_training(vocab_size):
     print("Loading datasets...")
     tr_clade_files = glob.glob('data/train/*.csv')
     te_clade_files = glob.glob('data/test/*.csv')
-
-    #train_size = 40000
-    #test_size = 10000
 
     # load train data
     for name in tr_clade_files:
@@ -95,12 +93,6 @@ def start_training(vocab_size):
         te_clade_df = pd.read_csv(te_name, sep="\t")
         te_X = te_clade_df["X"]
         te_y = te_clade_df["Y"]
-
-    #X = X[:train_size]
-    #y = y[:train_size]
-
-    #te_X = te_X[:test_size]
-    #te_y = te_y[:test_size]
 
     print("train and test data sizes")
     print(X.shape, y.shape, te_X.shape, te_y.shape)
@@ -153,18 +145,17 @@ def start_training(vocab_size):
     X_train = X
     y_train = y
 
-    #X_train = X[:n_test_train_samples]
-    #y_train = y[:n_test_train_samples]
-    #X_y_l = X_y_l[:n_test_train_samples]
-    # get training dataset as sliced tensors
-    
-
     n_train_batches = int(X_train.shape[0]/float(batch_size))
     print("Num of train batches: {}".format(str(n_train_batches)))
     test_data_load = [test_dataset_in, test_dataset_out]
+
+    # balance tr data by mutations
+    parent_child_mut_indices = utils.get_mutation_tr_indices(X_train, y_train, forward_dict, rev_dict)
+    utils.save_as_json(TR_MUT_INDICES, parent_child_mut_indices)
+
     for n in range(epochs):
         print("Training epoch {}/{}...".format(str(n+1), str(epochs)))
-        epo_gen_true_loss, epo_gen_fake_loss, epo_total_gen_loss, epo_disc_true_loss, epo_disc_fake_loss, epo_total_disc_loss, encoder, decoder = train_model.start_training([X_train, y_train, X_y_l], n, encoder, decoder, disc_parent_encoder_model, disc_gen_encoder_model, discriminator, enc_units, vocab_size, n_train_batches, batch_size, test_data_load)
+        epo_gen_true_loss, epo_gen_fake_loss, epo_total_gen_loss, epo_disc_true_loss, epo_disc_fake_loss, epo_total_disc_loss, encoder, decoder = train_model.start_training_mut_balanced([X_train, y_train, X_y_l], n, encoder, decoder, disc_parent_encoder_model, disc_gen_encoder_model, discriminator, enc_units, vocab_size, n_train_batches, batch_size, test_data_load, parent_child_mut_indices)
 
         print("Training loss at step {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}, D true loss: {}, D fake loss: {}, Total D loss: {}".format(str(n+1), str(epochs), str(epo_gen_true_loss), str(epo_gen_fake_loss), str(epo_total_gen_loss), str(epo_disc_true_loss), str(epo_disc_fake_loss), str(epo_total_disc_loss)))
 

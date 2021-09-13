@@ -16,7 +16,7 @@ from scipy.stats.mstats import pearsonr
 
 import utils
 
-results_path = "test_results/20A_20C_08Sept/" #20A_20C_06Sept_20EPO
+results_path = "test_results/20A_20C_13Sept_CPU/" #20A_20C_06Sept_20EPO
 clade_parent = "20A"
 clade_child = "20C"
 clade_end = ["20H (Beta, V2)", "20G", "21C (Epsilon)", "21F (Iota)"]
