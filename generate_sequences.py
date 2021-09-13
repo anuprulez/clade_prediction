@@ -51,19 +51,14 @@ def load_model_generated_sequences():
 def predict_multiple(test_x, test_y, seq_len, vocab_size, batch_size):
     batch_size = test_x.shape[0]
 
-    rand_pos = np.random.randint(1, test_x.shape[0], batch_size)
-
-    test_x_rand = test_x[rand_pos]
-    text_y_rand = test_y[rand_pos]
-
-    test_dataset_in = tf.data.Dataset.from_tensor_slices((test_x_rand)).batch(batch_size)
-    test_dataset_out = tf.data.Dataset.from_tensor_slices((text_y_rand)).batch(batch_size)
+    test_dataset_in = tf.data.Dataset.from_tensor_slices((test_x)).batch(batch_size)
+    test_dataset_out = tf.data.Dataset.from_tensor_slices((test_y)).batch(batch_size)
 
     true_x = list()
     true_y = list()
     predicted_y = list()
 
-    num_te_batches = int(len(test_x_rand) / float(batch_size))
+    num_te_batches = int(len(test_x) / float(batch_size))
 
     print("Num test batches: {}".format(str(num_te_batches)))
 
