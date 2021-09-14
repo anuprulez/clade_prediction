@@ -23,7 +23,7 @@ seq_len = LEN_AA
 
 clade_source = "20A"
 clade_start = "20C"
-generating_factor = 5
+generating_factor = 100
 
 
 def load_model_generated_sequences():
@@ -71,7 +71,7 @@ def predict_multiple(test_x, test_y, seq_len, vocab_size, batch_size):
         print("Generating multiple sequences for each test sequence...")
         for i in range(generating_factor):
 
-            print("Generating for iter {}".format(str(i+1)))
+            print("Generating for iter {}/{}".format(str(i+1), str(generating_factor)))
             print("Loading trained model from {}...".format(RESULT_PATH))
             loaded_encoder = tf.keras.models.load_model(RESULT_PATH + "enc_model")
             loaded_generator = tf.keras.models.load_model(RESULT_PATH + "gen_model")
@@ -95,13 +95,15 @@ def predict_multiple(test_x, test_y, seq_len, vocab_size, batch_size):
                l_dist_x_pred = utils.compute_Levenshtein_dist(one_x[k], pred_y[k])
                if l_dist_x_pred > min_diff and l_dist_x_pred < max_diff:
                    l_x_gen.append(l_dist_x_pred)
-                   true_x.extend(one_x[k])
-                   true_y.extend(one_y[k])
-                   predicted_y.extend(pred_y[k])
-            print(l_x_gen)
+                   true_x.append(one_x[k])
+                   true_y.append(one_y[k])
+                   predicted_y.append(pred_y[k])
+            print(len(l_x_gen), l_x_gen)
 
             print("Step:{}, mean levenshtein distance (x and pred): {}".format(str(i+1), str(np.mean(l_x_gen))))
-
+            print("Step:{}, median levenshtein distance (x and pred): {}".format(str(i+1), str(np.median(l_x_gen))))
+            print("Step:{}, standard deviation levenshtein distance (x and pred): {}".format(str(i+1), str(np.std(l_x_gen))))
+            print("Step:{}, variance levenshtein distance (x and pred): {}".format(str(i+1), str(np.var(l_x_gen))))
             #true_x.extend(one_x)
             #true_y.extend(one_y)
             #predicted_y.extend(pred_y)
