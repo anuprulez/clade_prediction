@@ -14,7 +14,9 @@ import matplotlib.pyplot as plt
 import utils
 
 
-RESULT_PATH = "test_results/20A_20C_13Sept_CPU/"
+RESULT_PATH = "test_results/20A_20C_14Sept_CPU/"
+min_diff = 0
+max_diff = 61
 enc_units = 128
 LEN_AA = 1273
 seq_len = LEN_AA
@@ -91,14 +93,18 @@ def predict_multiple(test_x, test_y, seq_len, vocab_size, batch_size):
             l_x_gen = list()
             for k in range(0, len(one_x)):
                l_dist_x_pred = utils.compute_Levenshtein_dist(one_x[k], pred_y[k])
-               l_x_gen.append(l_dist_x_pred)
+               if l_dist_x_pred > min_diff and l_dist_x_pred < max_diff:
+                   l_x_gen.append(l_dist_x_pred)
+                   true_x.extend(one_x[k])
+                   true_y.extend(one_y[k])
+                   predicted_y.extend(pred_y[k])
             print(l_x_gen)
-                  
+
             print("Step:{}, mean levenshtein distance (x and pred): {}".format(str(i+1), str(np.mean(l_x_gen))))
 
-            true_x.extend(one_x)
-            true_y.extend(one_y)
-            predicted_y.extend(pred_y)
+            #true_x.extend(one_x)
+            #true_y.extend(one_y)
+            #predicted_y.extend(pred_y)
 
             print("Generation iter {} done".format(str(i+1)))
             print("----------")
