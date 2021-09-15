@@ -21,6 +21,7 @@ def compute_Levenshtein_dist(seq_in, seq_out):
     #return np.random.randint(1, 5)
     return lev_dist(seq_in, seq_out)
 
+
 def reconstruct_seq(kmers):
     reconstructed_seq = []
     for i, km in enumerate(kmers):
@@ -34,13 +35,19 @@ def reconstruct_seq(kmers):
 def get_all_possible_words(vocab):
     return [char for char in vocab]
 
-def convert_to_array(str_data):
+
+def convert_to_array(str_data, test=False):
     shp = str_data.shape[0]
-    tolst = str_data.numpy()
-    f_list = [item.decode("utf-8").split(",") for item in tolst]
+    if test == True:
+        tolst = str_data.numpy()
+        f_list = [item.decode("utf-8").split(",") for item in tolst]
+    else:
+        tolst = str_data.tolist()
+        f_list = [item.split(",") for item in tolst]
     toarray = np.array([list(map(int, lst)) for lst in f_list])
     tensor = tf.convert_to_tensor(toarray, dtype=tf.int32)
     return toarray
+
 
 def pred_convert_to_array(str_data):
     shp = str_data.shape[0]
@@ -75,12 +82,14 @@ def one_hot_encoding():
     encoded_seq = np.array(encoded_seq)
     print(encoded_seq.shape)
 
+
 def read_in_out(path):
     data_df = pd.read_csv(path, sep="\t")
     samples = data_df[['Sequence_x', 'Sequence_y']]
     samples["Sequence_x"] = samples["Sequence_x"].str.split(",")
     samples["Sequence_y"] = samples["Sequence_y"].str.split(",")
     return samples
+
 
 def get_words_indices(word_list):
     forward_dictionary = {i + 1: word_list[i] for i in range(0, len(word_list))}
@@ -118,8 +127,8 @@ def predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, enc
     loaded_encoder = tf.keras.models.load_model(enc_path)
     loaded_generator = tf.keras.models.load_model(dec_path)
     for step, (x, y) in enumerate(zip(test_dataset_in, test_dataset_out)):
-        batch_x_test = convert_to_array(x)
-        batch_y_test = convert_to_array(y)
+        batch_x_test = convert_to_array(x, test=True)
+        batch_y_test = convert_to_array(y, test=True)
         batch_size = batch_x_test.shape[0]
         if batch_x_test.shape[0] == batch_size:
             # generated noise for variation in predicted sequences
@@ -158,7 +167,7 @@ def gen_step_predict(seq_len, batch_size, vocab_size, gen_decoder, dec_state, re
     return pred_logits, gen_decoder, step_loss
 
 
-def balance_train_dataset(x, y, x_y_l):
+def balance_train_dataset_by_levenshtein_dist(x, y, x_y_l):
     lst_x = x
     lst_y = y
     l_dist = x_y_l.numpy()
@@ -179,7 +188,7 @@ def balance_train_dataset(x, y, x_y_l):
 
         bal_x.extend(rand_x_rows)
         bal_y.extend(rand_y_rows)
-        #print(l_val, len(x_rows), len(y_rows), n_samples, len(rand_x_rows), len(rand_y_rows))
+        print(l_val, len(x_rows), len(y_rows), n_samples, len(rand_x_rows), len(rand_y_rows))
 
     bal_x = np.array(bal_x)
     bal_y = np.array(bal_y)
@@ -191,7 +200,45 @@ def balance_train_dataset(x, y, x_y_l):
 
     bal_x_bs = tf.convert_to_tensor(bal_x_bs, dtype=tf.int32)
     bal_y_bs = tf.convert_to_tensor(bal_y_bs, dtype=tf.int32)
-    #print(bal_x_bs)
-    #print()
-    #print(bal_y_bs)
     return bal_x_bs, bal_y_bs
+
+
+def save_batch(batch_x, batch_y, batch_mut_distribution):
+    for index, (x, y) in enumerate(zip(batch_x, batch_y)):
+        true_x = x.split(",")
+        true_y = y.split(",")
+        for i in range(len(true_x)):
+            first = true_x[i:i+1]
+            sec = true_y[i:i+1]
+            first_mut = first[0]
+            second_mut = sec[0]
+            if first_mut != second_mut:
+                key = "{}>{}".format(first_mut, second_mut)
+                if key not in batch_mut_distribution:
+                    batch_mut_distribution[key] = 0
+                batch_mut_distribution[key] += 1
+    return batch_mut_distribution
+
+
+def get_mutation_tr_indices(train_in, train_out, f_dict, r_dict):
+    parent_child_mut_indices = dict()
+    for index, (x, y) in enumerate(zip(train_in, train_out)):
+        true_x = x.split(",")
+        true_y = y.split(",")
+
+        for i in range(len(true_x)):
+            first = true_x[i:i+1]
+            sec = true_y[i:i+1]
+
+            first_aa = [f_dict[int(j)] for j in first]
+            sec_aa = [f_dict[int(j)] for j in sec]
+        
+            first_mut = first_aa[0]
+            second_mut = sec_aa[0]
+
+            if first_mut != second_mut:
+                key = "{}>{}".format(first_mut, second_mut)
+                if key not in parent_child_mut_indices:
+                    parent_child_mut_indices[key] = list()
+                parent_child_mut_indices[key].append(index)
+    return parent_child_mut_indices

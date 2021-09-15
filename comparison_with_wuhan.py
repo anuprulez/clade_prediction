@@ -31,20 +31,30 @@ import utils
 
 """
 clade_parent = "20C"
-clade_child = "20G" #"21F_Iota"
+clade_child = "21C_Epsilon" #"21F_Iota"
 results_path = "test_results/20A_20C_14Sept_CPU/" #20A_20C_06Sept_20EPO #20A_20C_14Sept_GPU
-sub_path = "20C_20G/"
-#file_name_mut_ct = "20C_20G/true_predicted_multiple_te_x_20C_20G_5times.csv"
-#tr_file_name = "20C_20G/train/20C_20G.csv"
+sub_path = "21C_Epsilon/"
 
-file_name_mut_ct = "20C_20G/true_predicted_multiple_te_x_20C_20G_1times.csv"
-tr_file_name = "20C_20G/train/20C_20G.csv"
+file_name_mut_ct = "20C_21C_Epsilon/true_predicted_multiple_te_x_20C_21C_Epsilon_1times.csv"
+tr_file_name = "20C_21C_Epsilon/train/20C_21C_Epsilon.csv"
 
 #clade_end = ["20H (Beta, V2)", "20G", "21C (Epsilon)", "21F (Iota)"]
 #pred_file = "true_predicted_multiple.csv" #"true_predicted_df.csv"
 
 #c_20A = ["20B", "20C", "20E (EU1)"] #["20B", "20C", "20E (EU1)", "21A (Delta)", "21B (Kappa)", "21D (Eta)"]
 
+
+        
+def read_wuhan_hu_1_spike(r_dict):
+    wuhan_seq = ""
+    path = results_path + "wuhan-hu-1-spike-prot.txt"
+    with open(path, "r") as f_seq:
+        original_seq = f_seq.read()
+    wuhan_seq = original_seq.split("\n")
+    wuhan_seq = wuhan_seq[:len(wuhan_seq) - 1]
+    wuhan_seq = "".join(wuhan_seq)
+    enc_wuhan_seq = [str(r_dict[aa]) for aa in wuhan_seq]
+    return ",".join(enc_wuhan_seq)
 
 def read_json(file_path):
     with open(file_path) as file:
@@ -87,154 +97,6 @@ def get_frac_seq_mat(list_seq, min_pos, max_pos):
     return np.array(mat)
 
 
-
-def plot_sequences(min_pos, max_pos):
-    #min_pos = 1
-    #max_pos = 50
-    f_dict = read_json(results_path + "f_word_dictionaries.json")
-
-    df = pd.read_csv(results_path + "sample_clade_sequence_df.csv", sep=",")
-
-    df_tru_gen = pd.read_csv(results_path + pred_file, sep=",")
-    
-    df_gen = df_tru_gen["Generated"].tolist()
- 
-    # parent clade
-    #parent = df[df["Clade"] == clade_parent]["Sequence"].tolist()
-    parent = df_tru_gen["20A"].tolist()
-    mat_parent = get_frac_seq_mat(parent, min_pos, max_pos)
-    print(mat_parent.shape)
-    print("----")
-
-    n_parent = mat_parent.shape[0]
-
-    # child clade
-    data_child = df_tru_gen["20C"].tolist() #df[df["Clade"] == clade_child]["Sequence"].tolist()
-    mat_child = get_frac_seq_mat(data_child, min_pos, max_pos)
-    print(mat_child.shape)
-    print("----")
-
-    # true child > child clades
-    c_seq_list = list()
-
-    for c in clade_end:
-        u_list = list()
-        df_clade = df[df["Clade"] == c]
-        seq = df_clade["Sequence"]
-        #print(c, seq.shape)
-        c_seq_list.extend(seq.tolist())
-
-    len_c_seq = len(c_seq_list)
-
-    mat_true = get_frac_seq_mat(c_seq_list, min_pos, max_pos)
-    print(mat_true.shape)
-    print("----")
-
-    # generated child > child clades
-    #gen_sampled = random.sample(df_gen, n_parent)
-    
-    mat_gen_sampled = get_frac_seq_mat(df_gen, min_pos, max_pos)
-    print(mat_gen_sampled.shape)
-    print("----")
-
-    '''parent = df[df["Clade"] == "19A"]["Sequence"].tolist()
-
-    gen_mut = compare_mutations(parent, mat_gen_sampled, f_dict, min_pos, max_pos)
-
-    print(gen_mut)
-
-    write_dict("data/generated_files/generated_mutations_c_20A.json", gen_mut)
-
-    true_mut = compare_mutations(parent, mat_true, f_dict, min_pos, max_pos)
-
-    print(true_mut)
-
-    write_dict("data/generated_files/true_mutations_c_20A.json", true_mut)'''
-
-    cmap = "RdYlBu"
-    plt.rcParams.update({'font.size': 16})
-    fdict_min = 0
-    f_dict_max = 21
-    aa_dict = f_dict
-    aa_names = list(aa_dict.values())
-
-    fig, axs = plt.subplots(4)
-    #fig.suptitle('D614G mutation in spike protein: 19A, 20A, true (20B, 20C and 20E (EU1)) and generated child amino acid (AA) sequences of 20A')
-    pos_labels = list(np.arange(min_pos, max_pos))
-    pos_ticks = list(np.arange(0, len(pos_labels)))
-    pos_labels = [i+1 for i in pos_labels]
-
-    color_ticks = list(np.arange(0, len(aa_dict)))
-    color_tick_labels = aa_names
-    interpolation = "none"
-
-    ax0 = axs[0].imshow(mat_gen_sampled, cmap=cmap,  interpolation=interpolation, aspect='auto', vmin=fdict_min, vmax=f_dict_max)
-    axs[0].set_title("Generated children of {}".format(clade_child))
-    #axs[0].set_xlabel("Amino acid positions")
-    axs[0].set_ylabel("AA Sequences")
-    axs[0].set_xticks(pos_ticks)
-    axs[0].set_xticklabels(pos_labels, rotation='horizontal')
-
-    ax1 = axs[1].imshow(mat_true, cmap=cmap,  interpolation=interpolation, aspect='auto', vmin=fdict_min, vmax=f_dict_max)
-    #fig.colorbar(ax0, ax=axs[1])
-    axs[1].set_title("True children of {}".format(clade_child))
-    #axs[1].set_xlabel("Amino acid positions")
-    axs[1].set_ylabel("AA Sequences")
-    axs[1].set_xticks(pos_ticks)
-    axs[1].set_xticklabels(pos_labels, rotation='horizontal')
-
-    ax2 = axs[2].imshow(mat_child, cmap=cmap,  interpolation=interpolation, aspect='auto', vmin=fdict_min, vmax=f_dict_max)
-    #fig.colorbar(ax0, ax=axs[2])
-    axs[2].set_title(clade_child)
-    #axs[2].set_xlabel("Amino acid positions")
-    axs[2].set_ylabel("AA Sequences")
-    axs[2].set_xticks(pos_ticks)
-    axs[2].set_xticklabels(pos_labels, rotation='horizontal')
-
-    ax3 = axs[3].imshow(mat_parent, cmap=cmap,  interpolation=interpolation, aspect='auto', vmin=fdict_min, vmax=f_dict_max)
-    #fig.colorbar(ax0, ax=axs[3])
-    axs[3].set_title(clade_parent)
-    axs[3].set_xlabel("Spike protein: AA positions")
-    axs[3].set_ylabel("AA Sequences")
-    axs[3].set_xticks(pos_ticks)
-    axs[3].set_xticklabels(pos_labels, rotation='horizontal')
-
-    cbar_ax = fig.add_axes([0.92, 0.15, 0.03, 0.7])
-    cbar = fig.colorbar(ax0, cax=cbar_ax)
-    cbar.set_ticks(color_ticks)
-    cbar.ax.set_yticklabels(color_tick_labels, rotation='0')
-
-    plt.show()
-
-    '''plt.ylim(0, to_show_len)
-    plt.imshow(mat_gen_sampled, cmap='Reds')
-    plt.title("Generated children of 20A")
-    plt.colorbar()
-    plt.show()
-
-    plt.imshow(mat_true, cmap='Reds')
-    plt.title("True children of 20A")
-    plt.ylim(0, to_show_len)
-    plt.colorbar()
-    plt.show()'''
-
-
-def plot_l_distance():
-    file_path = "data/generated_files/filtered_l_distance.txt"
-    with open(file_path, "r") as l_f:
-        content = l_f.read()
-    content = content.split("\n")
-    content = content[:len(content) - 1]
-    content = [float(i) for i in content]
-    print("Mean Levenshtein distance: {}".format(str(np.mean(content))))
-    plt.hist(content, density=False, bins=30)
-    plt.ylabel('Count')
-    plt.xlabel('Levenstein distance')
-    plt.show()
-
-
-######################## 
-
 def plot_mutation_counts():
     df_true_pred = pd.read_csv(results_path + file_name_mut_ct, sep=",")
     #df_true_pred = df_true_pred[:100]
@@ -243,8 +105,14 @@ def plot_mutation_counts():
     parent_child = dict()
     parent_gen = dict()
     child_gen = dict()
+    original_gen = dict()
 
     f_dict = read_json(results_path + "f_word_dictionaries.json")
+    r_dict = read_json(results_path + "r_word_dictionaries.json")
+
+    enc_original_wuhan_seq = read_wuhan_hu_1_spike(r_dict)
+
+    original_wuhan = enc_original_wuhan_seq.split(",")
 
     # compare differences at positions
     space = 1
@@ -252,19 +120,23 @@ def plot_mutation_counts():
         true_x = row[cols[0]].split(",")
         true_y = row[cols[1]].split(",")
         pred_y = row[cols[2]].split(",")
+        
 
         for i in range(len(true_x)):
             first = true_x[i:i+space]
             sec = true_y[i:i+space]
             third = pred_y[i:i+space]
+            orin_wu = original_wuhan[i:i+space]
 
             first_aa = [f_dict[j] for j in first]
             sec_aa = [f_dict[j] for j in sec]
             third_aa = [f_dict[j] for j in third]
+            orin_wu_aa = [f_dict[j] for j in orin_wu]
         
             first_mut = first_aa[0]
             second_mut = sec_aa[0]
             third_mut = third_aa[0]
+            original_mut = orin_wu_aa[0]
 
             if first_mut != second_mut:
                 key = "{}>{}".format(first_mut, second_mut)
@@ -274,14 +146,20 @@ def plot_mutation_counts():
         
             if first_mut != third_mut:
                 key = "{}>{}".format(first_mut, third_mut)
-                #if key in ["L>F" "T>I", "D>G", "A>V", "E>K"]: #"L>F" "T>I", "D>G", "A>V", "E>K"
-                #    print(key, i+1)
                 if key not in parent_gen:
                     parent_gen[key] = 0
                 parent_gen[key] += 1
 
+            if original_mut != third_mut:
+                key = "{}>{}".format(original_mut, third_mut)
+                if key not in original_gen:
+                    original_gen[key] = 0
+                original_gen[key] += 1
+
+
     write_dict(results_path + "parent_child.json", parent_child)
     write_dict(results_path + "parent_gen.json", parent_gen)
+    write_dict(results_path + "original_gen.json", original_gen)
 
     aa_list = list('QNKWFPYLMTEIARGHSDVC')
 
@@ -297,7 +175,12 @@ def plot_mutation_counts():
     print("Test: # Mutations between parent-child: {}".format(str(len(parent_gen))))
     print()
 
-    par_child_mat = get_mat(aa_list, parent_child, test_size)
+    parent_child = dict(sorted(original_gen.items(), key=lambda item: item[1], reverse=True))
+    print("Test: Mutation freq between original-gen: {}".format(original_gen))
+    print("Test: # Mutation freq between original-gen: {}".format(str(len(original_gen))))
+    print()
+
+    '''par_child_mat = get_mat(aa_list, parent_child, test_size)
     print()
     par_gen_mat = get_mat(aa_list, parent_gen, test_size)
 
@@ -334,7 +217,6 @@ def plot_mutation_counts():
 
     utils.save_as_json(results_path + sub_path + "common_mutations_tr_child_gen.json", common_mutations_tr_child_gen)
 
-    '''
     tr_par_child_keys = list(tr_parent_child.keys())
     te_par_child_keys = list(parent_child.keys())
     te_par_gen_keys = list(parent_gen.keys())
