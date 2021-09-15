@@ -46,8 +46,6 @@ def preprocess_seq(fasta_file, samples_clades):
             clade_name = utils.format_clade_name(clade_name)
             row.append(clade_name)
             seq_chars = list(sequence) #[char for char in sequence]
-            #u_list.extend(list(set(seq_chars)))
-            #print("".join(list(set(u_list))))
             indices_chars = [str(r_word_dictionaries[i]) for i in seq_chars]
             joined_indices_kmers = ','.join(indices_chars)
             row.append(joined_indices_kmers)
