@@ -22,8 +22,6 @@ data_path = "test_results/20A_20B_17Sept_CPU/"
 clade_parent = "20B"
 clade_childen = ["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"]
 
-#file_name_mut_ct = "true_predicted_multiple_te_{}_{}_x_1times.csv".format(clade_parent)
-#tr_file_name = "20B_21H/train/20B_21H.csv"
 
 def read_json(file_path):
     with open(file_path) as file:
@@ -83,7 +81,7 @@ def get_mut_dict(dataframe, f_dict, col_idx):
     return mut_dict
 
 
-def plot_mutation_counts():
+def plot_aa_transition_counts():
 
     df_true, df_gen = merge_clades()
     f_dict = read_json(data_path + "f_word_dictionaries.json")
@@ -99,13 +97,13 @@ def plot_mutation_counts():
     gen_size = df_gen.shape[0]
 
     parent_child = dict(sorted(mut_parent_child.items(), key=lambda item: item[1], reverse=True))
-    print("Mutation freq between parent-child: {}".format(parent_child))
-    print("# Mutations between parent-child: {}".format(str(len(parent_child))))
+    print("AA transition freq between parent-child: {}".format(parent_child))
+    print("# AA transition between parent-child: {}".format(str(len(parent_child))))
     print()
 
     parent_gen = dict(sorted(mut_parent_gen.items(), key=lambda item: item[1], reverse=True))
-    print("Mutation freq between parent-gen: {}".format(parent_gen))
-    print("Mutations between parent-child: {}".format(str(len(parent_gen))))
+    print("AA transition freq between parent-gen: {}".format(parent_gen))
+    print("AA transition between parent-child: {}".format(str(len(parent_gen))))
     print()
 
     par_child_mat = get_mat(aa_list, parent_child, true_size)
@@ -118,25 +116,25 @@ def plot_mutation_counts():
     par_child_keys = list(parent_child.keys())
     par_gen_keys = list(parent_gen.keys())
 
-    print("Size of mutations - par-child, par-gen")
+    print("Size of AA transitions - par-child, par-gen")
     print(len(par_child_keys), len(par_gen_keys))
 
     print()
-    print("Common mutations in true and gen for {}>{} branch".format(clade_parent, ",".join(clade_childen)))
+    print("Common AA transitions in true and gen for {}>{} branch".format(clade_parent, ",".join(clade_childen)))
     for mut in parent_child:
         if mut in parent_gen:
             print(mut, parent_child[mut], parent_gen[mut])
 
     # generate plots
     cmap = "Blues"
-    plt.rcParams.update({'font.size': 8})
+    plt.rcParams.update({'font.size': 14})
     fig, axs = plt.subplots(2)
     pos_ticks = list(np.arange(0, len(aa_list)))
     pos_labels = aa_list
     interpolation = "none"
 
     ax0 = axs[0].imshow(par_child_mat, cmap=cmap,  interpolation=interpolation, aspect='auto')
-    axs[0].set_title("(A) Parent-child mutation frequency")
+    axs[0].set_title("(A) Parent-child AA transition frequency")
     axs[0].set_ylabel("From")
     axs[0].set_xlabel("To")
     axs[0].set_xticks(pos_ticks)
@@ -145,7 +143,7 @@ def plot_mutation_counts():
     axs[0].set_yticklabels(pos_labels, rotation='horizontal')
 
     ax1 = axs[1].imshow(par_gen_mat, cmap=cmap,  interpolation=interpolation, aspect='auto')
-    axs[1].set_title("(B) Parent-gen mutation frequency")
+    axs[1].set_title("(B) Parent-gen AA transition frequency")
     axs[1].set_ylabel("From")
     axs[1].set_xlabel("To")
     axs[1].set_xticks(pos_ticks)
@@ -155,7 +153,7 @@ def plot_mutation_counts():
 
     cbar_ax = fig.add_axes([0.92, 0.15, 0.03, 0.7])
     cbar = fig.colorbar(ax0, cax=cbar_ax)
-    plt.suptitle("Mutation frequency in true and generated datasets. Pearson correlation of A & B: {}".format(str(np.round(pearson_corr_te_par_child_par_gen_mut[0], 2))))
+    plt.suptitle("AA transition frequency in true and generated datasets. Parent: {}, children: {}. Pearson correlation of A & B: {}".format(clade_parent, ",".join(clade_childen), str(np.round(pearson_corr_te_par_child_par_gen_mut[0], 2))))
     plt.show()
 
 
@@ -173,6 +171,6 @@ def get_mat(aa_list, ct_dict, size):
 
 if __name__ == "__main__":
     start_time = time.time()
-    plot_mutation_counts()
+    plot_aa_transition_counts()
     end_time = time.time()
     print("Program finished in {} seconds".format(str(np.round(end_time - start_time, 2))))
