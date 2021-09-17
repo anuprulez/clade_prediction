@@ -57,6 +57,8 @@ def merge_clades():
         else:
             df_merged_gen = pd.concat([df_merged_gen, df_gen])
     print(true_ctr, len(df_merged_true.index), gen_ctr, len(df_merged_gen.index))
+    df_merged_true.to_csv(data_path + "df_merged_true.csv", sep="\t")
+    df_merged_gen.to_csv(data_path + "df_merged_gen.csv", sep="\t")
     return df_merged_true, df_merged_gen
 
 
@@ -110,20 +112,43 @@ def plot_aa_transition_counts():
     print()
     par_gen_mat = get_mat(aa_list, parent_gen, gen_size)
 
-    pearson_corr_te_par_child_par_gen_mut = pearsonr(par_child_mat, par_gen_mat)
-    print("Pearson correlation between true par-child mut and true par-gen mut: {}".format(str(pearson_corr_te_par_child_par_gen_mut)))
-
     par_child_keys = list(parent_child.keys())
     par_gen_keys = list(parent_gen.keys())
 
     print("Size of AA transitions - par-child, par-gen")
     print(len(par_child_keys), len(par_gen_keys))
 
+    plot_matrix(aa_list, par_child_mat, par_gen_mat)
+
     print()
     print("Common AA transitions in true and gen for {}>{} branch".format(clade_parent, ",".join(clade_childen)))
+    common_muts = list()
     for mut in parent_child:
         if mut in parent_gen:
             print(mut, parent_child[mut], parent_gen[mut])
+            common_muts.append(mut)
+    
+    # plot mut that are common in true and generated datasets
+    common_parent_child = dict()
+    common_parent_gen = dict()
+    for mut in common_muts:
+        common_parent_child[mut] = parent_child[mut]
+        common_parent_gen[mut] = parent_gen[mut]
+
+    print(common_parent_child)
+    print()
+    print(common_parent_gen)
+
+    common_par_child_mat = get_mat(aa_list, common_parent_child, true_size)
+    common_par_gen_mat = get_mat(aa_list, common_parent_gen, gen_size)
+
+    plot_matrix(aa_list, common_par_child_mat, common_par_gen_mat)
+
+
+def plot_matrix(aa_list, par_child_mat, par_gen_mat):
+
+    pearson_corr_te_par_child_par_gen_mut = pearsonr(par_child_mat, par_gen_mat)
+    print("Pearson correlation between true par-child mut and true par-gen mut: {}".format(str(pearson_corr_te_par_child_par_gen_mut)))
 
     # generate plots
     cmap = "Blues"
@@ -166,7 +191,7 @@ def get_mat(aa_list, ct_dict, size):
             if key in ct_dict:
                 mat[i, j] = ct_dict[key]
                 #print(i, j, key, ct_dict[key])
-    return mat / size
+    return mat / 1.0 #size
 
 
 if __name__ == "__main__":
