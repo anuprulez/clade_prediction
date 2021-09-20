@@ -21,15 +21,15 @@ enc_units = 128
 LEN_AA = 1273
 seq_len = LEN_AA
 
-clade_source = "20A"
-clade_start = "20C"
-generating_factor = 100
+clade_source = "20C"
+clade_start = "21F_Iota"
+generating_factor = 1
 
 
 def load_model_generated_sequences():
     # load test data
-    #te_clade_files = glob.glob('data/test/*.csv')
-    te_clade_files = glob.glob(RESULT_PATH + 'test/*.csv')
+    te_clade_files = glob.glob('data/test/*.csv')
+    #te_clade_files = glob.glob(RESULT_PATH + 'test/*.csv')
     r_dict = utils.read_json(RESULT_PATH + "r_word_dictionaries.json")
     vocab_size = len(r_dict) + 1
     total_te_loss = list()
@@ -43,7 +43,7 @@ def load_model_generated_sequences():
         te_clade_df = pd.read_csv(te_name, sep="\t")
         te_X = te_clade_df["X"]
         te_y = te_clade_df["Y"]
-        print(te_clade_df.shape)
+        print(te_clade_df)
         batch_size = te_clade_df.shape[0]
         with tf.device('/device:cpu:0'):
             #te_loss = predict_sequence(te_X, te_y, LEN_AA, vocab_size, batch_size, loaded_encoder, loaded_generator, generating_factor)
@@ -114,7 +114,7 @@ def predict_multiple(test_x, test_y, seq_len, vocab_size, batch_size):
         print()
     print(len(true_x), len(true_y), len(predicted_y))
     true_predicted_multiple = pd.DataFrame(list(zip(true_x, true_y, predicted_y)), columns=[clade_source, clade_start, "Generated"])
-    df_path = "{}true_predicted_multiple_te_x_{}times.csv".format(RESULT_PATH, str(generating_factor))
+    df_path = "{}true_predicted_multiple_te_{}_{}_x_{}times.csv".format(RESULT_PATH, clade_source, clade_start, str(generating_factor))
     true_predicted_multiple.to_csv(df_path, index=None)
     
 
