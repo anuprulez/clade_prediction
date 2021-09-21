@@ -68,8 +68,13 @@ def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, un
     real_state_y = disc_gen_enc_model(one_hot_real_y, training=True)
     # encode generated child sequences for discriminator
     fake_state_y = disc_gen_enc_model(generated_logits, training=True)
+
+    # generate random list of numbers as unreal children
+    unrolled_random = np.random.randint(1, vocab_size - 1, (unrolled_x.shape[0], unrolled_x.shape[1]))
+    one_hot_unrolled_random = tf.one_hot(unrolled_random, depth=generated_logits.shape[-1], axis=-1)
+    random_state_y = disc_gen_enc_model(one_hot_unrolled_random, training=True)
   
-    return real_state_x, real_state_y, fake_state_y, encoder, decoder, disc_par_enc_model, disc_gen_enc_model, gen_t_loss
+    return real_state_x, real_state_y, fake_state_y, random_state_y, encoder, decoder, disc_par_enc_model, disc_gen_enc_model, gen_t_loss
 
 
 def gen_step_train(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real_o, train_gen):
@@ -140,13 +145,18 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
       if disc_gen in list(range(0, n_disc_step - n_gen_step)):
           print("Applying gradient update on discriminator...")
           with tf.GradientTape() as disc_tape:
-              real_x, real_y, fake_y, encoder, decoder, disc_par_enc, disc_gen_enc, _ = get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, encoder, decoder, disc_par_enc, disc_gen_enc)
+              real_x, real_y, fake_y, random_y, encoder, decoder, disc_par_enc, disc_gen_enc, _ = get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, encoder, decoder, disc_par_enc, disc_gen_enc)
 
               # discriminate pairs of true parent and true child sequences
               real_output = discriminator([real_x, real_y], training=True)
               # discriminate pairs of true parent and generated child sequences
               fake_output = discriminator([real_x, fake_y], training=True)
-              # discriminate pairs of real sequences but not parent-child
+              #fake_output = tf.random.shuffle(fake_output)
+              h_fake_output = fake_output[:int(batch_size / 2)]
+              # discriminate pairs of sequences that are not parent child
+              random_output = discriminator([real_x, random_y], training=True)
+              h_random_output = random_output[:int(batch_size / 2)]
+              merged_fake_output = tf.concat([h_fake_output, h_random_output], axis=0)
               '''not_par_child_output = discriminator([real_x, real_x], training=True)
               # take halves of fake output - real parent and gen child and not parent-child sequences
               h_fake_output = fake_output[:int(batch_size / 2)]
@@ -154,7 +164,7 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
               # mix both fake outputs
               merged_fake_output = tf.concat([h_fake_output, h_not_par_child_output], axis=0)'''
               # compute discriminator loss
-              disc_real_loss, disc_fake_loss = discriminator_loss(real_output, fake_output)
+              disc_real_loss, disc_fake_loss = discriminator_loss(real_output, merged_fake_output)
               total_disc_loss = disc_real_loss + disc_fake_loss
 
           gradients_of_discriminator = disc_tape.gradient(total_disc_loss, discriminator.trainable_variables)
@@ -163,9 +173,14 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
       else:
           print("Applying gradient update on generator...")
           with tf.GradientTape() as gen_tape:
-              real_x, real_y, fake_y, encoder, decoder, disc_par_enc, disc_gen_enc, gen_true_loss = get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, encoder, decoder, disc_par_enc, disc_gen_enc)
+              real_x, real_y, fake_y, random_y, encoder, decoder, disc_par_enc, disc_gen_enc, gen_true_loss = get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, encoder, decoder, disc_par_enc, disc_gen_enc)
               # discriminate pairs of true parent and generated child sequences
               fake_output = discriminator([real_x, fake_y], training=True)
+              #fake_output = tf.random.shuffle(fake_output)
+              h_fake_output = fake_output[:int(batch_size / 2)]
+              random_output = discriminator([real_x, random_y], training=True)
+              h_random_output = random_output[:int(batch_size / 2)]
+              merged_fake_output = tf.concat([h_fake_output, h_random_output], axis=0)
               # discriminate pairs of real sequences but not parent-child
               #not_par_child_output = discriminator([real_x, real_x], training=True)
               # take halves of fake output - real parent and gen child and not parent-child sequences
@@ -174,7 +189,7 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
               # mix both fake outputs
               #merged_fake_output = tf.concat([h_fake_output, h_not_par_child_output], axis=0)
 
-              gen_fake_loss = generator_loss(fake_output)
+              gen_fake_loss = generator_loss(merged_fake_output)
               total_gen_loss = gen_fake_loss + gen_true_loss
 
           gradients_of_decoder = gen_tape.gradient(total_gen_loss, decoder.trainable_variables)

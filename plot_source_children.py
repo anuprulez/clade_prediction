@@ -17,10 +17,14 @@ from scipy.stats.mstats import pearsonr
 import utils
 
 
-data_path = "test_results/20A_20B_17Sept_CPU/"
+data_path = "test_results/20A_20C_14Sept_CPU/"
+#"test_results/20A_20B_17Sept_CPU/"
 
-clade_parent = "20B"
-clade_childen = ["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"]
+#clade_parent = "20B"
+#clade_childen = ["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"]
+
+clade_parent = "20C"
+clade_childen = ["20G", "21C_Epsilon", "21F_Iota"]
 
 
 def read_json(file_path):
@@ -191,7 +195,7 @@ def get_mat(aa_list, ct_dict, size):
             if key in ct_dict:
                 mat[i, j] = ct_dict[key]
                 #print(i, j, key, ct_dict[key])
-    return mat / 1.0 #size
+    return mat / size
 
 
 if __name__ == "__main__":
