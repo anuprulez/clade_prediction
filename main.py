@@ -97,7 +97,6 @@ def start_training(vocab_size, forward_dict, rev_dict):
     print("train and test data sizes")
     print(X.shape, y.shape, te_X.shape, te_y.shape)
 
-    print(sys.exit())
     te_batch_size = te_X.shape[0]
     print("Te batch size: {}".format(te_batch_size))
     # get test dataset as sliced tensors
