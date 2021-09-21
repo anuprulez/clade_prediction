@@ -10,8 +10,8 @@ import h5py
 import utils
 
 LEN_AA = 1273
-edit_threshold = 3
-train_size = 0.8
+edit_threshold = 61
+train_size = 1.0
 l_dist_name = "levenshtein_distance"
 
 
