@@ -79,7 +79,6 @@ def make_cross_product(clade_in_clade_out, dataframe):
             merged_size = in_len * out_len
             print("Merged size ({} * {}) : {}".format(str(in_len), str(out_len), merged_size))
             print()
-            #total_samples += merged_size
             file_name = "data/merged_clades/{}_{}.csv".format(in_clade, out_clade)
             cross_joined_df = cross_joined_df.sample(frac=1)
             cross_columns = list(cross_joined_df.columns)
@@ -119,7 +118,6 @@ def make_cross_product(clade_in_clade_out, dataframe):
             print("Filtered dataframe size: {}".format(str(len(filtered_dataframe.index))))
 
             train_df = filtered_dataframe.sample(frac=train_size, random_state=200)
-            print("Converting to array...")
             train_x = train_df["Sequence_x"].tolist()
             train_y = train_df["Sequence_y"].tolist()
             train_l_dist = train_df[l_dist_name].tolist()
@@ -137,6 +135,7 @@ def make_cross_product(clade_in_clade_out, dataframe):
             merged_test_df = pd.DataFrame(list(zip(test_x, test_y, test_l_dist)), columns=["X", "Y", l_dist_name])
             merged_test_df = merged_test_df.drop_duplicates()
             merged_test_df.to_csv(te_filename, sep="\t", index=None)
+            print()
     print()
     print("Total number of samples: {}".format(str(total_samples)))
     

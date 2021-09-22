@@ -16,7 +16,7 @@ from scipy.stats.mstats import pearsonr
 
 import utils
 
-# best results with 20A_20C_08Sept
+# best results with 20A_20C_08Sept, 20A_20C_14Sept_CPU
 # file name file_name_mut_ct = "true_predicted_multiple_te_x_1times.csv"
 """
 20A_20C_28Aug
@@ -30,15 +30,18 @@ import utils
 20A_20C_14Sept_GPU
 
 """
-clade_parent = "20C"
-clade_child = "20G" #"21F_Iota"
 results_path = "test_results/20A_20C_14Sept_CPU/" #20A_20C_06Sept_20EPO #20A_20C_14Sept_GPU
-sub_path = "20C_20G/"
-#file_name_mut_ct = "20C_20G/true_predicted_multiple_te_x_20C_20G_5times.csv"
-#tr_file_name = "20C_20G/train/20C_20G.csv"
 
-file_name_mut_ct = "20C_20G/true_predicted_multiple_te_x_20C_20G_1times.csv"
-tr_file_name = "20C_20G/train/20C_20G.csv"
+clade_parent = "20A"
+clade_child = "20C" #"21F_Iota"
+file_name_mut_ct = "true_predicted_multiple_te_x_1times.csv"
+tr_file_name = "train/20A_20C.csv"
+
+'''clade_parent = "20B"
+clade_child = "21H" #"21F_Iota"
+sub_path = "20B_21H/"
+file_name_mut_ct = "20B_21H/true_predicted_multiple_te_20B_21H_x_1times.csv"
+tr_file_name = "20B_21H/train/20B_21H.csv"'''
 
 #clade_end = ["20H (Beta, V2)", "20G", "21C (Epsilon)", "21F (Iota)"]
 #pred_file = "true_predicted_multiple.csv" #"true_predicted_df.csv"
@@ -152,7 +155,7 @@ def plot_sequences(min_pos, max_pos):
     write_dict("data/generated_files/true_mutations_c_20A.json", true_mut)'''
 
     cmap = "RdYlBu"
-    plt.rcParams.update({'font.size': 16})
+    plt.rcParams.update({'font.size': 20})
     fdict_min = 0
     f_dict_max = 21
     aa_dict = f_dict
@@ -274,8 +277,6 @@ def plot_mutation_counts():
         
             if first_mut != third_mut:
                 key = "{}>{}".format(first_mut, third_mut)
-                #if key in ["L>F" "T>I", "D>G", "A>V", "E>K"]: #"L>F" "T>I", "D>G", "A>V", "E>K"
-                #    print(key, i+1)
                 if key not in parent_gen:
                     parent_gen[key] = 0
                 parent_gen[key] += 1
@@ -313,7 +314,7 @@ def plot_mutation_counts():
     print("Pearson correlation between test par-child mut and par-gen mut: {}".format(str(pearson_corr_te_par_child_par_gen_mut)))
 
     ## get top mut list
-    n_top = 10
+    '''n_top = 10
     tr_parent_child_top = list(tr_parent_child.items())[:n_top]
     parent_child_top = list(parent_child.items())[:n_top]
     parent_gen_top = list(parent_gen.items())[:n_top]
@@ -332,9 +333,9 @@ def plot_mutation_counts():
             print(mut, tr_parent_child[mut], parent_child[mut], parent_gen[mut])
             common_mutations_tr_child_gen.append(mut)
 
-    utils.save_as_json(results_path + sub_path + "common_mutations_tr_child_gen.json", common_mutations_tr_child_gen)
+    utils.save_as_json(results_path + sub_path + "common_mutations_tr_child_gen.json", common_mutations_tr_child_gen)'''
 
-    '''
+    
     tr_par_child_keys = list(tr_parent_child.keys())
     te_par_child_keys = list(parent_child.keys())
     te_par_gen_keys = list(parent_gen.keys())
@@ -358,7 +359,7 @@ def plot_mutation_counts():
     # generate plots
 
     cmap = "Blues" #"RdYlBu" Spectral
-    plt.rcParams.update({'font.size': 8})
+    plt.rcParams.update({'font.size': 10})
 
     fig, axs = plt.subplots(3)
 
@@ -440,7 +441,7 @@ def plot_mutation_counts():
     cbar_ax = fig.add_axes([0.92, 0.15, 0.03, 0.7])
     cbar = fig.colorbar(ax0, cax=cbar_ax)
     plt.suptitle("Delta of mutation frequency plots")
-    plt.show()'''
+    plt.show()
     
 
 def get_train_mat():
@@ -494,7 +495,6 @@ def get_mat(aa_list, ct_dict, size):
         for j, mut_x in enumerate(aa_list):
             key = "{}>{}".format(mut_y, mut_x)
             if key in ct_dict:
-                #if ct_dict[key] > 100:
                 mat[i, j] = ct_dict[key]
                 #print(i, j, key, ct_dict[key])
     return mat / size
