@@ -81,29 +81,51 @@ def start_training(vocab_size, forward_dict, rev_dict):
     tr_clade_files = glob.glob('data/train/*.csv')
     te_clade_files = glob.glob('data/test/*.csv')
 
+    combined_X = list()
+    combined_y = list()
+    combined_x_y_l = list()
     # load train data
+    print("Loading training datasets...")
     for name in tr_clade_files:
         tr_clade_df = pd.read_csv(name, sep="\t")
-        X = tr_clade_df["X"]
-        y = tr_clade_df["Y"]
-        X_y_l = tr_clade_df[l_dist_name]
+        X = tr_clade_df["X"].tolist()
+        y = tr_clade_df["Y"].tolist()
+        X_y_l = tr_clade_df[l_dist_name].tolist()
+        combined_X.extend(X)
+        combined_y.extend(y)
+        combined_x_y_l.extend(X_y_l)
+        print(len(X), len(y), len(X_y_l))
+    print(len(combined_X), len(combined_y), len(combined_x_y_l))
 
+    combined_te_X = list()
+    combined_te_y = list()
     # load test data
+    print("Loading test datasets...")
     for te_name in te_clade_files:
         te_clade_df = pd.read_csv(te_name, sep="\t")
-        te_X = te_clade_df["X"]
-        te_y = te_clade_df["Y"]
-
+        te_X = te_clade_df["X"].tolist()
+        te_y = te_clade_df["Y"].tolist()
+        combined_te_X.extend(te_X)
+        combined_te_y.extend(te_y)
+        print(len(te_X), len(te_y))
+    print(len(combined_te_X), len(combined_te_y))
+    print()
     print("train and test data sizes")
-    print(X.shape, y.shape, te_X.shape, te_y.shape)
+    print(len(combined_X), len(combined_y), len(combined_te_X), len(combined_te_y))
 
-    te_batch_size = te_X.shape[0]
-    print("Te batch size: {}".format(te_batch_size))
+    combined_X = np.array(combined_X)
+    combined_y = np.array(combined_y)
+    combined_te_X = np.array(combined_te_X)
+    combined_te_y = np.array(combined_te_y)
+
+    te_batch_size = combined_te_X.shape[0]
+    print("Te batch size: {}".format(str(te_batch_size)))
+
     # get test dataset as sliced tensors
-    test_dataset_in = tf.data.Dataset.from_tensor_slices((te_X)).batch(te_batch_size)
-    test_dataset_out = tf.data.Dataset.from_tensor_slices((te_y)).batch(te_batch_size)
+    test_dataset_in = tf.data.Dataset.from_tensor_slices((combined_te_X)).batch(te_batch_size)
+    test_dataset_out = tf.data.Dataset.from_tensor_slices((combined_te_y)).batch(te_batch_size)
 
-    n_test_batches = int(te_clade_df.shape[0]/float(te_batch_size))
+    #sys.exit()
     # divide datasets into pretrain and train sets
     '''X_pretrain, X_train, y_pretrain, y_train  = train_test_split(X, y, test_size=0.7)
     # pretrain generator
@@ -121,7 +143,6 @@ def start_training(vocab_size, forward_dict, rev_dict):
         print("Pre training loss at step {}/{}: Generator loss: {}".format(str(i+1), str(pretrain_epochs), str(epo_pretrain_gen_loss)))
         pretrain_gen_loss.append(epo_pretrain_gen_loss)
         print("Pretrain: predicting on test datasets...")
-        print("Num of test batches: {}".format(str(n_test_batches)))
         with tf.device('/device:cpu:0'):
             epo_pt_gen_te_loss = predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, PRETRAIN_ENC_MODEL, PRETRAIN_GEN_MODEL)
         pretrain_gen_test_loss.append(epo_pt_gen_te_loss)
@@ -142,8 +163,8 @@ def start_training(vocab_size, forward_dict, rev_dict):
     train_disc_fake_loss = list()
     train_te_loss = list()
 
-    X_train = X
-    y_train = y
+    X_train = combined_X
+    y_train = combined_y
 
     n_train_batches = int(X_train.shape[0]/float(batch_size))
     print("Num of train batches: {}".format(str(n_train_batches)))
@@ -168,7 +189,6 @@ def start_training(vocab_size, forward_dict, rev_dict):
         train_disc_fake_loss.append(epo_disc_fake_loss)
 
         # predict seq on test data
-        print("Num of test batches: {}".format(str(n_test_batches)))
         print("Prediction on test data...")
         with tf.device('/device:cpu:0'):
             epo_tr_gen_te_loss = utils.predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, enc_units, TRAIN_ENC_MODEL, TRAIN_GEN_MODEL)
