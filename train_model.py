@@ -57,7 +57,7 @@ def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, un
 
     enc_output, enc_state = encoder(unrolled_x, training=True)
     # add noise to encoded state to have variations while generating sequences
-    #enc_state = tf.math.add(enc_state, noise)
+    enc_state = tf.math.add(enc_state, noise)
     # generate sequences
     generated_logits, decoder, gen_t_loss = gen_step_train(seq_len, batch_size, vocab_size, decoder, enc_state, unrolled_y, True)
     # encode parent sequences for discriminator
