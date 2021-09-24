@@ -19,3 +19,7 @@ https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7709189/
 https://www.ecdc.europa.eu/sites/default/files/documents/SARS-CoV-2-variant-multiple-spike-protein-mutations-United-Kingdom.pdf
 https://www.cell.com/cell/pdf/S0092-8674(20)30820-5.pdf
 https://covariants.org/variants
+https://www.nature.com/articles/s41598-021-96950-z
+https://www.nature.com/articles/s41467-020-19843-1
+https://journals.asm.org/doi/10.1128/mBio.01188-21
+http://www.cryst.bbk.ac.uk/education/AminoAcid/the_twenty.html
