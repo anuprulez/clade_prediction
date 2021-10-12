@@ -10,8 +10,6 @@ import h5py
 import utils
 
 LEN_AA = 1273
-edit_threshold = 3
-train_size = 0.8
 l_dist_name = "levenshtein_distance"
 
 
@@ -57,7 +55,7 @@ def preprocess_seq(fasta_file, samples_clades):
     return sample_clade_sequence_df, f_word_dictionaries, r_word_dictionaries
 
 
-def make_cross_product(clade_in_clade_out, dataframe):
+def make_cross_product(clade_in_clade_out, dataframe, train_size=0.8, edit_threshold=3):
     total_samples = 0
     merged_train_df = None
     merged_test_df = None
