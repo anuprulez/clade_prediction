@@ -54,12 +54,13 @@ def generator_loss(fake_output):
 def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, encoder, decoder, disc_par_enc_model, disc_gen_enc_model):
 
     noise = tf.random.normal((batch_size, enc_units))
+    transformed_noise = utils.transform_noise(noise)
 
     enc_output, enc_state = encoder(unrolled_x, training=True)
     # add noise to encoded state to have variations while generating sequences
-    enc_state = tf.math.add(enc_state, noise)
+    transformed_enc_state = tf.math.add(enc_state, transformed_noise)
     # generate sequences
-    generated_logits, decoder, gen_t_loss = gen_step_train(seq_len, batch_size, vocab_size, decoder, enc_state, unrolled_y, True)
+    generated_logits, decoder, gen_t_loss = gen_step_train(seq_len, batch_size, vocab_size, decoder, transformed_enc_state, unrolled_y, True)
     # encode parent sequences for discriminator
     real_state_x = disc_par_enc_model(unrolled_x, training=True)
     # encode true child sequences for discriminator
