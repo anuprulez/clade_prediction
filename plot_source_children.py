@@ -17,11 +17,13 @@ from scipy.stats.mstats import pearsonr
 import utils
 
 
-data_path = "test_results/20A_20B_17Sept_CPU/"
+data_path = "test_results/08_10_one_hot_2_CPU_20A_20B/"
 #20A_20B "test_results/20A_20B_17Sept_CPU/"
 
 clade_parent = "20B"
 clade_childen = ["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] # 20I (Alpha, V1), 20F, 20D, 21G (Lambda), 21H
+
+file_path = data_path + "true_predicted_multiple_20B_20I_Alpha_20F_20D_21G_Lambda_21H_2_times.csv"
 
 #clade_parent = "20C"
 #clade_childen = ["20G", "21C_Epsilon", "21F_Iota"]
@@ -38,7 +40,7 @@ def write_dict(path, dic):
         f.write(json.dumps(dic))
 
 
-def merge_clades():
+'''def merge_clades():
     df_merged_true = None
     df_merged_gen = None
     true_ctr = 0
@@ -63,7 +65,7 @@ def merge_clades():
     print(true_ctr, len(df_merged_true.index), gen_ctr, len(df_merged_gen.index))
     df_merged_true.to_csv(data_path + "df_merged_true.csv", sep="\t")
     df_merged_gen.to_csv(data_path + "df_merged_gen.csv", sep="\t")
-    return df_merged_true, df_merged_gen
+    return df_merged_true, df_merged_gen'''
 
 
 def get_mut_dict(dataframe, f_dict, col_idx):
@@ -94,11 +96,12 @@ def get_mut_dict(dataframe, f_dict, col_idx):
 
 def plot_aa_transition_counts():
 
-    df_true, df_gen = merge_clades()
+    df_true_gen = pd.read_csv(file_path, sep=",") #merge_clades()
+    print(df_true_gen)
     f_dict = read_json(data_path + "f_word_dictionaries.json")
 
-    mut_parent_child, mut_pos_parent_child = get_mut_dict(df_true, f_dict, 1)
-    mut_parent_gen, mut_pos_parent_gen = get_mut_dict(df_gen, f_dict, 2)
+    mut_parent_child, mut_pos_parent_child = get_mut_dict(df_true_gen, f_dict, 1)
+    mut_parent_gen, mut_pos_parent_gen = get_mut_dict(df_true_gen, f_dict, 2)
     print("---------------------")
     print("Parent child mutations with POS")
     mut_pos_parent_child = dict(sorted(mut_pos_parent_child.items(), key=lambda item: item[1], reverse=True))
@@ -128,8 +131,8 @@ def plot_aa_transition_counts():
     write_dict(data_path + "merged_parent_gen.json", mut_parent_gen)
 
     aa_list = list('QNKWFPYLMTEIARGHSDVC')
-    true_size = df_true.shape[0]
-    gen_size = df_gen.shape[0]
+    true_size = df_true_gen.shape[0]
+    gen_size = df_true_gen.shape[0]
 
     parent_child = dict(sorted(mut_parent_child.items(), key=lambda item: item[1], reverse=True))
     print("AA transition freq between parent-child: {}".format(parent_child))
