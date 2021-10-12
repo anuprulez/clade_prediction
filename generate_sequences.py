@@ -16,13 +16,13 @@ import preprocess_sequences
 import utils
 
 
-RESULT_PATH = "test_results/experimental_generation/"
+RESULT_PATH = "test_results/08_10_one_hot_2_CPU_20A_20B/"
 
 min_diff = 0
 max_diff = 61
 enc_units = 128
 LEN_AA = 1273
-train_size = 0.8
+train_size = 1.0
 
 clade_parent = "20B" # 20A
 clade_childen = ["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] # ["20B"]
@@ -31,7 +31,7 @@ clade_childen = ["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] # ["20B"]
 
 l_dist_name = "levenshtein_distance"
 
-generating_factor = 1
+generating_factor = 2
 
 PATH_PRE = "data/ncov_global/"
 PATH_SEQ = PATH_PRE + "spikeprot0815.fasta"
@@ -59,7 +59,7 @@ def prepare_pred_future_seq():
     print(clades_in_clades_out)
     print("Generating cross product...")
     preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df, train_size=train_size, edit_threshold=max_diff)
-    create_parent_child_true_seq(forward_dict, rev_dict, encoded_wuhan_seq)
+    create_parent_child_true_seq(forward_dict, rev_dict)
     return encoded_wuhan_seq
 
 
@@ -94,10 +94,11 @@ def create_parent_child_true_seq(forward_dict, rev_dict):
 def load_model_generated_sequences(file_path, encoded_wuhan_seq=None, gen_future=True):
     # load test data
     te_clade_files = glob.glob(file_path)
+    print(te_clade_files, file_path)
     r_dict = utils.read_json(RESULT_PATH + "r_word_dictionaries.json")
     vocab_size = len(r_dict) + 1
     total_te_loss = list()
-    print("Generating sequences for {}...".format(clade_start))
+    print("Generating sequences for {}...".format(clade_parent))
     for te_name in te_clade_files:
         te_clade_df = pd.read_csv(te_name, sep="\t")
         te_X = te_clade_df["X"]
@@ -105,7 +106,7 @@ def load_model_generated_sequences(file_path, encoded_wuhan_seq=None, gen_future
         print(te_clade_df)
         batch_size = te_clade_df.shape[0]
         with tf.device('/device:cpu:0'):
-            predict_multiple(te_X, te_y, LEN_AA, vocab_size, batch_size, encoded_wuhan_seq)
+            predict_multiple(te_X, te_y, LEN_AA, vocab_size, batch_size, encoded_wuhan_seq, gen_future)
 
 
 def predict_multiple(test_x, test_y, LEN_AA, vocab_size, batch_size, encoded_wuhan_seq, gen_future):
@@ -155,7 +156,7 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, batch_size, encoded_wuh
                wu_bleu_score = 0.0
                l_dist_x_pred = utils.compute_Levenshtein_dist(one_x[k], pred_y[k])
                bleu_score = sentence_bleu([one_y[k].split(",")], pred_y[k].split(","))
-               if encoded_wuhan_seq not None:
+               if not (encoded_wuhan_seq is None):
                    wu_bleu_score = sentence_bleu([encoded_wuhan_seq.split(",")], pred_y[k].split(","))
                if l_dist_x_pred > min_diff and l_dist_x_pred < max_diff:
                    l_x_gen.append(l_dist_x_pred)
@@ -178,7 +179,7 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, batch_size, encoded_wuh
         print("Batch {} finished".format(str(step)))
         print()
     print(len(true_x), len(true_y), len(predicted_y))
-    child_clades = ",".join(clade_childen)
+    child_clades = "_".join(clade_childen)
     true_predicted_multiple = pd.DataFrame(list(zip(true_x, true_y, predicted_y)), columns=[clade_parent, child_clades, "Generated"])
     df_path = "{}true_predicted_multiple_{}_{}_{}_times.csv".format(RESULT_PATH, clade_parent, child_clades, str(generating_factor))
     true_predicted_multiple.to_csv(df_path, index=None)
@@ -201,10 +202,13 @@ def gen_step_predict(LEN_AA, batch_size, vocab_size, gen_decoder, dec_state):
 if __name__ == "__main__":
     start_time = time.time()
     # enable only when predicting future sequences
-    prepare_pred_future_seq()
+    wu_seq = None
+    wu_seq = prepare_pred_future_seq()
     # set gen_future = True while predicting future
-    # when gen_future = False, file_path = RESULT_PATH + "data/test/*.csv"
+    # when gen_future = False, file_path = RESULT_PATH + "test/*.csv"
     # when gen_future = True, file_path = COMBINED_FILE
-    #load_model_generated_sequences(COMBINED_FILE, True)
+    file_path = COMBINED_FILE
+    #file_path = RESULT_PATH + "test/*.csv"
+    load_model_generated_sequences(file_path, wu_seq, True)
     end_time = time.time()
     print("Program finished in {} seconds".format(str(np.round(end_time - start_time, 2))))
