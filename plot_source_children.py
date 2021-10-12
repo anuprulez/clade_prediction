@@ -17,14 +17,14 @@ from scipy.stats.mstats import pearsonr
 import utils
 
 
-data_path = "test_results/20A_20C_14Sept_CPU/"
-#"test_results/20A_20B_17Sept_CPU/"
+data_path = "test_results/20A_20B_17Sept_CPU/"
+#20A_20B "test_results/20A_20B_17Sept_CPU/"
 
-#clade_parent = "20B"
-#clade_childen = ["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"]
+clade_parent = "20B"
+clade_childen = ["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] # 20I (Alpha, V1), 20F, 20D, 21G (Lambda), 21H
 
-clade_parent = "20C"
-clade_childen = ["20G", "21C_Epsilon", "21F_Iota"]
+#clade_parent = "20C"
+#clade_childen = ["20G", "21C_Epsilon", "21F_Iota"]
 
 
 def read_json(file_path):
@@ -69,6 +69,7 @@ def merge_clades():
 def get_mut_dict(dataframe, f_dict, col_idx):
     cols = list(dataframe.columns)
     mut_dict = dict()
+    mut_pos_dict = dict()
     for index, row in dataframe.iterrows():
         x = row[cols[0]].split(",")
         y = row[cols[col_idx]].split(",")
@@ -81,10 +82,14 @@ def get_mut_dict(dataframe, f_dict, col_idx):
             second_mut = second_aa[0]
             if first_mut != second_mut:
                 key = "{}>{}".format(first_mut, second_mut)
+                key_pos = "{}>{}>{}".format(first_mut, str(i+1), second_mut)
+                if key_pos not in mut_pos_dict:
+                    mut_pos_dict[key_pos] = 0
+                mut_pos_dict[key_pos] += 1
                 if key not in mut_dict:
                     mut_dict[key] = 0
                 mut_dict[key] += 1
-    return mut_dict
+    return mut_dict, mut_pos_dict
 
 
 def plot_aa_transition_counts():
@@ -92,8 +97,32 @@ def plot_aa_transition_counts():
     df_true, df_gen = merge_clades()
     f_dict = read_json(data_path + "f_word_dictionaries.json")
 
-    mut_parent_child = get_mut_dict(df_true, f_dict, 1)
-    mut_parent_gen = get_mut_dict(df_gen, f_dict, 2)
+    mut_parent_child, mut_pos_parent_child = get_mut_dict(df_true, f_dict, 1)
+    mut_parent_gen, mut_pos_parent_gen = get_mut_dict(df_gen, f_dict, 2)
+    print("---------------------")
+    print("Parent child mutations with POS")
+    mut_pos_parent_child = dict(sorted(mut_pos_parent_child.items(), key=lambda item: item[1], reverse=True))
+    print(len(mut_pos_parent_child), mut_pos_parent_child)
+    print()
+    print("Parent gen mutations with POS")
+    mut_pos_parent_gen = dict(sorted(mut_pos_parent_gen.items(), key=lambda item: item[1], reverse=True))
+
+    write_dict(data_path + "mut_pos_parent_child.json", mut_pos_parent_child)
+    write_dict(data_path + "mut_pos_parent_gen.json", mut_pos_parent_gen)
+
+    filterd_mut_pos_parent_gen = dict()
+    for key in mut_pos_parent_gen:
+        if mut_pos_parent_gen[key] > 10:
+            filterd_mut_pos_parent_gen[key] = mut_pos_parent_gen[key]
+    print(len(filterd_mut_pos_parent_gen), filterd_mut_pos_parent_gen)
+    print()
+    keys1 = list(mut_pos_parent_child.keys())
+    keys2 = list(filterd_mut_pos_parent_gen.keys())
+
+    inter = list(set(keys1).intersection(set(keys2)))
+    print(len(inter), inter)
+    print()
+    print("---------------------")
 
     write_dict(data_path  + "merged_parent_child.json", mut_parent_child)
     write_dict(data_path + "merged_parent_gen.json", mut_parent_gen)

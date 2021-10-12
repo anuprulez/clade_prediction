@@ -30,23 +30,27 @@ import utils
 20A_20C_14Sept_GPU
 
 """
-results_path = "test_results/20A_20C_14Sept_CPU/" #20A_20C_06Sept_20EPO #20A_20C_14Sept_GPU
+'''
 
+results_path = "test_results/20A_20C_14Sept_CPU/" #20A_20C_06Sept_20EPO #20A_20C_14Sept_GPU
 clade_parent = "20A"
-clade_child = "20C" #"21F_Iota"
-file_name_mut_ct = "true_predicted_multiple_te_x_1times.csv"
-tr_file_name = "train/20A_20C.csv"
+clade_child = "20c"
+
+'''
+
+results_path = "test_results/08_10_one_hot_1_CPU_20A_20B/" #20A_20C_06Sept_20EPO #20A_20C_14Sept_GPU
+clade_parent = "20A"
+clade_child = "20B"
+
+#file_name_mut_ct = "true_predicted_multiple_te_{}_{}_x_1times.csv".format(clade_parent, clade_child)
+file_name_mut_ct = "true_predicted_multiple_te_20A_20B_x_5times.csv"
+tr_file_name = "train/{}_{}.csv".format(clade_parent, clade_child)
 
 '''clade_parent = "20B"
 clade_child = "21H" #"21F_Iota"
 sub_path = "20B_21H/"
 file_name_mut_ct = "20B_21H/true_predicted_multiple_te_20B_21H_x_1times.csv"
 tr_file_name = "20B_21H/train/20B_21H.csv"'''
-
-#clade_end = ["20H (Beta, V2)", "20G", "21C (Epsilon)", "21F (Iota)"]
-#pred_file = "true_predicted_multiple.csv" #"true_predicted_df.csv"
-
-#c_20A = ["20B", "20C", "20E (EU1)"] #["20B", "20C", "20E (EU1)", "21A (Delta)", "21B (Kappa)", "21D (Eta)"]
 
 
 def read_json(file_path):
@@ -247,6 +251,9 @@ def plot_mutation_counts():
     parent_gen = dict()
     child_gen = dict()
 
+    parent_child_pos = dict()
+    parent_gen_pos = dict()
+
     f_dict = read_json(results_path + "f_word_dictionaries.json")
 
     # compare differences at positions
@@ -269,23 +276,68 @@ def plot_mutation_counts():
             second_mut = sec_aa[0]
             third_mut = third_aa[0]
 
+            '''if first_mut != second_mut and first_mut != third_mut:
+                key_par_child = "{}>{}".format(first_mut, second_mut)
+                key_pos_par_child = "{}>{}>{}".format(first_mut, str(index+1), second_mut)
+                print("Parent-child: {}".format(key_pos_par_child))
+                if key_par_child not in parent_child:
+                    parent_child[key_par_child] = 0
+                parent_child[key_par_child] += 1
+
+                key_par_gen = "{}>{}".format(first_mut, third_mut)
+                key_pos_par_gen = "{}>{}>{}".format(first_mut, str(index+1), third_mut)
+                print("Parent-gen: {}".format(key_pos_par_gen))
+                print("------------")
+                if key_par_gen not in parent_gen:
+                    parent_gen[key_par_gen] = 0
+                parent_gen[key_par_gen] += 1'''
+
             if first_mut != second_mut:
                 key = "{}>{}".format(first_mut, second_mut)
+                key_pos_par_child = "{}>{}>{}".format(first_mut, str(index+1), second_mut)
+                if key_pos_par_child not in parent_child_pos:
+                    parent_child_pos[key_pos_par_child] = 0
+                parent_child_pos[key_pos_par_child] += 1
+
                 if key not in parent_child:
                     parent_child[key] = 0
                 parent_child[key] += 1
         
             if first_mut != third_mut:
                 key = "{}>{}".format(first_mut, third_mut)
+                key_pos_par_gen = "{}>{}>{}".format(first_mut, str(index+1), third_mut)
+                if key_pos_par_gen not in parent_gen_pos:
+                    parent_gen_pos[key_pos_par_gen] = 0
+                parent_gen_pos[key_pos_par_gen] += 1
+
                 if key not in parent_gen:
                     parent_gen[key] = 0
                 parent_gen[key] += 1
-
+                
     write_dict(results_path + "parent_child.json", parent_child)
     write_dict(results_path + "parent_gen.json", parent_gen)
 
     aa_list = list('QNKWFPYLMTEIARGHSDVC')
+    print("---------------------")
+    print("Parent child mutations with POS")
+    parent_child_pos = dict(sorted(parent_child_pos.items(), key=lambda item: item[1], reverse=True))
+    print(len(parent_child_pos), parent_child_pos)
+    print()
+    print("Parent gen mutations with POS")
+    parent_gen_pos = dict(sorted(parent_gen_pos.items(), key=lambda item: item[1], reverse=True))
+    print(len(parent_gen_pos), parent_gen_pos)
+    print()
 
+    write_dict(results_path + "parent_child_pos.json", parent_child_pos)
+    write_dict(results_path + "parent_gen_pos.json", parent_gen_pos)
+
+    keys1 = list(parent_child_pos.keys())
+    keys2 = list(parent_gen_pos.keys())
+
+    inter = list(set(keys1).intersection(set(keys2)))
+    print(len(inter), inter)
+    print()
+    print("---------------------")
     test_size = df_true_pred.shape[0]
 
     parent_child = dict(sorted(parent_child.items(), key=lambda item: item[1], reverse=True))
@@ -451,7 +503,7 @@ def get_train_mat():
     print(df)
     cols = list(df.columns)
     tr_parent_child = dict()
-
+    tr_parent_child_pos = dict()
     f_dict = read_json(results_path + "f_word_dictionaries.json")
 
     # compare differences at positions
@@ -466,17 +518,25 @@ def get_train_mat():
 
             first_aa = [f_dict[j] for j in first]
             sec_aa = [f_dict[j] for j in sec]
-        
+
             first_mut = first_aa[0]
             second_mut = sec_aa[0]
 
             if first_mut != second_mut:
                 key = "{}>{}".format(first_mut, second_mut)
+                key_pos = "{}>{}>{}".format(first_mut, str(i + 1), second_mut)
+
+                if key_pos not in tr_parent_child_pos:
+                    tr_parent_child_pos[key_pos] = 0
+                tr_parent_child_pos[key_pos] += 1
+
                 if key not in tr_parent_child:
                     tr_parent_child[key] = 0
                 tr_parent_child[key] += 1
 
     write_dict(results_path + "tr_parent_child.json", tr_parent_child)
+
+    write_dict(results_path + "tr_parent_child_pos.json", tr_parent_child_pos)
 
     aa_list = list('QNKWFPYLMTEIARGHSDVC')
 
