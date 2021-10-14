@@ -53,8 +53,6 @@ batch_size = 32
 enc_units = 128
 pretrain_epochs = 5
 epochs = 10
-n_test_train_samples = 1000
-seq_len = LEN_AA
 
 
 # https://www.tensorflow.org/text/tutorials/nmt_with_attention
@@ -143,7 +141,7 @@ def start_training(vocab_size, forward_dict, rev_dict):
         pretrain_gen_loss.append(epo_pretrain_gen_loss)
         print("Pretrain: predicting on test datasets...")
         with tf.device('/device:cpu:0'):
-            epo_pt_gen_te_loss = predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, PRETRAIN_ENC_MODEL, PRETRAIN_GEN_MODEL)
+            epo_pt_gen_te_loss = predict_sequence(test_dataset_in, test_dataset_out, LEN_AA, vocab_size, PRETRAIN_ENC_MODEL, PRETRAIN_GEN_MODEL)
         pretrain_gen_test_loss.append(epo_pt_gen_te_loss)
     np.savetxt(PRETRAIN_GEN_LOSS, pretrain_gen_loss)
     np.savetxt(PRETRAIN_GEN_TEST_LOSS, pretrain_gen_test_loss)'''
@@ -190,7 +188,7 @@ def start_training(vocab_size, forward_dict, rev_dict):
         # predict seq on test data
         print("Prediction on test data...")
         with tf.device('/device:cpu:0'):
-            epo_tr_gen_te_loss = utils.predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, enc_units, TRAIN_ENC_MODEL, TRAIN_GEN_MODEL)
+            epo_tr_gen_te_loss = utils.predict_sequence(test_dataset_in, test_dataset_out, LEN_AA, vocab_size, enc_units, TRAIN_ENC_MODEL, TRAIN_GEN_MODEL)
         train_te_loss.append(epo_tr_gen_te_loss)
 
     # save loss files

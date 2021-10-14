@@ -38,12 +38,11 @@ clade_child = "20c"
 
 '''
 
-results_path = "test_results/08_10_one_hot_2_CPU_20A_20B/" #20A_20C_06Sept_20EPO #20A_20C_14Sept_GPU
+results_path = "test_results/20A_20C_14Sept_CPU/"
 clade_parent = "20A"
-clade_child = "20B"
+clade_child = "20C"
 
-#file_name_mut_ct = "true_predicted_multiple_te_{}_{}_x_1times.csv".format(clade_parent, clade_child)
-file_name_mut_ct = "true_predicted_multiple_20A_20B_1_times.csv"
+file_name_mut_ct = "true_predicted_multiple_20A_20C_2_times.csv"
 tr_file_name = "train/{}_{}.csv".format(clade_parent, clade_child)
 
 

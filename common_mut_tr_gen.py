@@ -3,7 +3,7 @@ import numpy as np
 import utils
 
 
-results_path = "test_results/08_10_one_hot_2_CPU_20A_20B/" #20A_20C_06Sept_20EPO #20A_20C_14Sept_GPU
+results_path = "test_results/20A_20C_14Sept_CPU/"
 clade_parent = "20A"
 clade_child = "20B"
 
@@ -18,11 +18,11 @@ def find_pred_mut():
         if key not in mut_tr and key in mut_future_true:
             print(key, mut_future_gen[key], mut_future_true[key])
             novel_mut.append(key)
-    print("novel mut share: {}".format(str(len(novel_mut) / float(len(mut_future_true)))))
+    print("novel mut share: {}, {}, {}".format(str(len(novel_mut) / float(len(mut_future_true))), str(len(novel_mut)), str(len(mut_future_true))))
     print("---")
     for key in mut_future_gen:
         if key in mut_future_true and key in mut_tr:
-            print(key, mut_future_gen[key], mut_tr[key])
+            print(key, mut_future_gen[key], mut_future_true[key], mut_tr[key])
             present_in_tr_mut.append(key)
 
 if __name__ == "__main__":

@@ -16,17 +16,16 @@ import preprocess_sequences
 import utils
 
 
-RESULT_PATH = "test_results/08_10_one_hot_2_CPU_20A_20B/"
+RESULT_PATH = "test_results/08_10_one_hot_3_CPU_20A_20B/"
 
 min_diff = 0
 max_diff = 61
 enc_units = 128
 LEN_AA = 1273
-train_size = 1.0
 
 clade_parent = "20B" # 20A
-clade_childen = ["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] # ["20B"]
-
+clade_childen = ["20G", "21C_Epsilon", "21F_Iota"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] # ["20B"]
+# ["20G", "21C_Epsilon", "21F_Iota"]
 # {"20B": ["20I (Alpha, V1)", "20F", "20D", "21G (Lambda)", "21H"]}
 
 l_dist_name = "levenshtein_distance"
@@ -58,7 +57,7 @@ def prepare_pred_future_seq():
     encoded_wuhan_seq = read_wuhan_seq(forward_dict, rev_dict)
     print(clades_in_clades_out)
     print("Generating cross product...")
-    preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df, train_size=train_size, edit_threshold=max_diff)
+    preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df, train_size=1.0, edit_threshold=max_diff)
     create_parent_child_true_seq(forward_dict, rev_dict)
     return encoded_wuhan_seq
 

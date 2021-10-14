@@ -25,3 +25,5 @@ https://journals.asm.org/doi/10.1128/mBio.01188-21
 http://www.cryst.bbk.ac.uk/education/AminoAcid/the_twenty.html
 ### Structured noise injection
 https://openaccess.thecvf.com/content_CVPR_2020/papers/Alharbi_Disentangled_Image_Generation_Through_Structured_Noise_Injection_CVPR_2020_paper.pdf
+### F5L, F12S, D614G
+https://www.frontiersin.org/articles/10.3389/fimmu.2021.725240/full
