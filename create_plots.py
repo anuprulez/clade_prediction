@@ -38,11 +38,11 @@ clade_child = "20c"
 
 '''
 
-results_path = "test_results/20A_20C_14Sept_CPU/"
+results_path = "test_results/08_10_one_hot_3_CPU_20A_20B/"
 clade_parent = "20A"
-clade_child = "20C"
+clade_child = "20B"
 
-file_name_mut_ct = "true_predicted_multiple_20A_20C_2_times.csv"
+file_name_mut_ct = "true_predicted_multiple_20A_20B_2_times.csv"
 tr_file_name = "train/{}_{}.csv".format(clade_parent, clade_child)
 
 
@@ -271,14 +271,14 @@ def plot_mutation_counts():
 
             '''if first_mut != second_mut and first_mut != third_mut:
                 key_par_child = "{}>{}".format(first_mut, second_mut)
-                key_pos_par_child = "{}>{}>{}".format(first_mut, str(index+1), second_mut)
+                key_pos_par_child = "{}>{}>{}".format(first_mut, str(i+1), second_mut)
                 print("Parent-child: {}".format(key_pos_par_child))
                 if key_par_child not in parent_child:
                     parent_child[key_par_child] = 0
                 parent_child[key_par_child] += 1
 
                 key_par_gen = "{}>{}".format(first_mut, third_mut)
-                key_pos_par_gen = "{}>{}>{}".format(first_mut, str(index+1), third_mut)
+                key_pos_par_gen = "{}>{}>{}".format(first_mut, str(i+1), third_mut)
                 print("Parent-gen: {}".format(key_pos_par_gen))
                 print("------------")
                 if key_par_gen not in parent_gen:
@@ -287,7 +287,7 @@ def plot_mutation_counts():
 
             if first_mut != second_mut:
                 key = "{}>{}".format(first_mut, second_mut)
-                key_pos_par_child = "{}>{}>{}".format(first_mut, str(index+1), second_mut)
+                key_pos_par_child = "{}>{}>{}".format(first_mut, str(i+1), second_mut)
                 if key_pos_par_child not in parent_child_pos:
                     parent_child_pos[key_pos_par_child] = 0
                 parent_child_pos[key_pos_par_child] += 1
@@ -298,7 +298,7 @@ def plot_mutation_counts():
         
             if first_mut != third_mut:
                 key = "{}>{}".format(first_mut, third_mut)
-                key_pos_par_gen = "{}>{}>{}".format(first_mut, str(index+1), third_mut)
+                key_pos_par_gen = "{}>{}>{}".format(first_mut, str(i+1), third_mut)
                 if key_pos_par_gen not in parent_gen_pos:
                     parent_gen_pos[key_pos_par_gen] = 0
                 parent_gen_pos[key_pos_par_gen] += 1
