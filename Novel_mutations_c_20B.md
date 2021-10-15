@@ -1,6 +1,6 @@
 ### Novel mutations
 
-# General mutations: https://europepmc.org/article/ppr/ppr305608
+### General mutations: https://europepmc.org/article/ppr/ppr305608
 Clade path: 20A -> 20B -> ["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"]
 
 Novel mutations identified in generated sequences, ideally comparable to sequences of children of clade 20B ("20I_Alpha", "20F", "20D", "21G_Lambda", "21H"), after training on sequence pairs of 20A and 20B
