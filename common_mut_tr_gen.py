@@ -3,16 +3,25 @@ import numpy as np
 import utils
 
 
+'''
 results_path = "test_results/08_10_one_hot_3_CPU_20A_20B/"
 clade_parent = "20A"
 clade_child = "20B"
+clade_future = "20I_Alpha_20F_20D_21G_Lambda_21H"
+'''
+
+results_path = "test_results/20A_20C_14Sept_CPU/"
+clade_parent = "20A"
+clade_child = "20C"
+clade_future = "20G_21C_Epsilon_21F_Iota"
+
 
 def find_pred_mut():
-    mut_tr = utils.read_json(results_path + "tr_parent_child_pos_20A_20B.json")
-    mut_te = utils.read_json(results_path + "te_parent_child_pos_20A_20B.json")
+    mut_tr = utils.read_json(results_path + "tr_parent_child_pos_{}_{}.json".format(clade_parent, clade_child))
+    mut_te = utils.read_json(results_path + "te_parent_child_pos_{}_{}.json".format(clade_parent, clade_child))
 
-    mut_future_true = utils.read_json(results_path + "parent_child_pos_20B_20I_Alpha_20F_20D_21G_Lambda_21H.json")
-    mut_future_gen = utils.read_json(results_path + "parent_gen_pos_20B_20I_Alpha_20F_20D_21G_Lambda_21H.json")
+    mut_future_true = utils.read_json(results_path + "parent_child_pos_{}_{}.json".format(clade_child, clade_future))
+    mut_future_gen = utils.read_json(results_path + "parent_gen_pos_{}_{}.json".format(clade_child, clade_future))
 
     novel_mut = list()
     novel_mut_orig = list()
