@@ -18,8 +18,16 @@ def make_kmers(seq, size):
 
 
 def compute_Levenshtein_dist(seq_in, seq_out):
-    #return np.random.randint(1, 5)
-    return lev_dist(seq_in, seq_out)
+    return np.random.randint(1, 5)
+    #return lev_dist(seq_in, seq_out)
+
+
+def transform_noise(noise):
+    shp = noise.shape
+    binary = np.random.choice([0, 1], shp[0] * shp[1])
+    binary_reshape = np.reshape(binary, (shp[0], shp[1]))
+    noise *= binary_reshape
+    return tf.convert_to_tensor(noise, dtype=tf.float32)
 
 
 def reconstruct_seq(kmers):
