@@ -307,8 +307,8 @@ def plot_mutation_counts():
                     parent_gen[key] = 0
                 parent_gen[key] += 1
                 
-    write_dict(results_path + "parent_child.json", parent_child)
-    write_dict(results_path + "parent_gen.json", parent_gen)
+    write_dict(results_path + "te_parent_child_{}_{}.json".format(clade_parent, clade_child), parent_child)
+    write_dict(results_path + "te_parent_gen_{}_{}.json".format(clade_parent, clade_child), parent_gen)
 
     aa_list = list('QNKWFPYLMTEIARGHSDVC')
     print("---------------------")
@@ -321,8 +321,8 @@ def plot_mutation_counts():
     print(len(parent_gen_pos), parent_gen_pos)
     print()
 
-    write_dict(results_path + "parent_child_pos.json", parent_child_pos)
-    write_dict(results_path + "parent_gen_pos.json", parent_gen_pos)
+    write_dict(results_path + "te_parent_child_pos_{}_{}.json".format(clade_parent, clade_child), parent_child_pos)
+    write_dict(results_path + "te_parent_gen_pos_{}_{}.json".format(clade_parent, clade_child), parent_gen_pos)
 
     keys1 = list(parent_child_pos.keys())
     keys2 = list(parent_gen_pos.keys())
@@ -357,29 +357,6 @@ def plot_mutation_counts():
     print("Pearson correlation between train and test par-child mut: {}".format(str(pearson_corr_tr_par_child_mut)))
     print("Pearson correlation between train par-child mut and test par-gen mut: {}".format(str(pearson_corr_tr_par_child_par_gen_mut)))
     print("Pearson correlation between test par-child mut and par-gen mut: {}".format(str(pearson_corr_te_par_child_par_gen_mut)))
-
-    ## get top mut list
-    '''n_top = 10
-    tr_parent_child_top = list(tr_parent_child.items())[:n_top]
-    parent_child_top = list(parent_child.items())[:n_top]
-    parent_gen_top = list(parent_gen.items())[:n_top]
-
-    print(tr_parent_child_top)
-    print()
-    print(parent_child_top)
-    print()
-    print(parent_gen_top)
-
-    print()
-    common_mutations_tr_child_gen = list()
-    print("Common mutations in tr, test and gen for {}>{} branch".format(clade_parent, clade_child))
-    for mut in tr_parent_child:
-        if mut in parent_child and mut in parent_gen:
-            print(mut, tr_parent_child[mut], parent_child[mut], parent_gen[mut])
-            common_mutations_tr_child_gen.append(mut)
-
-    utils.save_as_json(results_path + sub_path + "common_mutations_tr_child_gen.json", common_mutations_tr_child_gen)'''
-
     
     tr_par_child_keys = list(tr_parent_child.keys())
     te_par_child_keys = list(parent_child.keys())
@@ -527,9 +504,9 @@ def get_train_mat():
                     tr_parent_child[key] = 0
                 tr_parent_child[key] += 1
 
-    write_dict(results_path + "tr_parent_child.json", tr_parent_child)
+    write_dict(results_path + "tr_parent_child_{}_{}.json".format(clade_parent, clade_child), tr_parent_child)
 
-    write_dict(results_path + "tr_parent_child_pos.json", tr_parent_child_pos)
+    write_dict(results_path + "tr_parent_child_pos_{}_{}.json".format(clade_parent, clade_child), tr_parent_child_pos)
 
     aa_list = list('QNKWFPYLMTEIARGHSDVC')
 
