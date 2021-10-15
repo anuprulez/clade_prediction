@@ -30,19 +30,22 @@ import utils
 20A_20C_14Sept_GPU
 
 """
-'''
+
 
 results_path = "test_results/20A_20C_14Sept_CPU/" #20A_20C_06Sept_20EPO #20A_20C_14Sept_GPU
 clade_parent = "20A"
-clade_child = "20c"
+clade_child = "20C"
+
 
 '''
-
 results_path = "test_results/08_10_one_hot_3_CPU_20A_20B/"
 clade_parent = "20A"
 clade_child = "20B"
+'''
 
-file_name_mut_ct = "true_predicted_multiple_20A_20B_2_times.csv"
+WUHAN_SEQ = "data/ncov_global/wuhan-hu-1-spike-prot.txt"
+
+file_name_mut_ct = "true_predicted_multiple_20A_20C_2_times.csv"
 tr_file_name = "train/{}_{}.csv".format(clade_parent, clade_child)
 
 
@@ -248,6 +251,9 @@ def plot_mutation_counts():
     parent_gen_pos = dict()
 
     f_dict = read_json(results_path + "f_word_dictionaries.json")
+    rev_dict = read_json(results_path + "r_word_dictionaries.json")
+
+    encoded_wuhan_seq = utils.read_wuhan_seq(WUHAN_SEQ, rev_dict)
 
     # compare differences at positions
     space = 1

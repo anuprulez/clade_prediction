@@ -17,16 +17,19 @@ from scipy.stats.mstats import pearsonr
 import utils
 
 
-data_path = "test_results/08_10_one_hot_3_CPU_20A_20B/"
+data_path = "test_results/20A_20C_14Sept_CPU/"
 #20A_20B "test_results/20A_20B_17Sept_CPU/"
 
-clade_parent = "20B"
-clade_children = ["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] # 20I (Alpha, V1), 20F, 20D, 21G (Lambda), 21H
+clade_parent = "20C"
+clade_children = ["20G", "21C_Epsilon", "21F_Iota"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] # 20I (Alpha, V1), 20F, 20D, 21G (Lambda), 21H
 
 # ["20G", "21C_Epsilon", "21F_Iota"] #
 # true_predicted_multiple_20B_20I_Alpha_20F_20D_21G_Lambda_21H_2_times
 # true_predicted_multiple_20C_20G_21C_Epsilon_21F_Iota_2_times.csv
-file_path = data_path + "true_predicted_multiple_20B_20I_Alpha_20F_20D_21G_Lambda_21H_2_times.csv"
+
+file_path = data_path + "true_predicted_multiple_20C_20G_21C_Epsilon_21F_Iota_2_times.csv"
+
+#"true_predicted_multiple_20B_20I_Alpha_20F_20D_21G_Lambda_21H_2_times.csv"
 
 #clade_parent = "20C"
 #clade_children = ["20G", "21C_Epsilon", "21F_Iota"]
