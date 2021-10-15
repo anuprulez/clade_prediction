@@ -40,21 +40,12 @@ COMBINED_FILE = RESULT_PATH + "combined_dataframe.csv"
 WUHAN_SEQ = PATH_PRE + "wuhan-hu-1-spike-prot.txt"
 
 
-def read_wuhan_seq(f_dict, rev_dict):
-    with open(WUHAN_SEQ, "r") as wu_file:
-        wuhan_seq = wu_file.read()
-        wuhan_seq = wuhan_seq.split("\n")
-        wuhan_seq = "".join(wuhan_seq)
-        enc_wu_seq = [str(rev_dict[item]) for item in wuhan_seq]
-        return ",".join(enc_wu_seq)
-        
-
 def prepare_pred_future_seq():
     samples_clades = preprocess_sequences.get_samples_clades(PATH_SEQ_CLADE)
     clades_in_clades_out = utils.read_json(PATH_CLADES)
     print("Preprocessing sequences...")
     encoded_sequence_df, forward_dict, rev_dict = preprocess_sequences.preprocess_seq(PATH_SEQ, samples_clades)
-    encoded_wuhan_seq = read_wuhan_seq(forward_dict, rev_dict)
+    encoded_wuhan_seq = utils.read_wuhan_seq(WUHAN_SEQ, rev_dict)
     print(clades_in_clades_out)
     print("Generating cross product...")
     preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df, train_size=1.0, edit_threshold=max_diff)

@@ -99,6 +99,15 @@ def read_in_out(path):
     return samples
 
 
+def read_wuhan_seq(wu_path, rev_dict):
+    with open(wu_path, "r") as wu_file:
+        wuhan_seq = wu_file.read()
+        wuhan_seq = wuhan_seq.split("\n")
+        wuhan_seq = "".join(wuhan_seq)
+        enc_wu_seq = [str(rev_dict[item]) for item in wuhan_seq]
+        return ",".join(enc_wu_seq)
+
+
 def get_words_indices(word_list):
     forward_dictionary = {i + 1: word_list[i] for i in range(0, len(word_list))}
     reverse_dictionary = {word_list[i]: i + 1  for i in range(0, len(word_list))}
