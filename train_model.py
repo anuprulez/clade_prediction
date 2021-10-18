@@ -24,8 +24,8 @@ generator_optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3, beta_1=0.5)
 discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5, beta_1=0.5)
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 m_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
-n_disc_step = 10
-n_gen_step = 5
+n_disc_step = 4
+n_gen_step = 2
 test_perf_iter = 10
 
 
@@ -153,11 +153,11 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
               # discriminate pairs of true parent and generated child sequences
               fake_output = discriminator([real_x, fake_y], training=True)
               #fake_output = tf.random.shuffle(fake_output)
-              h_fake_output = fake_output[:int(batch_size / 2)]
+              #h_fake_output = fake_output[:int(batch_size / 2)]
               # discriminate pairs of sequences that are not parent child
-              random_output = discriminator([real_x, random_y], training=True)
-              h_random_output = random_output[:int(batch_size / 2)]
-              merged_fake_output = tf.concat([h_fake_output, h_random_output], axis=0)
+              #random_output = discriminator([real_x, random_y], training=True)
+              #h_random_output = random_output[:int(batch_size / 2)]
+              #merged_fake_output = tf.concat([h_fake_output, h_random_output], axis=0)
               '''not_par_child_output = discriminator([real_x, real_x], training=True)
               # take halves of fake output - real parent and gen child and not parent-child sequences
               h_fake_output = fake_output[:int(batch_size / 2)]
@@ -165,7 +165,7 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
               # mix both fake outputs
               merged_fake_output = tf.concat([h_fake_output, h_not_par_child_output], axis=0)'''
               # compute discriminator loss
-              disc_real_loss, disc_fake_loss = discriminator_loss(real_output, merged_fake_output)
+              disc_real_loss, disc_fake_loss = discriminator_loss(real_output, fake_output)
               total_disc_loss = disc_real_loss + disc_fake_loss
 
           gradients_of_discriminator = disc_tape.gradient(total_disc_loss, discriminator.trainable_variables)
@@ -178,10 +178,10 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
               # discriminate pairs of true parent and generated child sequences
               fake_output = discriminator([real_x, fake_y], training=True)
               #fake_output = tf.random.shuffle(fake_output)
-              h_fake_output = fake_output[:int(batch_size / 2)]
-              random_output = discriminator([real_x, random_y], training=True)
-              h_random_output = random_output[:int(batch_size / 2)]
-              merged_fake_output = tf.concat([h_fake_output, h_random_output], axis=0)
+              #h_fake_output = fake_output[:int(batch_size / 2)]
+              #random_output = discriminator([real_x, random_y], training=True)
+              #h_random_output = random_output[:int(batch_size / 2)]
+              #merged_fake_output = tf.concat([h_fake_output, h_random_output], axis=0)
               # discriminate pairs of real sequences but not parent-child
               #not_par_child_output = discriminator([real_x, real_x], training=True)
               # take halves of fake output - real parent and gen child and not parent-child sequences
@@ -190,11 +190,17 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
               # mix both fake outputs
               #merged_fake_output = tf.concat([h_fake_output, h_not_par_child_output], axis=0)
 
-              gen_fake_loss = generator_loss(merged_fake_output)
+              gen_fake_loss = generator_loss(fake_output)
               total_gen_loss = gen_fake_loss + gen_true_loss
-
-          gradients_of_decoder = gen_tape.gradient(total_gen_loss, decoder.trainable_variables)
-          generator_optimizer.apply_gradients(zip(gradients_of_decoder, decoder.trainable_variables))
+          '''for item in encoder.trainable_variables:
+              print(item.name)
+          print()
+          for d_item in decoder.trainable_variables:
+              print(d_item.name)'''
+          # get all trainable vars for generator
+          gen_trainable_vars = decoder.trainable_variables + encoder.trainable_variables
+          gradients_of_generator = gen_tape.gradient(total_gen_loss, gen_trainable_vars)
+          generator_optimizer.apply_gradients(zip(gradients_of_generator, gen_trainable_vars))
           encoder.save_weights(ENC_WEIGHTS_SAVE_PATH)
           # set weights of discriminator's encoder from generator's encoder
           disc_par_enc.load_weights(ENC_WEIGHTS_SAVE_PATH)
