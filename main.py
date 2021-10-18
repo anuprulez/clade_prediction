@@ -52,7 +52,7 @@ embedding_dim = 128
 batch_size = 32
 enc_units = 128
 pretrain_epochs = 5
-epochs = 10
+epochs = 3
 
 
 # https://www.tensorflow.org/text/tutorials/nmt_with_attention
@@ -114,6 +114,9 @@ def start_training(vocab_size, forward_dict, rev_dict):
     combined_y = np.array(combined_y)
     combined_te_X = np.array(combined_te_X)
     combined_te_y = np.array(combined_te_y)
+    
+    combined_X = combined_X[:500]
+    combined_y = combined_y[:500]
 
     te_batch_size = combined_te_X.shape[0]
     print("Te batch size: {}".format(str(te_batch_size)))
