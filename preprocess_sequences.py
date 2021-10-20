@@ -151,7 +151,6 @@ def make_cross_product(clade_in_clade_out, dataframe, train_size=0.8, edit_thres
             print("Mean levenshtein dist: {}".format(str(np.mean(l_distance))))
             print("Mean filtered levenshtein dist: {}".format(str(np.mean(filtered_l_distance))))
 
-            train_df = train_dataframe
             train_x = train_df["Sequence_x"].tolist()
             train_y = train_df["Sequence_y"].tolist()
 

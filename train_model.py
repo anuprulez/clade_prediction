@@ -127,7 +127,7 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
   """
   Training sequences balanced by mutation type
   """
-  X_train, y_train, X_y_l = inputs
+  X_train, y_train = inputs
   test_dataset_in, test_dataset_out = test_data_load
 
   epo_avg_total_gen_loss = list()
