@@ -29,7 +29,7 @@ cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 m_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
 n_disc_step = 2
 n_gen_step = 1
-unrolled_steps = 5
+unrolled_steps = 3
 
 
 def wasserstein_loss(y_true, y_pred):
@@ -91,7 +91,7 @@ def gen_step_train(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real
     return pred_logits, gen_decoder, step_loss
 
 
-def d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, encoder, decoder, disc_par_enc, disc_gen_enc):
+def d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator):
     print("Applying gradient update on discriminator...")
     with tf.GradientTape() as disc_tape:
         real_x, real_y, fake_y, random_y, encoder, decoder, disc_par_enc, disc_gen_enc, _ = get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, encoder, decoder, disc_par_enc, disc_gen_enc)
@@ -107,7 +107,7 @@ def d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, e
     return encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, disc_real_loss, disc_fake_loss, total_disc_loss
 
 
-def g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, encoder, decoder, disc_par_enc, disc_gen_enc):
+def g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator):
     print("Applying gradient update on generator...")
     with tf.GradientTape() as gen_tape:
         real_x, real_y, fake_y, random_y, encoder, decoder, disc_par_enc, disc_gen_enc, gen_true_loss = get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, encoder, decoder, disc_par_enc, disc_gen_enc)
@@ -172,18 +172,15 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
 
       if disc_gen in list(range(0, n_disc_step - n_gen_step)):
           
-          encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, disc_real_loss, disc_fake_loss, total_disc_loss = d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, encoder, decoder, disc_par_enc, disc_gen_enc)
+          encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, disc_real_loss, disc_fake_loss, total_disc_loss = d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator)
       else:
           print("Applying unrolled steps...")
-          #backup_disc_par_enc = copy.deepcopy(disc_par_enc)
-          #backup_disc_gen_enc = copy.deepcopy(disc_gen_enc)
-          #backup_discriminator = copy.deepcopy(discriminator)
           discriminator.save_weights(DISC_WEIGHTS)
-          for i range(unrolled_steps):
+          for i in range(unrolled_steps):
               print("Unrolled step: {}/{}".format(str(i), str(unrolled_steps)))
-              _, _, disc_par_enc, disc_gen_enc, discriminator, _, _, _ = d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, encoder, decoder, disc_par_enc, disc_gen_enc)
-          
-          encoder, decoder, disc_par_enc, disc_gen_enc, gen_true_loss, gen_fake_loss, total_gen_loss = g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, encoder, decoder, disc_par_enc, disc_gen_enc)
+              _, _, disc_par_enc, disc_gen_enc, discriminator, d_r_l, d_f_l, d_t_l = d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator)
+              print("Unrolled disc losses: {}, {}, {}".format(str(d_r_l.numpy()), str(d_f_l.numpy()), str(d_t_l.numpy())))
+          encoder, decoder, disc_par_enc, disc_gen_enc, _, gen_true_loss, gen_fake_loss, total_gen_loss = g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator)
           discriminator.load_weights(DISC_WEIGHTS)
           # set weights of discriminator's encoder from generator's encoder
           disc_par_enc.load_weights(ENC_WEIGHTS_SAVE_PATH)
