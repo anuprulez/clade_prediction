@@ -53,6 +53,8 @@ batch_size = 32
 enc_units = 128
 pretrain_epochs = 5
 epochs = 3
+max_l_dist = 10
+train_size = 0.8
 
 
 # https://www.tensorflow.org/text/tutorials/nmt_with_attention
@@ -65,7 +67,7 @@ def read_files():
     encoded_sequence_df, forward_dict, rev_dict = preprocess_sequences.preprocess_seq(PATH_SEQ, samples_clades)
     print(clades_in_clades_out)    
     print("Generating cross product...")
-    preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df)
+    preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df, train_size=train_size, edit_threshold=max_l_dist)
     start_training(len(rev_dict) + 1, forward_dict, rev_dict)
 
 
@@ -87,12 +89,10 @@ def start_training(vocab_size, forward_dict, rev_dict):
         tr_clade_df = pd.read_csv(name, sep="\t")
         X = tr_clade_df["X"].tolist()
         y = tr_clade_df["Y"].tolist()
-        X_y_l = tr_clade_df[l_dist_name].tolist()
         combined_X.extend(X)
         combined_y.extend(y)
-        combined_x_y_l.extend(X_y_l)
-        print(len(X), len(y), len(X_y_l))
-    print(len(combined_X), len(combined_y), len(combined_x_y_l))
+        print(len(X), len(y))
+    print(len(combined_X), len(combined_y))
 
     combined_te_X = list()
     combined_te_y = list()
@@ -114,9 +114,6 @@ def start_training(vocab_size, forward_dict, rev_dict):
     combined_y = np.array(combined_y)
     combined_te_X = np.array(combined_te_X)
     combined_te_y = np.array(combined_te_y)
-    
-    combined_X = combined_X[:500]
-    combined_y = combined_y[:500]
 
     te_batch_size = combined_te_X.shape[0]
     print("Te batch size: {}".format(str(te_batch_size)))
@@ -124,30 +121,6 @@ def start_training(vocab_size, forward_dict, rev_dict):
     # get test dataset as sliced tensors
     test_dataset_in = tf.data.Dataset.from_tensor_slices((combined_te_X)).batch(te_batch_size)
     test_dataset_out = tf.data.Dataset.from_tensor_slices((combined_te_y)).batch(te_batch_size)
-
-    #sys.exit()
-    # divide datasets into pretrain and train sets
-    '''X_pretrain, X_train, y_pretrain, y_train  = train_test_split(X, y, test_size=0.7)
-    # pretrain generator
-    print("Pretraining generator...")
-    print(X_pretrain.shape, y_pretrain.shape, X_train.shape, y_train.shape)
-    # get pretraining dataset as sliced tensors
-    pretrain_dataset_in = tf.data.Dataset.from_tensor_slices((X_pretrain)).batch(batch_size)
-    pretrain_dataset_out = tf.data.Dataset.from_tensor_slices((y_pretrain)).batch(batch_size)
-    
-    n_pretrain_batches = int(X_pretrain.shape[0]/float(batch_size))
-    print("Num of pretrain batches: {}".format(str(n_pretrain_batches)))
-    for i in range(pretrain_epochs):
-        print("Pre training epoch {}/{}...".format(str(i+1), str(pretrain_epochs)))
-        epo_pretrain_gen_loss, encoder, decoder = train_model.pretrain_generator([pretrain_dataset_in, pretrain_dataset_out], encoder, decoder, enc_units, vocab_size, n_pretrain_batches)
-        print("Pre training loss at step {}/{}: Generator loss: {}".format(str(i+1), str(pretrain_epochs), str(epo_pretrain_gen_loss)))
-        pretrain_gen_loss.append(epo_pretrain_gen_loss)
-        print("Pretrain: predicting on test datasets...")
-        with tf.device('/device:cpu:0'):
-            epo_pt_gen_te_loss = predict_sequence(test_dataset_in, test_dataset_out, LEN_AA, vocab_size, PRETRAIN_ENC_MODEL, PRETRAIN_GEN_MODEL)
-        pretrain_gen_test_loss.append(epo_pt_gen_te_loss)
-    np.savetxt(PRETRAIN_GEN_LOSS, pretrain_gen_loss)
-    np.savetxt(PRETRAIN_GEN_TEST_LOSS, pretrain_gen_test_loss)'''
 
     # create discriminator model
     disc_parent_encoder_model, disc_gen_encoder_model = neural_network.make_disc_par_gen_model(LEN_AA, vocab_size, embedding_dim, enc_units)
