@@ -3,17 +3,17 @@ import numpy as np
 import utils
 
 
-'''
-results_path = "test_results/08_10_one_hot_3_CPU_20A_20B/"
+
+results_path = "test_results/19_10_20A_20B_unrolled_GPU/"
 clade_parent = "20A"
 clade_child = "20B"
 clade_future = "20I_Alpha_20F_20D_21G_Lambda_21H"
-'''
 
-results_path = "test_results/20A_20C_14Sept_CPU/"
+
+'''results_path = "test_results/19_10_20A_20B_unrolled_GPU/"
 clade_parent = "20A"
 clade_child = "20C"
-clade_future = "20G_21C_Epsilon_21F_Iota"
+clade_future = "20G_21C_Epsilon_21F_Iota"'''
 
 
 def find_pred_mut():

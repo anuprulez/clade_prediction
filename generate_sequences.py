@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 import logging
 import glob
+import itertools
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from nltk.translate.bleu_score import sentence_bleu
@@ -16,10 +17,10 @@ import preprocess_sequences
 import utils
 
 
-RESULT_PATH = "test_results/08_10_one_hot_3_CPU_20A_20B/"
+RESULT_PATH = "test_results/19_10_20A_20B_unrolled_GPU/"
 
 min_diff = 0
-max_diff = 61
+max_diff = 6
 enc_units = 128
 LEN_AA = 1273
 
@@ -48,8 +49,11 @@ def prepare_pred_future_seq():
     encoded_wuhan_seq = utils.read_wuhan_seq(WUHAN_SEQ, rev_dict)
     print(clades_in_clades_out)
     print("Generating cross product...")
-    preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df, train_size=1.0, edit_threshold=max_diff)
-    create_parent_child_true_seq(forward_dict, rev_dict)
+    preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df, train_size=1.0, edit_threshold=100)
+    # generate only with all rows
+    #create_parent_child_true_seq(forward_dict, rev_dict)
+    # generate only with test rows
+    create_parent_child_true_seq_test(forward_dict, rev_dict)
     return encoded_wuhan_seq
 
 
@@ -79,6 +83,55 @@ def create_parent_child_true_seq(forward_dict, rev_dict):
     print(combined_dataframe)
 
     combined_dataframe.to_csv(COMBINED_FILE, sep="\t", index=None)
+
+def create_parent_child_true_seq_test(forward_dict, rev_dict):
+    print("Loading test datasets...")
+    list_true_y_test = list()
+    true_test_file = glob.glob(RESULT_PATH + '/test/*.csv')
+    for name in true_test_file:
+        test_df = pd.read_csv(name, sep="\t")
+        print(len(test_df))
+        true_Y_test = test_df["Y"].drop_duplicates() # Corresponds to 20B for 20A - 20B training
+        true_Y_test = true_Y_test.tolist()
+        print(len(true_Y_test))
+        list_true_y_test.extend(true_Y_test)
+    print(len(list_true_y_test))
+
+    tr_clade_files = glob.glob('data/train/*.csv')
+
+    children_combined_y = list()
+    # load train data
+    print("Loading true y datasets...")
+    for name in tr_clade_files:
+        tr_clade_df = pd.read_csv(name, sep="\t")
+        print(len(tr_clade_df))
+        y = tr_clade_df["Y"].drop_duplicates()
+        y = y.tolist() # Corresponds to children of 20B for 20A - 20B training
+        children_combined_y.extend(y)
+        print(len(y))
+    print()
+    print("train data sizes")
+    print(len(children_combined_y))
+
+    test_x_true_y = list(itertools.product(list_true_y_test, children_combined_y))
+    print("Combined test x and true y: {}".format(str(len(test_x_true_y))))
+
+    print("Filtering for range of levenshtein distance...")
+    filtered_test_x = list()
+    filtered_true_y = list()
+    for i, test_x in enumerate(list_true_y_test):
+        for i, true_y in enumerate(children_combined_y):
+            l_dist = utils.compute_Levenshtein_dist(test_x, true_y)
+            if l_dist > 0 and l_dist < max_diff:
+                filtered_test_x.append(test_x)
+                filtered_true_y.append(true_y)
+
+    combined_dataframe = pd.DataFrame(list(zip(filtered_test_x, filtered_true_y)), columns=["X", "Y"])
+    print(combined_dataframe)
+
+    combined_dataframe.to_csv(COMBINED_FILE, sep="\t", index=None)
+
+    sys.exit()
     
 
 def load_model_generated_sequences(file_path, encoded_wuhan_seq=None, gen_future=True):
