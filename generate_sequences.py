@@ -20,18 +20,16 @@ import utils
 RESULT_PATH = "test_results/19_10_20A_20B_unrolled_GPU/"
 
 min_diff = 0
-max_diff = 6
+max_diff = 10
 enc_units = 128
 LEN_AA = 1273
 
 clade_parent = "20B" # 20A
-clade_childen = ["20G", "21C_Epsilon", "21F_Iota"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] # ["20B"]
+clade_childen = ["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] # ["20B"]
 # ["20G", "21C_Epsilon", "21F_Iota"]
 # {"20B": ["20I (Alpha, V1)", "20F", "20D", "21G (Lambda)", "21H"]}
 
-l_dist_name = "levenshtein_distance"
-
-generating_factor = 2
+generating_factor = 10
 
 PATH_PRE = "data/ncov_global/"
 PATH_SEQ = PATH_PRE + "spikeprot0815.fasta"
@@ -70,16 +68,14 @@ def create_parent_child_true_seq(forward_dict, rev_dict):
         tr_clade_df = pd.read_csv(name, sep="\t")
         X = tr_clade_df["X"].tolist()
         y = tr_clade_df["Y"].tolist()
-        X_y_l = tr_clade_df[l_dist_name].tolist()
         combined_X.extend(X)
         combined_y.extend(y)
-        combined_x_y_l.extend(X_y_l)
-        print(len(X), len(y), len(X_y_l))
+        print(len(X), len(y))
     print()
     print("train data sizes")
-    print(len(combined_X), len(combined_y), len(combined_x_y_l))
+    print(len(combined_X), len(combined_y))
 
-    combined_dataframe = pd.DataFrame(list(zip(combined_X, combined_y, combined_x_y_l)), columns=["X", "Y", l_dist_name])
+    combined_dataframe = pd.DataFrame(list(zip(combined_X, combined_y)), columns=["X", "Y"])
     print(combined_dataframe)
 
     combined_dataframe.to_csv(COMBINED_FILE, sep="\t", index=None)
@@ -125,14 +121,10 @@ def create_parent_child_true_seq_test(forward_dict, rev_dict):
             if l_dist > 0 and l_dist < max_diff:
                 filtered_test_x.append(test_x)
                 filtered_true_y.append(true_y)
-
     combined_dataframe = pd.DataFrame(list(zip(filtered_test_x, filtered_true_y)), columns=["X", "Y"])
     print(combined_dataframe)
-
     combined_dataframe.to_csv(COMBINED_FILE, sep="\t", index=None)
 
-    sys.exit()
-    
 
 def load_model_generated_sequences(file_path, encoded_wuhan_seq=None, gen_future=True):
     # load test data
