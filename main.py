@@ -117,7 +117,7 @@ def start_training(vocab_size, forward_dict, rev_dict):
 
     te_batch_size = combined_te_X.shape[0]
     print("Te batch size: {}".format(str(te_batch_size)))
-
+    sys.exit()
     # get test dataset as sliced tensors
     test_dataset_in = tf.data.Dataset.from_tensor_slices((combined_te_X)).batch(te_batch_size)
     test_dataset_out = tf.data.Dataset.from_tensor_slices((combined_te_y)).batch(te_batch_size)

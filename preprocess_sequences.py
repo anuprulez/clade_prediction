@@ -77,13 +77,11 @@ def make_dataframes(l_tuples):
 
 
 def make_u_combinations(u_p_list, u_c_list, size):
-
     p_tr, p_te = divide_list_tr_te(u_p_list, size)
     c_tr, c_te = divide_list_tr_te(u_c_list, size)
     tr_data = list(itertools.product(p_tr, c_tr))
-    print(len(tr_data))
     te_data = list(itertools.product(p_te, c_te))
-    print(len(te_data))
+    print(len(tr_data), len(te_data))
     return tr_data, te_data
     
 
@@ -108,7 +106,6 @@ def make_cross_product(clade_in_clade_out, dataframe, train_size=0.8, edit_thres
             print("Size of clade {}: {}".format(out_clade, str(out_len)))
             merged_size = in_len * out_len
             print("Merged raw size ({} * {}) : {}".format(str(in_len), str(out_len), merged_size))
-            print()
 
             cross_joined_df = cross_joined_df.sample(frac=1)
             cross_columns = list(cross_joined_df.columns)
@@ -157,7 +154,6 @@ def make_cross_product(clade_in_clade_out, dataframe, train_size=0.8, edit_thres
             merged_train_df = pd.DataFrame(list(zip(train_x, train_y)), columns=["X", "Y"])
             tr_filename = "data/train/{}_{}.csv".format(in_clade, out_clade)
             merged_train_df.to_csv(tr_filename, sep="\t", index=None)
-            print(len(merged_train_df))
 
             test_x = test_df["Sequence_x"].tolist()
             test_y = test_df["Sequence_y"].tolist()
