@@ -76,7 +76,6 @@ def create_parent_child_true_seq(forward_dict, rev_dict):
     combined_dataframe = pd.DataFrame(list(zip(combined_X, combined_y)), columns=["X", "Y"])
     print(combined_dataframe)
     combined_dataframe.to_csv(COMBINED_FILE, sep="\t", index=None)
-    sys.exit()
 
 
 def create_parent_child_true_seq_test(forward_dict, rev_dict):
@@ -118,7 +117,6 @@ def create_parent_child_true_seq_test(forward_dict, rev_dict):
     combined_dataframe = pd.DataFrame(list(zip(filtered_test_x, filtered_true_y)), columns=["X", "Y"])
     print(combined_dataframe)
     combined_dataframe.to_csv(COMBINED_FILE, sep="\t", index=None)
-    sys.exit()
 
 
 def load_model_generated_sequences(file_path, encoded_wuhan_seq=None, gen_future=True):
