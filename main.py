@@ -107,7 +107,6 @@ def start_training(vocab_size, forward_dict, rev_dict):
     print()
     print("train and test data sizes")
     print(len(combined_X), len(combined_y), len(combined_te_X), len(combined_te_y))
-    sys.exit()
     combined_X = np.array(combined_X)
     combined_y = np.array(combined_y)
     combined_te_X = np.array(combined_te_X)
