@@ -30,3 +30,7 @@ https://www.frontiersin.org/articles/10.3389/fimmu.2021.725240/full
 
 ### Unrolled GAN
 https://github.com/MarisaKirisame/unroll_gan/blob/master/main.py
+
+1. conda create --name clade_pred python=3.9
+2. conda activate clade_pred
+3. pip install tensorflow-gpu pandas matplotlib bio h5py scikit-learn nltk python-Levenshtein

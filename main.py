@@ -92,7 +92,6 @@ def start_training(vocab_size, forward_dict, rev_dict):
         combined_X.extend(X)
         combined_y.extend(y)
         print(len(X), len(y))
-    print(len(combined_X), len(combined_y))
 
     combined_te_X = list()
     combined_te_y = list()
@@ -105,11 +104,10 @@ def start_training(vocab_size, forward_dict, rev_dict):
         combined_te_X.extend(te_X)
         combined_te_y.extend(te_y)
         print(len(te_X), len(te_y))
-    print(len(combined_te_X), len(combined_te_y))
     print()
     print("train and test data sizes")
     print(len(combined_X), len(combined_y), len(combined_te_X), len(combined_te_y))
-
+    sys.exit()
     combined_X = np.array(combined_X)
     combined_y = np.array(combined_y)
     combined_te_X = np.array(combined_te_X)
@@ -117,7 +115,7 @@ def start_training(vocab_size, forward_dict, rev_dict):
 
     te_batch_size = combined_te_X.shape[0]
     print("Te batch size: {}".format(str(te_batch_size)))
-    sys.exit()
+
     # get test dataset as sliced tensors
     test_dataset_in = tf.data.Dataset.from_tensor_slices((combined_te_X)).batch(te_batch_size)
     test_dataset_out = tf.data.Dataset.from_tensor_slices((combined_te_y)).batch(te_batch_size)
