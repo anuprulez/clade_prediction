@@ -24,6 +24,7 @@ max_diff = 10
 train_size = 1.0
 enc_units = 128
 LEN_AA = 1273
+FUTURE_GEN_TEST = "test/20A_20B.csv"
 
 clade_parent = "20B" # 20A
 clade_childen = ["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] # ["20B"]
@@ -81,9 +82,10 @@ def create_parent_child_true_seq(forward_dict, rev_dict):
 def create_parent_child_true_seq_test(forward_dict, rev_dict):
     print("Loading test datasets...")
     list_true_y_test = list()
-    true_test_file = glob.glob(RESULT_PATH + '/test/*.csv')
+    true_test_file = glob.glob(RESULT_PATH + FUTURE_GEN_TEST)
     for name in true_test_file:
         test_df = pd.read_csv(name, sep="\t")
+        print(test_df)
         true_Y_test = test_df["Y"].drop_duplicates() # Corresponds to 20B for 20A - 20B training
         true_Y_test = true_Y_test.tolist()
         list_true_y_test.extend(true_Y_test)
@@ -98,8 +100,6 @@ def create_parent_child_true_seq_test(forward_dict, rev_dict):
         y = tr_clade_df["Y"].drop_duplicates()
         y = y.tolist() # Corresponds to children of 20B for 20A - 20B training
         children_combined_y.extend(y)
-    print()
-    print("train data sizes")
     print(len(list_true_y_test), len(children_combined_y))
 
     test_x_true_y = list(itertools.product(list_true_y_test, children_combined_y))
@@ -109,7 +109,7 @@ def create_parent_child_true_seq_test(forward_dict, rev_dict):
     filtered_test_x = list()
     filtered_true_y = list()
     for i, test_x in enumerate(list_true_y_test):
-        for i, true_y in enumerate(children_combined_y):
+        for j, true_y in enumerate(children_combined_y):
             l_dist = utils.compute_Levenshtein_dist(test_x, true_y)
             if l_dist > 0 and l_dist < max_diff:
                 filtered_test_x.append(test_x)
@@ -232,11 +232,11 @@ if __name__ == "__main__":
     start_time = time.time()
     # enable only when predicting future sequences
     wu_seq = None
-    #wu_seq = prepare_pred_future_seq()
+    wu_seq = prepare_pred_future_seq()
     # when not gen_future, file_path = RESULT_PATH + "test/*.csv"
     # when gen_future, file_path = COMBINED_FILE
-    #file_path = COMBINED_FILE
-    file_path = RESULT_PATH + "test/*_20B.csv"
+    file_path = COMBINED_FILE
+    #file_path = RESULT_PATH + "test/*_20B.csv"
     load_model_generated_sequences(file_path, wu_seq)
     end_time = time.time()
     print("Program finished in {} seconds".format(str(np.round(end_time - start_time, 2))))
