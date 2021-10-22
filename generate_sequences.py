@@ -210,7 +210,7 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, batch_size, encoded_wuh
     print(len(true_x), len(true_y), len(predicted_y))
     child_clades = "_".join(clade_childen)
     true_predicted_multiple = pd.DataFrame(list(zip(true_x, true_y, predicted_y)), columns=[clade_parent, child_clades, "Generated"])
-    df_path = "{}true_predicted_multiple_{}_{}_{}_times.csv".format(RESULT_PATH, clade_parent, child_clades, str(generating_factor))
+    df_path = "{}true_predicted_multiple_{}_{}_{}_times_max_LD_{}.csv".format(RESULT_PATH, clade_parent, child_clades, str(generating_factor), str(max_diff))
     true_predicted_multiple.to_csv(df_path, index=None)
     
 
