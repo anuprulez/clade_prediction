@@ -17,7 +17,7 @@ import preprocess_sequences
 import utils
 
 
-RESULT_PATH = "test_results/19_10_20A_20B_unrolled_GPU/"
+RESULT_PATH = "test_results/22_10_19A_20A_20B_GPU/"
 
 min_diff = 0
 max_diff = 10
@@ -76,7 +76,7 @@ def create_parent_child_true_seq(forward_dict, rev_dict):
     combined_dataframe = pd.DataFrame(list(zip(combined_X, combined_y)), columns=["X", "Y"])
     print(combined_dataframe)
     combined_dataframe.to_csv(COMBINED_FILE, sep="\t", index=None)
-
+    
 
 def create_parent_child_true_seq_test(forward_dict, rev_dict):
     print("Loading test datasets...")
@@ -122,12 +122,13 @@ def create_parent_child_true_seq_test(forward_dict, rev_dict):
 def load_model_generated_sequences(file_path, encoded_wuhan_seq=None, gen_future=True):
     # load test data
     te_clade_files = glob.glob(file_path)
-    print(te_clade_files, file_path)
+    print(te_clade_files)
     r_dict = utils.read_json(RESULT_PATH + "r_word_dictionaries.json")
     vocab_size = len(r_dict) + 1
     total_te_loss = list()
     print("Generating sequences for {}...".format(clade_parent))
     for te_name in te_clade_files:
+        print(te_name)
         te_clade_df = pd.read_csv(te_name, sep="\t")
         te_X = te_clade_df["X"]
         te_y = te_clade_df["Y"]
@@ -231,12 +232,11 @@ if __name__ == "__main__":
     start_time = time.time()
     # enable only when predicting future sequences
     wu_seq = None
-    wu_seq = prepare_pred_future_seq()
-    # set gen_future = True while predicting future
-    # when gen_future = False, file_path = RESULT_PATH + "test/*.csv"
-    # when gen_future = True, file_path = COMBINED_FILE
-    file_path = COMBINED_FILE
-    #file_path = RESULT_PATH + "test/*.csv"
-    load_model_generated_sequences(file_path, wu_seq, True)
+    #wu_seq = prepare_pred_future_seq()
+    # when not gen_future, file_path = RESULT_PATH + "test/*.csv"
+    # when gen_future, file_path = COMBINED_FILE
+    #file_path = COMBINED_FILE
+    file_path = RESULT_PATH + "test/*_20B.csv"
+    load_model_generated_sequences(file_path, wu_seq)
     end_time = time.time()
     print("Program finished in {} seconds".format(str(np.round(end_time - start_time, 2))))
