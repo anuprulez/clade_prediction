@@ -18,14 +18,10 @@ excluded_ids = ["Spike|hCoV-19/Northern", "Spike|hCoV-19/French", "Spike|hCoV-19
 
 def get_galaxy_samples_clades(path_seq_clades):
     ncov_global_df = pd.read_csv(path_seq_clades, sep="\t")
-    #print(ncov_global_df)
     samples_clades = dict()
     for idx in range(len(ncov_global_df)):
         sample_row = ncov_global_df.take([idx])
         s_name = sample_row["seqName"].values[0]
-        #sample_name = s_name.split("|")[1]
-        #if "hCoV-19/South" in s_name:
-        #    print(sample_row["seqName"])
         clade_name = sample_row["clade"].values[0]
         if sample_row["qc.overallStatus"].values[0] and sample_row["qc.overallStatus"].values[0] == "good":
             clade_name = utils.format_clade_name(clade_name)
@@ -37,7 +33,7 @@ def get_galaxy_samples_clades(path_seq_clades):
 def preprocess_seq_galaxy_clades(fasta_file, samples_clades):
     
     encoded_samples = list()
-    amino_acid_codes = "QNKWFPYLMTEIARGHSDVC
+    amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"
     max_seq_size = LEN_AA
     aa_chars = utils.get_all_possible_words(amino_acid_codes)
     f_word_dictionaries, r_word_dictionaries = utils.get_words_indices(aa_chars)
