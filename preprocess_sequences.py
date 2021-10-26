@@ -41,7 +41,6 @@ def preprocess_seq_galaxy_clades(fasta_file, samples_clades):
     f_word_dictionaries, r_word_dictionaries = utils.get_words_indices(aa_chars)
     all_sample_names = list(samples_clades.keys()) 
     u_list = list()
-    ctr = 0
     for sequence_obj in SeqIO.parse(fasta_file, "fasta"):
         row = list()
         seq_id = sequence_obj.id
@@ -57,7 +56,6 @@ def preprocess_seq_galaxy_clades(fasta_file, samples_clades):
             joined_indices_kmers = ','.join(indices_chars)
             row.append(joined_indices_kmers)
             encoded_samples.append(row)
-            ctr += 1
     sample_clade_sequence_df = pd.DataFrame(encoded_samples, columns=["SampleName", "Clade", "Sequence"])
     sample_clade_sequence_df.to_csv(PATH_SAMPLES_CLADES, index=None)
     utils.save_as_json(PATH_F_DICT, f_word_dictionaries)
@@ -159,12 +157,15 @@ def make_cross_product(clade_in_clade_out, dataframe, train_size=0.8, edit_thres
     
     for in_clade in clade_in_clade_out:
         # get df for parent clade
+        random_size = 200
         in_clade_df = dataframe[dataframe["Clade"].replace("/", "_") == in_clade]
+        in_clade_df = in_clade_df.sample(n=random_size)
         in_len = len(in_clade_df.index)
         print("Size of clade {}: {}".format(in_clade, str(in_len)))
         # get df for child clades
         for out_clade in clade_in_clade_out[in_clade]:
             out_clade_df = dataframe[dataframe["Clade"].replace("/", "_") == out_clade]
+            out_clade_df = out_clade_df.sample(n=random_size)
             out_len = len(out_clade_df.index)
             # add tmp key to obtain cross join and then drop it
             in_clade_df["_tmpkey"] = np.ones(in_len)
