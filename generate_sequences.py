@@ -20,14 +20,15 @@ import utils
 RESULT_PATH = "test_results/22_10_19A_20A_20B_GPU/"
 
 min_diff = 0
-max_diff = 10
+max_diff = 5
 train_size = 1.0
 enc_units = 128
 LEN_AA = 1273
-FUTURE_GEN_TEST = "test/20A_20B.csv"
+FUTURE_GEN_TEST = "test/20A_20C.csv"
 
-clade_parent = "20B" # 20A
-clade_childen = ["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] # ["20B"]
+clade_parent = "20C" # 20A
+clade_childen = ["20G", "21C_Epsilon", "21F_Iota"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] 
+#["20G", "21C_Epsilon", "21F_Iota"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] # ["20B"]
 # ["20G", "21C_Epsilon", "21F_Iota"]
 # {"20B": ["20I (Alpha, V1)", "20F", "20D", "21G (Lambda)", "21H"]}
 
@@ -210,7 +211,7 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, batch_size, encoded_wuh
     print(len(true_x), len(true_y), len(predicted_y))
     child_clades = "_".join(clade_childen)
     true_predicted_multiple = pd.DataFrame(list(zip(true_x, true_y, predicted_y)), columns=[clade_parent, child_clades, "Generated"])
-    df_path = "{}true_predicted_multiple_{}_{}_{}_times.csv".format(RESULT_PATH, clade_parent, child_clades, str(generating_factor))
+    df_path = "{}true_predicted_multiple_{}_{}_{}_times_max_LD_{}.csv".format(RESULT_PATH, clade_parent, child_clades, str(generating_factor), str(max_diff))
     true_predicted_multiple.to_csv(df_path, index=None)
     
 
@@ -236,7 +237,7 @@ if __name__ == "__main__":
     # when not gen_future, file_path = RESULT_PATH + "test/*.csv"
     # when gen_future, file_path = COMBINED_FILE
     file_path = COMBINED_FILE
-    #file_path = RESULT_PATH + "test/*_20B.csv"
+    #file_path = RESULT_PATH + "test/20A_20C.csv"
     load_model_generated_sequences(file_path, wu_seq)
     end_time = time.time()
     print("Program finished in {} seconds".format(str(np.round(end_time - start_time, 2))))
