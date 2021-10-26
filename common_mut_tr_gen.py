@@ -4,10 +4,10 @@ import utils
 
 
 
-results_path = "test_results/19_10_20A_20B_unrolled_GPU/"
+results_path = "test_results/22_10_19A_20A_20B_GPU/"
 clade_parent = "20A"
-clade_child = "20B"
-clade_future = "20I_Alpha_20F_20D_21G_Lambda_21H"
+clade_child = "20C"
+clade_future = "20G_21C_Epsilon_21F_Iota" #"20I_Alpha_20F_20D_21G_Lambda_21H"
 
 
 '''results_path = "test_results/19_10_20A_20B_unrolled_GPU/"

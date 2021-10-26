@@ -21,7 +21,9 @@ import train_model
 
 PATH_PRE = "data/ncov_global/"
 PATH_SEQ = PATH_PRE + "spikeprot0815.fasta"
-PATH_SEQ_CLADE = PATH_PRE + "hcov_global.tsv"
+#PATH_SEQ_CLADE = PATH_PRE + "hcov_global.tsv"
+HEADERS = PATH_PRE + "clade_assignment_headers.tabular"
+GALAXY_CLADE_ASSIGNMENT = PATH_PRE + "clade_assignment_galaxy_0.5_Mil.tabular"
 PATH_CLADES = "data/specific_clade_in_out.json"
 
 PRETRAIN_GEN_LOSS = "data/generated_files/pretr_gen_loss.txt"
@@ -61,11 +63,17 @@ train_size = 0.8
 
 
 def read_files():
-    samples_clades = preprocess_sequences.get_samples_clades(PATH_SEQ_CLADE)
+    
+    #samples_clades = preprocess_sequences.get_samples_clades(GALAXY_CLADE_ASSIGNMENT)
+    print("Reading clade assignments...")
+    samples_clades = preprocess_sequences.get_galaxy_samples_clades(GALAXY_CLADE_ASSIGNMENT)
+    #print(samples_clades)
     clades_in_clades_out = utils.read_json(PATH_CLADES)
+    print(clades_in_clades_out)
     print("Preprocessing sequences...")
-    encoded_sequence_df, forward_dict, rev_dict = preprocess_sequences.preprocess_seq(PATH_SEQ, samples_clades)
-    print(clades_in_clades_out)    
+    encoded_sequence_df, forward_dict, rev_dict = preprocess_sequences.preprocess_seq_galaxy_clades(PATH_SEQ, samples_clades)
+    print(encoded_sequence_df)    
+    sys.exit()
     print("Generating cross product...")
     preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df, train_size=train_size, edit_threshold=max_l_dist)
     start_training(len(rev_dict) + 1, forward_dict, rev_dict)
@@ -114,7 +122,7 @@ def start_training(vocab_size, forward_dict, rev_dict):
 
     te_batch_size = combined_te_X.shape[0]
     print("Te batch size: {}".format(str(te_batch_size)))
-
+    sys.exit()
     # get test dataset as sliced tensors
     test_dataset_in = tf.data.Dataset.from_tensor_slices((combined_te_X)).batch(te_batch_size)
     test_dataset_out = tf.data.Dataset.from_tensor_slices((combined_te_y)).batch(te_batch_size)

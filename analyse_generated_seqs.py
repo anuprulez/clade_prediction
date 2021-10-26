@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 
 import utils
 
-data_path = "test_results/19_10_20A_20B_unrolled_GPU/" #"test_results/19_10_20A_20B_unrolled_GPU/" # 08_10_one_hot_3_CPU_20A_20B
-gen_file = "true_predicted_multiple_20B_20G_21C_Epsilon_21F_Iota_2_times_test_LD_1_4.csv"
+data_path = "test_results/22_10_19A_20A_20B_GPU/" #"test_results/19_10_20A_20B_unrolled_GPU/" # 08_10_one_hot_3_CPU_20A_20B
+gen_file = "true_predicted_multiple_20B_20I_Alpha_20F_20D_21G_Lambda_21H_10_times_max_LD_5.csv"
 #parent_clade = "20A"
 #child_clade = "20B"
 

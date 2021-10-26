@@ -13,10 +13,65 @@ import utils
 
 LEN_AA = 1273
 l_dist_name = "levenshtein_distance"
+excluded_ids = ["Spike|hCoV-19/Northern", "Spike|hCoV-19/French", "Spike|hCoV-19/Costa",  "Spike|hCoV-19/South", "Spike|hCoV-19/Sri", "Spike|hCoV-19/Czech"]
+
+
+def get_galaxy_samples_clades(path_seq_clades):
+    ncov_global_df = pd.read_csv(path_seq_clades, sep="\t")
+    #print(ncov_global_df)
+    samples_clades = dict()
+    for idx in range(len(ncov_global_df)):
+        sample_row = ncov_global_df.take([idx])
+        s_name = sample_row["seqName"].values[0]
+        #sample_name = s_name.split("|")[1]
+        #if "hCoV-19/South" in s_name:
+        #    print(sample_row["seqName"])
+        clade_name = sample_row["clade"].values[0]
+        if sample_row["qc.overallStatus"].values[0] and sample_row["qc.overallStatus"].values[0] == "good":
+            clade_name = utils.format_clade_name(clade_name)
+            samples_clades[s_name] = clade_name
+    utils.save_as_json("data/generated_files/samples_clades.json", samples_clades)
+    return samples_clades
+
+
+def preprocess_seq_galaxy_clades(fasta_file, samples_clades):
+    
+    encoded_samples = list()
+    amino_acid_codes = "QNKWFPYLMTEIARGHSDVC
+    max_seq_size = LEN_AA
+    aa_chars = utils.get_all_possible_words(amino_acid_codes)
+    f_word_dictionaries, r_word_dictionaries = utils.get_words_indices(aa_chars)
+    all_sample_names = list(samples_clades.keys()) 
+    u_list = list()
+    for sequence_obj in SeqIO.parse(fasta_file, "fasta"):
+        row = list()
+        seq_id = sequence_obj.id
+        sequence = str(sequence_obj.seq)
+        sequence = sequence.replace("*", '')
+        if "X" not in sequence and all_sample_names.count(seq_id) > 0 and len(sequence) == LEN_AA and seq_id not in excluded_ids:
+            print(sequence_obj.id, seq_id, all_sample_names.count(seq_id))
+            row.append(seq_id)
+            clade_name = samples_clades[seq_id]
+            clade_name = utils.format_clade_name(clade_name)
+            row.append(clade_name)
+            seq_chars = list(sequence)
+            indices_chars = [str(r_word_dictionaries[i]) for i in seq_chars]
+            joined_indices_kmers = ','.join(indices_chars)
+            row.append(joined_indices_kmers)
+            encoded_samples.append(row)
+    sample_clade_sequence_df = pd.DataFrame(encoded_samples, columns=["SampleName", "Clade", "Sequence"])
+    sample_clade_sequence_df.to_csv("data/generated_files/sample_clade_sequence_df.csv", index=None)
+    utils.save_as_json("data/generated_files/f_word_dictionaries.json", f_word_dictionaries)
+    utils.save_as_json("data/generated_files/r_word_dictionaries.json", r_word_dictionaries)
+    return sample_clade_sequence_df, f_word_dictionaries, r_word_dictionaries
+
+
+##############################################
 
 
 def get_samples_clades(path_seq_clades):
     ncov_global_df = pd.read_csv(path_seq_clades, sep="\t")
+    print(ncov_global_df)
     samples_clades = dict()
     for idx in range(len(ncov_global_df)):
         sample_row = ncov_global_df.take([idx])
@@ -40,6 +95,7 @@ def preprocess_seq(fasta_file, samples_clades):
         seq_id = sequence.id.split("|")[1]
         sequence = str(sequence.seq)
         sequence = sequence.replace("*", '')
+       
         if "X" not in sequence and seq_id in samples_clades and len(sequence) == LEN_AA:
             row.append(seq_id)
             clade_name = samples_clades[seq_id]
