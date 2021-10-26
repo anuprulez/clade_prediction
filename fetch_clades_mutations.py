@@ -29,40 +29,8 @@ def to_tabular(clade_info, all_sample_names):
     #sample_clade_mutation = sample_clade_mutation.sort_values(by="Nextstrain clades")
     sample_clade_mutation.to_csv(SAMPLE_CLADE_MUTATION)
     u_samples = list(set(all_sample_names))
-    sname_fasta = read_spike_fasta()
-
-
-def read_spike_fasta():
-    fasta_file = "data/ncov_global/spikeprot0815.fasta"
-    sample_names = list()
-    fasta_custom = ""
-    clade_sample_count = dict()
-    with open(fasta_file, "r") as f_fasta_file:
-        for i, line in enumerate(f_fasta_file):
-            #print(line)
-            fasta_custom += line
-            #print()
-            '''if ">" in line:
-                s_line = line.split(">")[1]
-                s_sline = s_line.split("|")[1]
-                sample_names.append(s_sline)
-                #sample_df = ncov_global_df[ ncov_global_df["strain"] == s_line.strip() ]
-                if len(sample_df) > 0:
-                    clade_dict = sample_df["Nextstrain_clade"].to_dict()
-                    clade_name = list(clade_dict.values())[0]
-                    clade_name = clade_name.replace("/", "_")
-                    if clade_name not in clade_sample_count:
-                        clade_sample_count[clade_name] = 0
-                    clade_sample_count[clade_name] += 1'''
-            if i == 100:
-                break
-    print(fasta_custom)
-    #print(len(sample_names), sample_names)
-    #print(len(sample_names), len(list(set(sample_names))))
-    #print(sample_names)
-    #return list(set(sample_names))
-    
-    
+    print(len(u_samples), u_samples)
+    read_spike_fasta()
 
 def read_phylogenetic_data(json_file=GISAID):
     with open(json_file, "r") as fp:
