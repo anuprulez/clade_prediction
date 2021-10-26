@@ -24,7 +24,13 @@ PATH_SEQ = PATH_PRE + "spikeprot0815.fasta"
 #PATH_SEQ_CLADE = PATH_PRE + "hcov_global.tsv"
 HEADERS = PATH_PRE + "clade_assignment_headers.tabular"
 GALAXY_CLADE_ASSIGNMENT = PATH_PRE + "clade_assignment_galaxy_0.5_Mil.tabular"
-PATH_CLADES = "data/specific_clade_in_out.json"
+PATH_SAMPLES_CLADES = PATH_PRE + "sample_clade_sequence_df.csv"
+PATH_F_DICT = PATH_PRE + "f_word_dictionaries.json"
+PATH_R_DICT = PATH_PRE + "r_word_dictionaries.json"
+PATH_ALL_SAMPLES_CLADES = PATH_PRE + "samples_clades.json"
+
+PATH_TRAINING_CLADES = "data/specific_clade_in_out.json"
+
 
 PRETRAIN_GEN_LOSS = "data/generated_files/pretr_gen_loss.txt"
 PRETRAIN_GEN_TEST_LOSS = "data/generated_files/pretr_gen_test_loss.txt"
@@ -46,6 +52,7 @@ TRAIN_GEN_MODEL = "data/generated_files/gen_model"
 SAVE_TRUE_PRED_SEQ = "data/generated_files/true_predicted_df.csv"
 TR_MUT_INDICES = "data/generated_files/tr_mut_indices.json"
 
+
 l_dist_name = "levenshtein_distance"
 LEN_AA = 1273
 SCE = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
@@ -61,21 +68,26 @@ train_size = 0.8
 
 # https://www.tensorflow.org/text/tutorials/nmt_with_attention
 
-
-def read_files():
-    
-    #samples_clades = preprocess_sequences.get_samples_clades(GALAXY_CLADE_ASSIGNMENT)
+def get_samples_clades():
     print("Reading clade assignments...")
+    #samples_clades = preprocess_sequences.get_samples_clades(GALAXY_CLADE_ASSIGNMENT)
     samples_clades = preprocess_sequences.get_galaxy_samples_clades(GALAXY_CLADE_ASSIGNMENT)
-    #print(samples_clades)
-    clades_in_clades_out = utils.read_json(PATH_CLADES)
-    print(clades_in_clades_out)
     print("Preprocessing sequences...")
     encoded_sequence_df, forward_dict, rev_dict = preprocess_sequences.preprocess_seq_galaxy_clades(PATH_SEQ, samples_clades)
-    print(encoded_sequence_df)    
-    sys.exit()
+    print(encoded_sequence_df)
+    
+
+def read_files():
+    #get_samples_clades()
     print("Generating cross product...")
-    preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df, train_size=train_size, edit_threshold=max_l_dist)
+    dataf = pd.read_csv(PATH_SAMPLES_CLADES, sep=",")
+    filtered_dataf = preprocess_sequences.filter_samples_clades(dataf)
+    forward_dict = utils.read_json(PATH_F_DICT)
+    rev_dict = utils.read_json(PATH_R_DICT)
+    clades_in_clades_out = utils.read_json(PATH_TRAINING_CLADES)
+    print(clades_in_clades_out)
+    preprocess_sequences.make_cross_product(clades_in_clades_out, filtered_dataf, train_size=train_size, edit_threshold=max_l_dist)
+    sys.exit()
     start_training(len(rev_dict) + 1, forward_dict, rev_dict)
 
 
