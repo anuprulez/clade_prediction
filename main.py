@@ -64,6 +64,7 @@ pretrain_epochs = 5
 epochs = 3
 max_l_dist = 10
 train_size = 0.8
+random_clade_size = 350
 
 
 # https://www.tensorflow.org/text/tutorials/nmt_with_attention
@@ -88,7 +89,7 @@ def read_files():
     #print(rev_dict)
     clades_in_clades_out = utils.read_json(PATH_TRAINING_CLADES)
     print(clades_in_clades_out)
-    preprocess_sequences.make_cross_product(clades_in_clades_out, filtered_dataf, train_size=train_size, edit_threshold=max_l_dist)
+    preprocess_sequences.make_cross_product(clades_in_clades_out, filtered_dataf, train_size=train_size, edit_threshold=max_l_dist, random_clade_size=random_clade_size)
     start_training(len(rev_dict) + 1, forward_dict, rev_dict)
 
 

@@ -17,17 +17,18 @@ import preprocess_sequences
 import utils
 
 
-RESULT_PATH = "test_results/22_10_19A_20A_20B_GPU/"
+RESULT_PATH = "test_results/test_27_10_20A_20B/"
 
 min_diff = 0
-max_diff = 5
+max_diff = 10
 train_size = 1.0
 enc_units = 128
 LEN_AA = 1273
-FUTURE_GEN_TEST = "test/20A_20C.csv"
+random_size = 100
+FUTURE_GEN_TEST = "test/20A_20B.csv"
 
-clade_parent = "20C" # 20A
-clade_childen = ["20G", "21C_Epsilon", "21F_Iota"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] 
+clade_parent = "20B" # 20A
+clade_childen = ["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] 
 #["20G", "21C_Epsilon", "21F_Iota"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] # ["20B"]
 # ["20G", "21C_Epsilon", "21F_Iota"]
 # {"20B": ["20I (Alpha, V1)", "20F", "20D", "21G (Lambda)", "21H"]}
@@ -35,22 +36,31 @@ clade_childen = ["20G", "21C_Epsilon", "21F_Iota"] #["20I_Alpha", "20F", "20D", 
 generating_factor = 10
 
 PATH_PRE = "data/ncov_global/"
-PATH_SEQ = PATH_PRE + "spikeprot0815.fasta"
-PATH_SEQ_CLADE = PATH_PRE + "hcov_global.tsv"
+#PATH_SEQ = PATH_PRE + "spikeprot0815.fasta"
+#PATH_SEQ_CLADE = PATH_PRE + "hcov_global.tsv"
+PATH_SAMPLES_CLADES = PATH_PRE + "sample_clade_sequence_df.csv"
+PATH_F_DICT = PATH_PRE + "f_word_dictionaries.json"
+PATH_R_DICT = PATH_PRE + "r_word_dictionaries.json"
 PATH_CLADES = "data/generating_clades.json"
 COMBINED_FILE = RESULT_PATH + "combined_dataframe.csv"
 WUHAN_SEQ = PATH_PRE + "wuhan-hu-1-spike-prot.txt"
 
 
+
 def prepare_pred_future_seq():
-    samples_clades = preprocess_sequences.get_samples_clades(PATH_SEQ_CLADE)
+    #samples_clades = preprocess_sequences.get_samples_clades(PATH_SEQ_CLADE)
+    #print("Preprocessing sequences...")
+    #encoded_sequence_df, forward_dict, rev_dict = preprocess_sequences.preprocess_seq(PATH_SEQ, samples_clades)
+    
     clades_in_clades_out = utils.read_json(PATH_CLADES)
-    print("Preprocessing sequences...")
-    encoded_sequence_df, forward_dict, rev_dict = preprocess_sequences.preprocess_seq(PATH_SEQ, samples_clades)
-    encoded_wuhan_seq = utils.read_wuhan_seq(WUHAN_SEQ, rev_dict)
     print(clades_in_clades_out)
+    dataf = pd.read_csv(PATH_SAMPLES_CLADES, sep=",")
+    encoded_sequence_df = preprocess_sequences.filter_samples_clades(dataf)
+    forward_dict = utils.read_json(PATH_F_DICT)
+    rev_dict = utils.read_json(PATH_R_DICT)
+    encoded_wuhan_seq = utils.read_wuhan_seq(WUHAN_SEQ, rev_dict)
     print("Generating cross product...")
-    preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df, train_size=train_size, edit_threshold=max_diff)
+    preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df, train_size=train_size, edit_threshold=max_diff, random_size=random_size)
     # generate only with all rows
     #create_parent_child_true_seq(forward_dict, rev_dict)
     # generate only with test rows
@@ -86,9 +96,9 @@ def create_parent_child_true_seq_test(forward_dict, rev_dict):
     true_test_file = glob.glob(RESULT_PATH + FUTURE_GEN_TEST)
     for name in true_test_file:
         test_df = pd.read_csv(name, sep="\t")
-        print(test_df)
         true_Y_test = test_df["Y"].drop_duplicates() # Corresponds to 20B for 20A - 20B training
         true_Y_test = true_Y_test.tolist()
+        print(len(true_Y_test))
         list_true_y_test.extend(true_Y_test)
     print(len(list_true_y_test))
 
@@ -100,6 +110,7 @@ def create_parent_child_true_seq_test(forward_dict, rev_dict):
         tr_clade_df = pd.read_csv(name, sep="\t")
         y = tr_clade_df["Y"].drop_duplicates()
         y = y.tolist() # Corresponds to children of 20B for 20A - 20B training
+        print(len(y))
         children_combined_y.extend(y)
     print(len(list_true_y_test), len(children_combined_y))
 

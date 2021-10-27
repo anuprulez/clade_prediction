@@ -17,7 +17,7 @@ PATH_SAMPLES_CLADES = "data/ncov_global/sample_clade_sequence_df.csv"
 PATH_F_DICT = "data/ncov_global/f_word_dictionaries.json"
 PATH_R_DICT = "data/ncov_global/r_word_dictionaries.json"
 PATH_ALL_SAMPLES_CLADES = "data/ncov_global/samples_clades.json"
-RANDOM_SIZE = 350
+
 
 def get_galaxy_samples_clades(path_seq_clades):
     ncov_global_df = pd.read_csv(path_seq_clades, sep="\t")
@@ -75,10 +75,10 @@ def filter_samples_clades(dataframe):
     new_df = pd.DataFrame(f_df, columns=list(dataframe.columns))
     return new_df
 
-##############################################
+####################### OLD preprocessing #######################
 
 
-def get_samples_clades(path_seq_clades):
+'''def get_samples_clades(path_seq_clades):
     ncov_global_df = pd.read_csv(path_seq_clades, sep="\t")
     print(ncov_global_df)
     samples_clades = dict()
@@ -119,8 +119,9 @@ def preprocess_seq(fasta_file, samples_clades):
     sample_clade_sequence_df.to_csv("data/generated_files/sample_clade_sequence_df.csv", index=None)
     utils.save_as_json("data/generated_files/f_word_dictionaries.json", f_word_dictionaries)
     utils.save_as_json("data/generated_files/r_word_dictionaries.json", r_word_dictionaries)
-    return sample_clade_sequence_df, f_word_dictionaries, r_word_dictionaries
+    return sample_clade_sequence_df, f_word_dictionaries, r_word_dictionaries'''
 
+##############################################
 
 def divide_list_tr_te(seq_list, size):
     random.shuffle(seq_list)
@@ -150,7 +151,7 @@ def make_u_combinations(u_p_list, u_c_list, size):
     return tr_data, te_data
 
 
-def make_cross_product(clade_in_clade_out, dataframe, train_size=0.8, edit_threshold=3):
+def make_cross_product(clade_in_clade_out, dataframe, train_size=0.8, edit_threshold=3, random_size=200):
     total_samples = 0
     merged_train_df = None
     merged_test_df = None
@@ -158,13 +159,14 @@ def make_cross_product(clade_in_clade_out, dataframe, train_size=0.8, edit_thres
     for in_clade in clade_in_clade_out:
         # get df for parent clade
         in_clade_df = dataframe[dataframe["Clade"].replace("/", "_") == in_clade]
-        in_clade_df = in_clade_df.sample(n=RANDOM_SIZE)
+        in_clade_df = in_clade_df.sample(n=random_size, replace=True)
         in_len = len(in_clade_df.index)
         print("Size of clade {}: {}".format(in_clade, str(in_len)))
         # get df for child clades
         for out_clade in clade_in_clade_out[in_clade]:
             out_clade_df = dataframe[dataframe["Clade"].replace("/", "_") == out_clade]
-            out_clade_df = out_clade_df.sample(n=RANDOM_SIZE)
+            print(out_clade_df)
+            out_clade_df = out_clade_df.sample(n=random_size, replace=True)
             out_len = len(out_clade_df.index)
             # add tmp key to obtain cross join and then drop it
             in_clade_df["_tmpkey"] = np.ones(in_len)
