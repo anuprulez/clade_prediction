@@ -17,7 +17,7 @@ PATH_SAMPLES_CLADES = "data/ncov_global/sample_clade_sequence_df.csv"
 PATH_F_DICT = "data/ncov_global/f_word_dictionaries.json"
 PATH_R_DICT = "data/ncov_global/r_word_dictionaries.json"
 PATH_ALL_SAMPLES_CLADES = "data/ncov_global/samples_clades.json"
-
+RANDOM_SIZE = 350
 
 def get_galaxy_samples_clades(path_seq_clades):
     ncov_global_df = pd.read_csv(path_seq_clades, sep="\t")
@@ -157,15 +157,14 @@ def make_cross_product(clade_in_clade_out, dataframe, train_size=0.8, edit_thres
     
     for in_clade in clade_in_clade_out:
         # get df for parent clade
-        random_size = 200
         in_clade_df = dataframe[dataframe["Clade"].replace("/", "_") == in_clade]
-        in_clade_df = in_clade_df.sample(n=random_size)
+        in_clade_df = in_clade_df.sample(n=RANDOM_SIZE)
         in_len = len(in_clade_df.index)
         print("Size of clade {}: {}".format(in_clade, str(in_len)))
         # get df for child clades
         for out_clade in clade_in_clade_out[in_clade]:
             out_clade_df = dataframe[dataframe["Clade"].replace("/", "_") == out_clade]
-            out_clade_df = out_clade_df.sample(n=random_size)
+            out_clade_df = out_clade_df.sample(n=RANDOM_SIZE)
             out_len = len(out_clade_df.index)
             # add tmp key to obtain cross join and then drop it
             in_clade_df["_tmpkey"] = np.ones(in_len)

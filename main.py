@@ -84,10 +84,11 @@ def read_files():
     filtered_dataf = preprocess_sequences.filter_samples_clades(dataf)
     forward_dict = utils.read_json(PATH_F_DICT)
     rev_dict = utils.read_json(PATH_R_DICT)
+    #print(forward_dict)
+    #print(rev_dict)
     clades_in_clades_out = utils.read_json(PATH_TRAINING_CLADES)
     print(clades_in_clades_out)
     preprocess_sequences.make_cross_product(clades_in_clades_out, filtered_dataf, train_size=train_size, edit_threshold=max_l_dist)
-    sys.exit()
     start_training(len(rev_dict) + 1, forward_dict, rev_dict)
 
 

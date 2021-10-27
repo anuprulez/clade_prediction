@@ -247,8 +247,8 @@ def get_mutation_tr_indices(train_in, train_out, f_dict, r_dict):
             first = true_x[i:i+1]
             sec = true_y[i:i+1]
 
-            first_aa = [f_dict[int(j)] for j in first]
-            sec_aa = [f_dict[int(j)] for j in sec]
+            first_aa = [f_dict[j] for j in first]
+            sec_aa = [f_dict[j] for j in sec]
         
             first_mut = first_aa[0]
             second_mut = sec_aa[0]
