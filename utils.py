@@ -38,7 +38,7 @@ def generate_cross_product(x_seq, y_seq, max_l_dist, cols=["X", "Y"]):
                 filtered_l_distance.append(l_dist)
 
     filtered_dataframe = pd.DataFrame(list(zip(filtered_x, filtered_y)), columns=["X", "Y"])
-    print(filtered_dataframe)
+    print("Combined dataframe size: {}".format(str(len(filtered_dataframe.index))))
     np.savetxt("data/generated_files/l_distance.txt", l_distance)
     np.savetxt("data/generated_files/filtered_l_distance.txt", filtered_l_distance)
     print("Mean levenshtein dist: {}".format(str(np.mean(l_distance))))
