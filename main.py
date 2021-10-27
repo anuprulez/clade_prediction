@@ -64,7 +64,7 @@ pretrain_epochs = 5
 epochs = 3
 max_l_dist = 10
 train_size = 0.8
-random_clade_size = 350
+random_clade_size = 20
 
 
 # https://www.tensorflow.org/text/tutorials/nmt_with_attention
@@ -79,17 +79,17 @@ def get_samples_clades():
     
 
 def read_files():
+    #to preprocess once, uncomment get_samples_clades
     #get_samples_clades()
-    print("Generating cross product...")
+    print("Preprocessing sample-clade assignment file...")
     dataf = pd.read_csv(PATH_SAMPLES_CLADES, sep=",")
     filtered_dataf = preprocess_sequences.filter_samples_clades(dataf)
     forward_dict = utils.read_json(PATH_F_DICT)
     rev_dict = utils.read_json(PATH_R_DICT)
-    #print(forward_dict)
-    #print(rev_dict)
     clades_in_clades_out = utils.read_json(PATH_TRAINING_CLADES)
     print(clades_in_clades_out)
-    preprocess_sequences.make_cross_product(clades_in_clades_out, filtered_dataf, train_size=train_size, edit_threshold=max_l_dist, random_clade_size=random_clade_size)
+    print("Generating cross product...")
+    preprocess_sequences.make_cross_product(clades_in_clades_out, filtered_dataf, train_size=train_size, edit_threshold=max_l_dist, random_size=random_clade_size)
     start_training(len(rev_dict) + 1, forward_dict, rev_dict)
 
 
@@ -136,7 +136,7 @@ def start_training(vocab_size, forward_dict, rev_dict):
 
     te_batch_size = combined_te_X.shape[0]
     print("Te batch size: {}".format(str(te_batch_size)))
-
+    sys.exit()
     # get test dataset as sliced tensors
     test_dataset_in = tf.data.Dataset.from_tensor_slices((combined_te_X)).batch(te_batch_size)
     test_dataset_out = tf.data.Dataset.from_tensor_slices((combined_te_y)).batch(te_batch_size)

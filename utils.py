@@ -12,14 +12,39 @@ SCE = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
 
 
 def make_kmers(seq, size):
-    # remove all letters other than A,C,G and T
-    #list(filter(lambda ch: ch in 'ACGT', kmers))
     return [seq[x:x+size] for x in range(len(seq) - size + 1)]
 
 
 def compute_Levenshtein_dist(seq_in, seq_out):
-    #return np.random.randint(1, 5)
     return lev_dist(seq_in, seq_out)
+
+
+def generate_cross_product(x_seq, y_seq, max_l_dist, cols=["X", "Y"]):
+    print(len(x_seq), len(y_seq))
+    x_y = list(itertools.product(x_seq, y_seq))
+    print(len(x_y))
+    print("Filtering for range of levenshtein distance...")
+    l_distance = list()
+    filtered_l_distance = list()
+    filtered_x = list()
+    filtered_y = list()
+    for i, x_i in enumerate(x_seq):
+        for j, y_j in enumerate(y_seq):
+            l_dist = compute_Levenshtein_dist(x_i, y_j)
+            l_distance.append(l_dist)
+            if l_dist > 0 and l_dist < max_l_dist:
+                filtered_x.append(x_i)
+                filtered_y.append(y_j)
+                filtered_l_distance.append(l_dist)
+
+    filtered_dataframe = pd.DataFrame(list(zip(filtered_x, filtered_y)), columns=["X", "Y"])
+    print(filtered_dataframe)
+    np.savetxt("data/generated_files/l_distance.txt", l_distance)
+    np.savetxt("data/generated_files/filtered_l_distance.txt", filtered_l_distance)
+    print("Mean levenshtein dist: {}".format(str(np.mean(l_distance))))
+    print("Mean filtered levenshtein dist: {}".format(str(np.mean(filtered_l_distance))))
+    print("Filtered dataframe size: {}".format(str(len(filtered_dataframe.index))))
+    return filtered_dataframe
 
 
 def transform_noise(noise):

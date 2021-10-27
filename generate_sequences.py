@@ -24,7 +24,7 @@ max_diff = 10
 train_size = 1.0
 enc_units = 128
 LEN_AA = 1273
-random_size = 100
+random_size = 20
 FUTURE_GEN_TEST = "test/20A_20B.csv"
 
 clade_parent = "20B" # 20A
@@ -60,34 +60,12 @@ def prepare_pred_future_seq():
     rev_dict = utils.read_json(PATH_R_DICT)
     encoded_wuhan_seq = utils.read_wuhan_seq(WUHAN_SEQ, rev_dict)
     print("Generating cross product...")
-    preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df, train_size=train_size, edit_threshold=max_diff, random_size=random_size)
+    preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df, train_size=train_size, edit_threshold=max_diff, random_size=random_size, replace=True)
     # generate only with all rows
     #create_parent_child_true_seq(forward_dict, rev_dict)
     # generate only with test rows
     create_parent_child_true_seq_test(forward_dict, rev_dict)
     return encoded_wuhan_seq
-
-
-def create_parent_child_true_seq(forward_dict, rev_dict):
-    tr_clade_files = glob.glob('data/train/*.csv')
-    combined_X = list()
-    combined_y = list()
-    combined_x_y_l = list()
-    # load train data
-    print("Loading datasets...")
-    for name in tr_clade_files:
-        tr_clade_df = pd.read_csv(name, sep="\t")
-        X = tr_clade_df["X"].tolist()
-        y = tr_clade_df["Y"].tolist()
-        combined_X.extend(X)
-        combined_y.extend(y)
-        print(len(X), len(y))
-    print()
-    print("train data sizes")
-    print(len(combined_X), len(combined_y))
-    combined_dataframe = pd.DataFrame(list(zip(combined_X, combined_y)), columns=["X", "Y"])
-    print(combined_dataframe)
-    combined_dataframe.to_csv(COMBINED_FILE, sep="\t", index=None)
     
 
 def create_parent_child_true_seq_test(forward_dict, rev_dict):
@@ -113,21 +91,7 @@ def create_parent_child_true_seq_test(forward_dict, rev_dict):
         print(len(y))
         children_combined_y.extend(y)
     print(len(list_true_y_test), len(children_combined_y))
-
-    test_x_true_y = list(itertools.product(list_true_y_test, children_combined_y))
-    print("Combined test x and true y: {}".format(str(len(test_x_true_y))))
-
-    print("Filtering for range of levenshtein distance...")
-    filtered_test_x = list()
-    filtered_true_y = list()
-    for i, test_x in enumerate(list_true_y_test):
-        for j, true_y in enumerate(children_combined_y):
-            l_dist = utils.compute_Levenshtein_dist(test_x, true_y)
-            if l_dist > 0 and l_dist < max_diff:
-                filtered_test_x.append(test_x)
-                filtered_true_y.append(true_y)
-    combined_dataframe = pd.DataFrame(list(zip(filtered_test_x, filtered_true_y)), columns=["X", "Y"])
-    print(combined_dataframe)
+    combined_dataframe = utils.generate_cross_product(list_true_y_test, children_combined_y, max_diff)
     combined_dataframe.to_csv(COMBINED_FILE, sep="\t", index=None)
 
 
@@ -238,6 +202,28 @@ def gen_step_predict(LEN_AA, batch_size, vocab_size, gen_decoder, dec_state):
         i_token = dec_tokens
     pred_logits = tf.convert_to_tensor(pred_logits)
     return pred_logits
+
+
+def create_parent_child_true_seq(forward_dict, rev_dict):
+    tr_clade_files = glob.glob('data/train/*.csv')
+    combined_X = list()
+    combined_y = list()
+    combined_x_y_l = list()
+    # load train data
+    print("Loading datasets...")
+    for name in tr_clade_files:
+        tr_clade_df = pd.read_csv(name, sep="\t")
+        X = tr_clade_df["X"].tolist()
+        y = tr_clade_df["Y"].tolist()
+        combined_X.extend(X)
+        combined_y.extend(y)
+        print(len(X), len(y))
+    print()
+    print("train data sizes")
+    print(len(combined_X), len(combined_y))
+    combined_dataframe = pd.DataFrame(list(zip(combined_X, combined_y)), columns=["X", "Y"])
+    print(combined_dataframe)
+    combined_dataframe.to_csv(COMBINED_FILE, sep="\t", index=None)
 
 
 if __name__ == "__main__":

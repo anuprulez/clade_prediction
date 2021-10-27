@@ -75,6 +75,49 @@ def filter_samples_clades(dataframe):
     new_df = pd.DataFrame(f_df, columns=list(dataframe.columns))
     return new_df
 
+
+def make_cross_product(clade_in_clade_out, dataframe, train_size=0.8, edit_threshold=3, random_size=200, replace=False):
+    total_samples = 0
+    merged_train_df = None
+    merged_test_df = None
+    
+    for in_clade in clade_in_clade_out:
+        # get df for parent clade
+        in_clade_df = dataframe[dataframe["Clade"].replace("/", "_") == in_clade]
+        in_clade_df = in_clade_df.sample(n=random_size, replace=False)
+        in_len = len(in_clade_df.index)
+        print("Size of clade {}: {}".format(in_clade, str(in_len)))
+        #print(in_clade_df)
+        # get df for child clades
+        in_clade_seq = in_clade_df["Sequence"]
+        u_in_clade = in_clade_seq.drop_duplicates()
+        u_in_clade = u_in_clade.tolist()
+        for out_clade in clade_in_clade_out[in_clade]:
+            out_clade_df = dataframe[dataframe["Clade"].replace("/", "_") == out_clade]
+            out_clade_df = out_clade_df.sample(n=random_size, replace=False)
+            out_len = len(out_clade_df.index)
+            print("Size of clade {}: {}".format(out_clade, str(out_len)))
+            
+            out_clade_seq = out_clade_df["Sequence"]
+            u_out_clade = out_clade_seq.drop_duplicates()
+            u_out_clade = u_out_clade.tolist()
+            u_filtered_x_y = utils.generate_cross_product(u_in_clade, u_out_clade, edit_threshold)
+            print("Unique size of clade combination {}_{}: {}".format(in_clade, out_clade, str(len(u_filtered_x_y.index))))
+            total_samples += len(u_filtered_x_y.index)
+
+            train_df = u_filtered_x_y.sample(frac=train_size, random_state=200)
+            tr_filename = "data/train/{}_{}.csv".format(in_clade, out_clade)
+            train_df.to_csv(tr_filename, sep="\t", index=None)
+            print("train size: {}".format(len(train_df.index)))
+
+            test_df = u_filtered_x_y.drop(train_df.index)
+            te_filename = "data/test/{}_{}.csv".format(in_clade, out_clade)
+            print("test size: {}".format(len(test_df.index)))
+            test_df.to_csv(te_filename, sep="\t", index=None)
+            print()
+    print()
+    print("Total number of samples: {}".format(str(total_samples)))
+
 ####################### OLD preprocessing #######################
 
 
@@ -119,117 +162,9 @@ def preprocess_seq(fasta_file, samples_clades):
     sample_clade_sequence_df.to_csv("data/generated_files/sample_clade_sequence_df.csv", index=None)
     utils.save_as_json("data/generated_files/f_word_dictionaries.json", f_word_dictionaries)
     utils.save_as_json("data/generated_files/r_word_dictionaries.json", r_word_dictionaries)
-    return sample_clade_sequence_df, f_word_dictionaries, r_word_dictionaries'''
+    return sample_clade_sequence_df, f_word_dictionaries, r_word_dictionaries
 
-##############################################
-
-def divide_list_tr_te(seq_list, size):
-    random.shuffle(seq_list)
-    tr_num = int(size * len(seq_list))
-    tr_list = seq_list[:tr_num]
-    te_list = seq_list[tr_num:]
-    print(len(tr_list), len(te_list))
-    return tr_list, te_list
-
-
-def make_dataframes(l_tuples):
-    filtered_test_x = list()
-    filtered_true_y = list()
-    for item in l_tuples:
-        filtered_test_x.append(item[0])
-        filtered_true_y.append(item[1])
-    dataframe = pd.DataFrame(list(zip(filtered_test_x, filtered_true_y)), columns=["Sequence_x", "Sequence_y"])
-    return dataframe
-
-
-def make_u_combinations(u_p_list, u_c_list, size):
-    p_tr, p_te = divide_list_tr_te(u_p_list, size)
-    c_tr, c_te = divide_list_tr_te(u_c_list, size)
-    tr_data = list(itertools.product(p_tr, c_tr))
-    te_data = list(itertools.product(p_te, c_te))
-    print(len(tr_data), len(te_data))
-    return tr_data, te_data
-
-
-def make_cross_product(clade_in_clade_out, dataframe, train_size=0.8, edit_threshold=3, random_size=200):
-    total_samples = 0
-    merged_train_df = None
-    merged_test_df = None
-    
-    for in_clade in clade_in_clade_out:
-        # get df for parent clade
-        in_clade_df = dataframe[dataframe["Clade"].replace("/", "_") == in_clade]
-        in_clade_df = in_clade_df.sample(n=random_size, replace=True)
-        in_len = len(in_clade_df.index)
-        print("Size of clade {}: {}".format(in_clade, str(in_len)))
-        # get df for child clades
-        for out_clade in clade_in_clade_out[in_clade]:
-            out_clade_df = dataframe[dataframe["Clade"].replace("/", "_") == out_clade]
-            print(out_clade_df)
-            out_clade_df = out_clade_df.sample(n=random_size, replace=True)
-            out_len = len(out_clade_df.index)
-            # add tmp key to obtain cross join and then drop it
-            in_clade_df["_tmpkey"] = np.ones(in_len)
-            out_clade_df["_tmpkey"] = np.ones(out_len)
-            cross_joined_df = pd.merge(in_clade_df, out_clade_df, on="_tmpkey").drop("_tmpkey", 1)
-            print("Size of clade {}: {}".format(out_clade, str(out_len)))
-            merged_size = in_len * out_len
-            print("Merged size ({} * {}) : {}".format(str(in_len), str(out_len), merged_size))
-            print()
-            file_name = "data/merged_clades/{}_{}.csv".format(in_clade, out_clade)
-            cross_joined_df = cross_joined_df.sample(frac=1)
-            cross_columns = list(cross_joined_df.columns)
-            cross_columns.append(l_dist_name)
-
-            filtered_rows = list()
-            l_distance = list()
-            filtered_l_distance = list()
-            parent = list()
-            child = list()
-            print("Filtering sequences...")
-            for index, item in cross_joined_df.iterrows():
-                x = item["Sequence_x"]
-                y = item["Sequence_y"]
-                parent.append(x)
-                child.append(y)
-                l_dist = utils.compute_Levenshtein_dist(x, y)
-                l_distance.append(l_dist)
-                if l_dist > 0 and l_dist < edit_threshold:
-                    n_item = item.tolist()
-                    n_item.append(l_dist)
-                    filtered_rows.append(n_item)
-                    filtered_l_distance.append(l_dist)
-            filtered_dataframe = pd.DataFrame(filtered_rows, columns=cross_columns)
-            filtered_dataframe.to_csv(file_name, index=None)
-
-            np.savetxt("data/generated_files/l_distance.txt", l_distance)
-            np.savetxt("data/generated_files/filtered_l_distance.txt", filtered_l_distance)
-
-            print("Mean levenshtein dist: {}".format(str(np.mean(l_distance))))
-            print("Mean filtered levenshtein dist: {}".format(str(np.mean(filtered_l_distance))))
-            print("Filtered dataframe size: {}".format(str(len(filtered_dataframe.index))))
-
-            filtered_x_y = filtered_dataframe[["Sequence_x", "Sequence_y"]]
-            filtered_x_y = filtered_x_y.rename(columns={"Sequence_x": "X", "Sequence_y": "Y"})
-            u_filtered_x_y = filtered_x_y.drop_duplicates()
-            print("Unique size of clade combination {}_{}: {}".format(in_clade, out_clade, str(len(u_filtered_x_y.index))))
-            total_samples += len(u_filtered_x_y.index)
-
-            train_df = u_filtered_x_y.sample(frac=train_size, random_state=200)
-            tr_filename = "data/train/{}_{}.csv".format(in_clade, out_clade)
-            train_df.to_csv(tr_filename, sep="\t", index=None)
-            print("train size: {}".format(len(train_df.index)))
-
-            test_df = u_filtered_x_y.drop(train_df.index)
-            te_filename = "data/test/{}_{}.csv".format(in_clade, out_clade)
-            print("test size: {}".format(len(test_df.index)))
-            test_df.to_csv(te_filename, sep="\t", index=None)
-            print()
-    print()
-    print("Total number of samples: {}".format(str(total_samples)))
-
-
-'''def make_cross_product(clade_in_clade_out, dataframe, train_size=0.8, edit_threshold=4):
+def make_cross_product(clade_in_clade_out, dataframe, train_size=0.8, edit_threshold=4):
     total_samples = 0
     merged_train_df = None
     merged_test_df = None
@@ -309,12 +244,33 @@ def make_cross_product(clade_in_clade_out, dataframe, train_size=0.8, edit_thres
             merged_test_df.to_csv(te_filename, sep="\t", index=None)
             print()
             break
-    print()'''
-        
+    print()
 
-def read_in_out(train, test):
-    train_x = utils.convert_to_array(train["Sequence_x"])
-    train_y = utils.convert_to_array(train["Sequence_y"])
-    test_x = utils.convert_to_array(test["Sequence_x"])
-    test_y = utils.convert_to_array(test["Sequence_y"])
-    return train_x, train_y, test_x, test_y
+def divide_list_tr_te(seq_list, size):
+    random.shuffle(seq_list)
+    tr_num = int(size * len(seq_list))
+    tr_list = seq_list[:tr_num]
+    te_list = seq_list[tr_num:]
+    print(len(tr_list), len(te_list))
+    return tr_list, te_list
+
+
+def make_dataframes(l_tuples):
+    filtered_test_x = list()
+    filtered_true_y = list()
+    for item in l_tuples:
+        filtered_test_x.append(item[0])
+        filtered_true_y.append(item[1])
+    dataframe = pd.DataFrame(list(zip(filtered_test_x, filtered_true_y)), columns=["Sequence_x", "Sequence_y"])
+    return dataframe
+
+
+def make_u_combinations(u_p_list, u_c_list, size):
+    p_tr, p_te = divide_list_tr_te(u_p_list, size)
+    c_tr, c_te = divide_list_tr_te(u_c_list, size)
+    tr_data = list(itertools.product(p_tr, c_tr))
+    te_data = list(itertools.product(p_te, c_te))
+    print(len(tr_data), len(te_data))
+    return tr_data, te_data'''
+
+##############################################
