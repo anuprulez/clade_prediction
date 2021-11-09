@@ -29,7 +29,7 @@ cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 m_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
 n_disc_step = 2
 n_gen_step = 1
-unrolled_steps = 3
+unrolled_steps = 2
 
 
 def wasserstein_loss(y_true, y_pred):
@@ -96,10 +96,10 @@ def gen_step_train(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real
     return pred_logits, gen_decoder, step_loss
 
 
-def d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator):
+def d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator):
     print("Applying gradient update on discriminator...")
     with tf.GradientTape() as disc_tape:
-        real_x, real_y, fake_y, unreal_x, unreal_y, encoder, decoder, disc_par_enc, disc_gen_enc, _ = get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, encoder, decoder, disc_par_enc, disc_gen_enc)
+        real_x, real_y, fake_y, unreal_x, unreal_y, encoder, decoder, disc_par_enc, disc_gen_enc, _ = get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc)
         # discriminate pairs of true parent and true child sequences
         real_output = discriminator([real_x, real_y], training=True)
         # discriminate pairs of true parent and generated child sequences
@@ -170,7 +170,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
       gen_trainable_vars = gen_decoder.trainable_variables + gen_encoder.trainable_variables
       gradients_of_generator = gen_tape.gradient(gen_loss, gen_trainable_vars)
       pretrain_generator_optimizer.apply_gradients(zip(gradients_of_generator, gen_trainable_vars))
-      if step == 3:
+      if step == 1:
           break
   # save model
   gen_encoder.save_weights(ENC_WEIGHTS_SAVE_PATH)
@@ -216,7 +216,7 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
       x_batch_train = X_train[rand_batch_indices]
       y_batch_train = y_train[rand_batch_indices]
 
-      un_rand_row_index = np.random.randint(0, unrelated_X.shape[0], batch_size/2)
+      un_rand_row_index = np.random.randint(0, unrelated_X.shape[0], int(batch_size/2))
       un_X = unrelated_X[un_rand_row_index]
       un_y = unrelated_y[un_rand_row_index]
 
@@ -224,6 +224,9 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
 
       unrolled_x = utils.convert_to_array(x_batch_train)
       unrolled_y = utils.convert_to_array(y_batch_train)
+
+      un_X = utils.convert_to_array(un_X)
+      un_y = utils.convert_to_array(un_y)
 
       seq_len = unrolled_x.shape[1]
       batch_size = unrolled_x.shape[0]
