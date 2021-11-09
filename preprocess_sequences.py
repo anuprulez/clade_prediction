@@ -76,7 +76,7 @@ def filter_samples_clades(dataframe):
     return new_df
 
 
-def make_cross_product(clade_in_clade_out, dataframe, train_size=0.8, edit_threshold=3, random_size=200, replace=False):
+def make_cross_product(clade_in_clade_out, dataframe, train_size=0.8, edit_threshold=3, random_size=200, replace=False, unrelated=False):
     total_samples = 0
     merged_train_df = None
     merged_test_df = None
@@ -93,6 +93,14 @@ def make_cross_product(clade_in_clade_out, dataframe, train_size=0.8, edit_thres
         u_in_clade = in_clade_seq.drop_duplicates()
         u_in_clade = u_in_clade.tolist()
         for out_clade in clade_in_clade_out[in_clade]:
+
+            if unrelated is False:
+                te_filename = "data/test/{}_{}.csv".format(in_clade, out_clade)
+                tr_filename = "data/train/{}_{}.csv".format(in_clade, out_clade)
+            else:
+               te_filename = "data/te_unrelated/{}_{}.csv".format(in_clade, out_clade)
+               tr_filename = "data/tr_unrelated/{}_{}.csv".format(in_clade, out_clade)
+
             out_clade_df = dataframe[dataframe["Clade"].replace("/", "_") == out_clade]
             out_clade_df = out_clade_df.sample(n=random_size, replace=False)
             out_len = len(out_clade_df.index)
@@ -101,19 +109,16 @@ def make_cross_product(clade_in_clade_out, dataframe, train_size=0.8, edit_thres
             out_clade_seq = out_clade_df["Sequence"]
             u_out_clade = out_clade_seq.drop_duplicates()
             u_out_clade = u_out_clade.tolist()
-            u_filtered_x_y = utils.generate_cross_product(u_in_clade, u_out_clade, edit_threshold)
+            u_filtered_x_y = utils.generate_cross_product(u_in_clade, u_out_clade, edit_threshold, unrelated=unrelated)
             print("Unique size of clade combination {}_{}: {}".format(in_clade, out_clade, str(len(u_filtered_x_y.index))))
             total_samples += len(u_filtered_x_y.index)
 
             train_df = u_filtered_x_y.sample(frac=train_size, random_state=200)
-            tr_filename = "data/train/{}_{}.csv".format(in_clade, out_clade)
-            train_df.to_csv(tr_filename, sep="\t", index=None)
-            print("train size: {}".format(len(train_df.index)))
-
             test_df = u_filtered_x_y.drop(train_df.index)
-            te_filename = "data/test/{}_{}.csv".format(in_clade, out_clade)
-            print("test size: {}".format(len(test_df.index)))
+            train_df.to_csv(tr_filename, sep="\t", index=None)
             test_df.to_csv(te_filename, sep="\t", index=None)
+            print("train size: {}".format(len(train_df.index)))
+            print("test size: {}".format(len(test_df.index)))
             print()
     print()
     print("Total number of samples: {}".format(str(total_samples)))

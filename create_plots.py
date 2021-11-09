@@ -38,14 +38,14 @@ clade_child = "20C"
 '''
 
 
-results_path = "test_results/22_10_19A_20A_20B_GPU/"
+results_path = "test_results/02_11_20A_20B_GPU_5EPO/"
 clade_parent = "20A"
-clade_child = "20C"
+clade_child = "20B"
 
 
 WUHAN_SEQ = "data/ncov_global/wuhan-hu-1-spike-prot.txt"
 
-file_name_mut_ct = "true_predicted_multiple_20A_20C_10_times_max_LD_5.csv"
+file_name_mut_ct = "true_predicted_multiple_20A_20B_3_times_max_LD_61.csv"
 tr_file_name = "train/{}_{}.csv".format(clade_parent, clade_child)
 
 

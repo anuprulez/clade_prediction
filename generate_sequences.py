@@ -17,7 +17,7 @@ import preprocess_sequences
 import utils
 
 
-RESULT_PATH = "test_results/test_27_10_20A_20B/"
+RESULT_PATH = "test_results/test_27_10/"
 
 min_diff = 0
 max_diff = 10
@@ -93,7 +93,6 @@ def create_parent_child_true_seq_test(forward_dict, rev_dict):
     print(len(list_true_y_test), len(children_combined_y))
     combined_dataframe = utils.generate_cross_product(list_true_y_test, children_combined_y, max_diff)
     combined_dataframe.to_csv(COMBINED_FILE, sep="\t", index=None)
-
 
 def load_model_generated_sequences(file_path, encoded_wuhan_seq=None, gen_future=True):
     # load test data

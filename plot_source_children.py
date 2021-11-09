@@ -17,11 +17,11 @@ from scipy.stats.mstats import pearsonr
 import utils
 
 
-data_path = "test_results/22_10_19A_20A_20B_GPU/"
+data_path = "test_results/02_11_20A_20B_GPU_5EPO/"
 #20A_20B "test_results/20A_20B_17Sept_CPU/"
 
-clade_parent = "20C" #"20C"
-clade_children = ["20G", "21C_Epsilon", "21F_Iota"] 
+clade_parent = "20B" #"20C"
+clade_children = ["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"]  #["20G", "21C_Epsilon", "21F_Iota"] 
 #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] 
 #["20G", "21C_Epsilon", "21F_Iota"] 
 #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"]
@@ -31,7 +31,7 @@ clade_children = ["20G", "21C_Epsilon", "21F_Iota"]
 # true_predicted_multiple_20B_20I_Alpha_20F_20D_21G_Lambda_21H_2_times
 # true_predicted_multiple_20C_20G_21C_Epsilon_21F_Iota_2_times.csv
 
-file_path = data_path + "true_predicted_multiple_20C_20G_21C_Epsilon_21F_Iota_10_times_max_LD_5.csv"
+file_path = data_path + "true_predicted_multiple_20B_20I_Alpha_20F_20D_21G_Lambda_1_times_max_LD_61.csv"
 
 #"true_predicted_multiple_20B_20I_Alpha_20F_20D_21G_Lambda_21H_2_times.csv"
 

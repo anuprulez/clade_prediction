@@ -16,10 +16,11 @@ def make_kmers(seq, size):
 
 
 def compute_Levenshtein_dist(seq_in, seq_out):
+    #return np.random.randint(1, 5)
     return lev_dist(seq_in, seq_out)
 
 
-def generate_cross_product(x_seq, y_seq, max_l_dist, cols=["X", "Y"]):
+def generate_cross_product(x_seq, y_seq, max_l_dist, cols=["X", "Y"], unrelated=False, unrelated_threshold=15):
     print(len(x_seq), len(y_seq))
     x_y = list(itertools.product(x_seq, y_seq))
     print(len(x_y))
@@ -32,10 +33,16 @@ def generate_cross_product(x_seq, y_seq, max_l_dist, cols=["X", "Y"]):
         for j, y_j in enumerate(y_seq):
             l_dist = compute_Levenshtein_dist(x_i, y_j)
             l_distance.append(l_dist)
-            if l_dist > 0 and l_dist < max_l_dist:
-                filtered_x.append(x_i)
-                filtered_y.append(y_j)
-                filtered_l_distance.append(l_dist)
+            if unrelated is False:
+                if l_dist > 0 and l_dist < max_l_dist:
+                    filtered_x.append(x_i)
+                    filtered_y.append(y_j)
+                    filtered_l_distance.append(l_dist)
+            else:
+                if l_dist > max_l_dist:
+                    filtered_x.append(x_i)
+                    filtered_y.append(y_j)
+                    filtered_l_distance.append(l_dist)
 
     filtered_dataframe = pd.DataFrame(list(zip(filtered_x, filtered_y)), columns=["X", "Y"])
     print("Combined dataframe size: {}".format(str(len(filtered_dataframe.index))))
