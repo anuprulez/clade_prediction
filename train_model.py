@@ -18,8 +18,8 @@ ENC_WEIGHTS_SAVE_PATH = "data/generated_files/generator_encoder_weights.h5"
 DISC_WEIGHTS = "data/generated_files/disc_weights.h5"
 PRETRAIN_GEN_ENC_MODEL = "data/generated_files/pretrain_gen_encoder"
 PRETRAIN_GEN_DEC_MODEL = "data/generated_files/pretrain_gen_decoder"
-TRAIN_ENC_MODEL = "data/generated_files/enc_model"
-TRAIN_GEN_MODEL = "data/generated_files/gen_model"
+TRAIN_GEN_ENC_MODEL = "data/generated_files/gen_enc_model"
+TRAIN_GEN_DEC_MODEL = "data/generated_files/gen_dec_model"
 
 
 pretrain_generator_optimizer = tf.keras.optimizers.Adam(0.01)
@@ -257,11 +257,11 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
       epo_avg_total_disc_loss.append(total_disc_loss.numpy())
       print("Running ave. of total disc loss: {}".format(str(np.mean(epo_avg_total_disc_loss))))
       print()
-      if step == 5:
+      if step == 2:
           break
   # save model
   print("Tr step {} finished, Saving model...".format(str(epo_step+1)))
-  tf.keras.models.save_model(encoder, TRAIN_ENC_MODEL)
-  tf.keras.models.save_model(decoder, TRAIN_GEN_MODEL)
+  tf.keras.models.save_model(encoder, TRAIN_GEN_ENC_MODEL)
+  tf.keras.models.save_model(decoder, TRAIN_GEN_DEC_MODEL)
   utils.save_as_json("data/generated_files/ave_batch_x_y_mut_epo_{}.json".format(str(epo_step)), batch_mut_distribution)
   return np.mean(epo_ave_gen_true_loss), np.mean(epo_avg_gen_fake_loss), np.mean(epo_avg_total_gen_loss), np.mean(epo_avg_disc_real_loss), np.mean(epo_avg_disc_fake_loss), np.mean(epo_avg_total_disc_loss), encoder, decoder
