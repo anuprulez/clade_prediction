@@ -59,11 +59,11 @@ SCE = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
 embedding_dim = 128
 batch_size = 32
 enc_units = 128
-pretrain_epochs = 5
-epochs = 5
+pretrain_epochs = 2
+epochs = 2
 max_l_dist = 10
 train_size = 0.85
-random_clade_size = 700
+random_clade_size = 50
 stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/"]
 
 
