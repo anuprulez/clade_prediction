@@ -136,8 +136,8 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, batch_size, encoded_wuh
 
             print("Generating for iter {}/{}".format(str(i+1), str(generating_factor)))
             print("Loading trained model from {}...".format(RESULT_PATH))
-            loaded_encoder = tf.keras.models.load_model(RESULT_PATH + "enc_model")
-            loaded_generator = tf.keras.models.load_model(RESULT_PATH + "gen_model")
+            loaded_encoder = tf.keras.models.load_model(RESULT_PATH + "gen_enc_model")
+            loaded_generator = tf.keras.models.load_model(RESULT_PATH + "gen_dec_model")
             
             noise = tf.random.normal((batch_size, enc_units))
 

@@ -16,8 +16,8 @@ import utils
 
 ENC_WEIGHTS_SAVE_PATH = "data/generated_files/generator_encoder_weights.h5"
 DISC_WEIGHTS = "data/generated_files/disc_weights.h5"
-PRETRAIN_ENC_MODEL = "data/generated_files/pretrain_gen_encoder"
-PRETRAIN_GEN_MODEL = "data/generated_files/pretrain_gen_decoder"
+PRETRAIN_GEN_ENC_MODEL = "data/generated_files/pretrain_gen_encoder"
+PRETRAIN_GEN_DEC_MODEL = "data/generated_files/pretrain_gen_decoder"
 TRAIN_ENC_MODEL = "data/generated_files/enc_model"
 TRAIN_GEN_MODEL = "data/generated_files/gen_model"
 
@@ -175,8 +175,8 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           break
   # save model
   gen_encoder.save_weights(ENC_WEIGHTS_SAVE_PATH)
-  tf.keras.models.save_model(gen_encoder, PRETRAIN_ENC_MODEL)
-  tf.keras.models.save_model(gen_decoder, PRETRAIN_GEN_MODEL)
+  tf.keras.models.save_model(gen_encoder, PRETRAIN_GEN_ENC_MODEL)
+  tf.keras.models.save_model(gen_decoder, PRETRAIN_GEN_DEC_MODEL)
   utils.save_as_json("data/generated_files/pretr_ave_batch_x_y_mut_epo_{}.json".format(str(epo_step)), batch_mut_distribution)
   return np.mean(epo_avg_gen_loss), gen_encoder, gen_decoder
 

@@ -42,10 +42,11 @@ TRAIN_DISC_TRUE_LOSS = "data/generated_files/tr_disc_true_loss.txt"
 
 TEST_LOSS = "data/generated_files/te_loss.txt"
 
-PRETRAIN_ENC_MODEL = "data/generated_files/pretrain_gen_encoder"
-PRETRAIN_GEN_MODEL = "data/generated_files/pretrain_gen_decoder"
-TRAIN_ENC_MODEL = "data/generated_files/enc_model"
-TRAIN_GEN_MODEL = "data/generated_files/gen_model"
+PRETRAIN_GEN_ENC_MODEL = "data/generated_files/pretrain_gen_encoder"
+PRETRAIN_GEN_DEC_MODEL = "data/generated_files/pretrain_gen_decoder"
+TRAIN_GEN_ENC_MODEL = "data/generated_files/gen_enc_model"
+TRAIN_GEN_DEC_MODEL = "data/generated_files/gen_dec_model"
+
 SAVE_TRUE_PRED_SEQ = "data/generated_files/true_predicted_df.csv"
 TR_MUT_INDICES = "data/generated_files/tr_mut_indices.json"
 PRETR_MUT_INDICES = "data/generated_files/pretr_mut_indices.json"
@@ -187,7 +188,7 @@ def start_training(vocab_size, forward_dict, rev_dict):
         pretrain_gen_loss.append(epo_pretrain_gen_loss)
         print("Pretrain: predicting on test datasets...")
         with tf.device('/device:cpu:0'):
-            epo_pt_gen_te_loss = utils.predict_sequence(test_dataset_in, test_dataset_out, LEN_AA, vocab_size, enc_units, PRETRAIN_ENC_MODEL, PRETRAIN_GEN_MODEL)
+            epo_pt_gen_te_loss = utils.predict_sequence(test_dataset_in, test_dataset_out, LEN_AA, vocab_size, enc_units, PRETRAIN_GEN_ENC_MODEL, PRETRAIN_GEN_DEC_MODEL)
         pretrain_gen_test_loss.append(epo_pt_gen_te_loss)
     np.savetxt(PRETRAIN_GEN_LOSS, pretrain_gen_loss)
     np.savetxt(PRETRAIN_GEN_TEST_LOSS, pretrain_gen_test_loss)
