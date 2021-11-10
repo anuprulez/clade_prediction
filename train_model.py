@@ -25,11 +25,11 @@ TRAIN_GEN_MODEL = "data/generated_files/gen_model"
 pretrain_generator_optimizer = tf.keras.optimizers.Adam(0.01)
 generator_optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3, beta_1=0.5)
 discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5, beta_1=0.5)
-cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
+cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 m_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
 n_disc_step = 2
 n_gen_step = 1
-unrolled_steps = 5
+unrolled_steps = 2
 
 
 def wasserstein_loss(y_true, y_pred):
