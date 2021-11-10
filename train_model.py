@@ -37,14 +37,17 @@ def wasserstein_loss(y_true, y_pred):
 
 
 def discriminator_loss(real_output, fake_output):
-    # loss on real sequences that are not parent-child
-    real_loss = -tf.math.reduce_mean(real_output)
-    fake_loss = tf.math.reduce_mean(fake_output)
+    #real_loss = -tf.math.reduce_mean(real_output)
+    #fake_loss = tf.math.reduce_mean(fake_output)
+    real_loss = cross_entropy(tf.ones_like(real_output), real_output)
+    # loss on real parent and generated child sequences
+    fake_loss = cross_entropy(tf.zeros_like(fake_output), fake_output)
     return real_loss, fake_loss
 
 
 def generator_loss(fake_output):
-    return -tf.math.reduce_mean(fake_output)
+    return cross_entropy(tf.ones_like(fake_output), fake_output)
+    #return -tf.math.reduce_mean(fake_output)
 
 
 def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc_model, disc_gen_enc_model):
@@ -118,12 +121,10 @@ def d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, u
 def g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator):
     print("Applying gradient update on generator...")
     with tf.GradientTape() as gen_tape:
-        real_x, real_y, fake_y, unreal_x, unreal_y, encoder, decoder, disc_par_enc, disc_gen_enc, gen_true_loss = get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc)
+        real_x, _, fake_y, _, _, encoder, decoder, disc_par_enc, disc_gen_enc, gen_true_loss = get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc)
         # discriminate pairs of true parent and generated child sequences
         fake_output = discriminator([real_x, fake_y], training=True)
-        unreal_output = discriminator([unreal_x, unreal_y], training=True)
-        combined_fake_output = fake_output[:int(batch_size / 2)] + unreal_output[:int(batch_size / 2)]
-        gen_fake_loss = generator_loss(combined_fake_output)
+        gen_fake_loss = generator_loss(fake_output)
         total_gen_loss = gen_fake_loss + gen_true_loss
     # get all trainable vars for generator
     gen_trainable_vars = decoder.trainable_variables + encoder.trainable_variables
@@ -257,6 +258,8 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
       epo_avg_total_disc_loss.append(total_disc_loss.numpy())
       print("Running ave. of total disc loss: {}".format(str(np.mean(epo_avg_total_disc_loss))))
       print()
+      if step == 10:
+          break
   # save model
   print("Tr step {} finished, Saving model...".format(str(epo_step+1)))
   tf.keras.models.save_model(encoder, TRAIN_ENC_MODEL)

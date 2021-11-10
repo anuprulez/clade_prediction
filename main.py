@@ -25,7 +25,7 @@ GALAXY_CLADE_ASSIGNMENT = PATH_PRE + "clade_assignment_galaxy_0.5_Mil.tabular"
 PATH_SAMPLES_CLADES = PATH_PRE + "sample_clade_sequence_df.csv"
 PATH_F_DICT = PATH_PRE + "f_word_dictionaries.json"
 PATH_R_DICT = PATH_PRE + "r_word_dictionaries.json"
-PATH_TRAINING_CLADES = "data/specific_clade_in_out.json"
+PATH_TRAINING_CLADES = "data/train_clade_in_out.json"
 PATH_UNRELATED_CLADES = "data/unrelated_clades.json"
 
 
@@ -59,13 +59,12 @@ embedding_dim = 128
 batch_size = 8
 enc_units = 128
 pretrain_epochs = 1
-epochs = 1
+epochs = 2
 max_l_dist = 10
 train_size = 0.8
-random_clade_size = 100
+random_clade_size = 50
+stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/"]
 
-
-# https://www.tensorflow.org/text/tutorials/nmt_with_attention
 
 def get_samples_clades():
     print("Reading clade assignments...")
@@ -79,6 +78,8 @@ def get_samples_clades():
 def read_files():
     #to preprocess once, uncomment get_samples_clades
     #get_samples_clades()
+    print("Cleaning up stale folders...")
+    utils.clean_up(stale_folders)
     print("Preprocessing sample-clade assignment file...")
     dataf = pd.read_csv(PATH_SAMPLES_CLADES, sep=",")
     filtered_dataf = preprocess_sequences.filter_samples_clades(dataf)
