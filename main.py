@@ -62,8 +62,9 @@ enc_units = 128
 pretrain_epochs = 1
 epochs = 1
 max_l_dist = 10
-train_size = 0.85
-random_clade_size = 50
+test_train_size = 0.85
+pretrain_train_size = 0.5
+random_clade_size = 30
 stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/"]
 
 
@@ -90,7 +91,7 @@ def read_files():
     print(clades_in_clades_out)
     unrelated_clades = utils.read_json(PATH_UNRELATED_CLADES)
     print("Generating cross product of real parent child...")
-    preprocess_sequences.make_cross_product(clades_in_clades_out, filtered_dataf, train_size=train_size, edit_threshold=max_l_dist, random_size=random_clade_size)
+    preprocess_sequences.make_cross_product(clades_in_clades_out, filtered_dataf, train_size=test_train_size, edit_threshold=max_l_dist, random_size=random_clade_size)
     print("Generating cross product of real sequences but not parent-child...")
     preprocess_sequences.make_cross_product(unrelated_clades, filtered_dataf, train_size=1.0, edit_threshold=max_l_dist, random_size=random_clade_size, unrelated=True)
     start_training(len(rev_dict) + 1, forward_dict, rev_dict)
@@ -131,7 +132,6 @@ def start_training(vocab_size, forward_dict, rev_dict):
         combined_te_y.extend(te_y)
         print(len(te_X), len(te_y))
     print()
-
     print("Loading unrelated datasets...")
     unrelated_X = list()
     unrelated_y = list()
@@ -142,13 +142,11 @@ def start_training(vocab_size, forward_dict, rev_dict):
         unrelated_X.extend(un_X)
         unrelated_y.extend(un_y)
         print(len(un_X), len(un_y))
-    
+
     unrelated_X = np.array(unrelated_X)
     unrelated_y = np.array(unrelated_y)
     print("Unrelated data sizes")
     print(len(unrelated_X), len(unrelated_y))
-
-    print()
 
     print("train and test data sizes")
     print(len(combined_X), len(combined_y), len(combined_te_X), len(combined_te_y))
@@ -164,15 +162,14 @@ def start_training(vocab_size, forward_dict, rev_dict):
     test_dataset_in = tf.data.Dataset.from_tensor_slices((combined_te_X)).batch(te_batch_size)
     test_dataset_out = tf.data.Dataset.from_tensor_slices((combined_te_y)).batch(te_batch_size)
 
-    #########################
-    X_pretrain, X_train, y_pretrain, y_train  = train_test_split(combined_X, combined_y, test_size=0.7)
+    # divide into pretrain and train
+    X_pretrain, X_train, y_pretrain, y_train  = train_test_split(combined_X, combined_y, test_size=pretrain_train_size)
     X_pretrain = np.array(X_pretrain)
     X_train = np.array(X_train)
     y_pretrain = np.array(y_pretrain)
     y_train = np.array(y_train)
     print("Pre-train and train data sizes")
     print(X_pretrain.shape, y_pretrain.shape, X_train.shape, y_train.shape)
-    # pretrain generator
     print("Pretraining generator...")
     # balance tr data by mutations
     pretr_parent_child_mut_indices = utils.get_mutation_tr_indices(X_pretrain, y_pretrain, forward_dict, rev_dict)
@@ -192,8 +189,6 @@ def start_training(vocab_size, forward_dict, rev_dict):
         pretrain_gen_test_loss.append(epo_pt_gen_te_loss)
     np.savetxt(PRETRAIN_GEN_LOSS, pretrain_gen_loss)
     np.savetxt(PRETRAIN_GEN_TEST_LOSS, pretrain_gen_test_loss)
-
-    ###############################
     # create discriminator model
     disc_parent_encoder_model, disc_gen_encoder_model = neural_network.make_disc_par_gen_model(LEN_AA, vocab_size, embedding_dim, enc_units)
     discriminator = neural_network.make_discriminator_model(LEN_AA, vocab_size, embedding_dim, enc_units)
@@ -213,7 +208,6 @@ def start_training(vocab_size, forward_dict, rev_dict):
 
     n_train_batches = int(X_train.shape[0]/float(batch_size))
     print("Num of train batches: {}".format(str(n_train_batches)))
-    
 
     # balance tr data by mutations
     tr_parent_child_mut_indices = utils.get_mutation_tr_indices(X_train, y_train, forward_dict, rev_dict)
