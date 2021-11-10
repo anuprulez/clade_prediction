@@ -21,7 +21,7 @@ import train_model
 
 PATH_PRE = "data/ncov_global/"
 PATH_SEQ = PATH_PRE + "spikeprot0815.fasta"
-GALAXY_CLADE_ASSIGNMENT = PATH_PRE + "clade_assignment_galaxy_0.5_Mil.tabular"
+GALAXY_CLADE_ASSIGNMENT = PATH_PRE + "clade_assignment_2.9_Mil_samples.tabular"
 PATH_SAMPLES_CLADES = PATH_PRE + "sample_clade_sequence_df.csv"
 PATH_F_DICT = PATH_PRE + "f_word_dictionaries.json"
 PATH_R_DICT = PATH_PRE + "r_word_dictionaries.json"
