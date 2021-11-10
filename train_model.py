@@ -29,7 +29,7 @@ cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 m_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
 n_disc_step = 2
 n_gen_step = 1
-unrolled_steps = 2
+unrolled_steps = 5
 
 
 def wasserstein_loss(y_true, y_pred):
@@ -170,8 +170,6 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
       gen_trainable_vars = gen_decoder.trainable_variables + gen_encoder.trainable_variables
       gradients_of_generator = gen_tape.gradient(gen_loss, gen_trainable_vars)
       pretrain_generator_optimizer.apply_gradients(zip(gradients_of_generator, gen_trainable_vars))
-      if step == 2:
-          break
   # save model
   gen_encoder.save_weights(ENC_WEIGHTS_SAVE_PATH)
   tf.keras.models.save_model(gen_encoder, PRETRAIN_GEN_ENC_MODEL)
@@ -257,8 +255,6 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
       epo_avg_total_disc_loss.append(total_disc_loss.numpy())
       print("Running ave. of total disc loss: {}".format(str(np.mean(epo_avg_total_disc_loss))))
       print()
-      if step == 2:
-          break
   # save model
   print("Tr step {} finished, Saving model...".format(str(epo_step+1)))
   tf.keras.models.save_model(encoder, TRAIN_GEN_ENC_MODEL)
