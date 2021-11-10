@@ -59,12 +59,12 @@ SCE = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
 embedding_dim = 128
 batch_size = 32
 enc_units = 128
-pretrain_epochs = 5
-epochs = 5
+pretrain_epochs = 1
+epochs = 1
 max_l_dist = 10
 test_train_size = 0.85
 pretrain_train_size = 0.5
-random_clade_size = 700
+random_clade_size = 30
 stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/"]
 
 
@@ -180,7 +180,7 @@ def start_training(vocab_size, forward_dict, rev_dict):
     print("Num of pretrain batches: {}".format(str(n_pretrain_batches)))
     for i in range(pretrain_epochs):
         print("Pre training epoch {}/{}...".format(str(i+1), str(pretrain_epochs)))
-        epo_pretrain_gen_loss, encoder, decoder = train_model.pretrain_generator([X_pretrain, y_pretrain], i, encoder, decoder, enc_units, vocab_size, n_pretrain_batches, batch_size, pretr_parent_child_mut_indices)
+        epo_pretrain_gen_loss, encoder, decoder = train_model.pretrain_generator([X_pretrain, y_pretrain], i, encoder, decoder, enc_units, vocab_size, n_pretrain_batches, batch_size, pretr_parent_child_mut_indices, pretrain_epochs)
         print("Pre training loss at step {}/{}: Generator loss: {}".format(str(i+1), str(pretrain_epochs), str(epo_pretrain_gen_loss)))
         pretrain_gen_loss.append(epo_pretrain_gen_loss)
         print("Pretrain: predicting on test datasets...")
@@ -215,7 +215,7 @@ def start_training(vocab_size, forward_dict, rev_dict):
 
     for n in range(epochs):
         print("Training epoch {}/{}...".format(str(n+1), str(epochs)))
-        epo_gen_true_loss, epo_gen_fake_loss, epo_total_gen_loss, epo_disc_true_loss, epo_disc_fake_loss, epo_total_disc_loss, encoder, decoder = train_model.start_training_mut_balanced([X_train, y_train, unrelated_X, unrelated_y], n, encoder, decoder, disc_parent_encoder_model, disc_gen_encoder_model, discriminator, enc_units, vocab_size, n_train_batches, batch_size, tr_parent_child_mut_indices)
+        epo_gen_true_loss, epo_gen_fake_loss, epo_total_gen_loss, epo_disc_true_loss, epo_disc_fake_loss, epo_total_disc_loss, encoder, decoder = train_model.start_training_mut_balanced([X_train, y_train, unrelated_X, unrelated_y], n, encoder, decoder, disc_parent_encoder_model, disc_gen_encoder_model, discriminator, enc_units, vocab_size, n_train_batches, batch_size, tr_parent_child_mut_indices, epochs)
 
         print("Training loss at step {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}, D true loss: {}, D fake loss: {}, Total D loss: {}".format(str(n+1), str(epochs), str(epo_gen_true_loss), str(epo_gen_fake_loss), str(epo_total_gen_loss), str(epo_disc_true_loss), str(epo_disc_fake_loss), str(epo_total_disc_loss)))
 
