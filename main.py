@@ -57,13 +57,13 @@ LEN_AA = 1273
 SCE = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
 # Neural network parameters
 embedding_dim = 128
-batch_size = 8
+batch_size = 32
 enc_units = 128
-pretrain_epochs = 1
-epochs = 2
+pretrain_epochs = 5
+epochs = 5
 max_l_dist = 10
-train_size = 0.8
-random_clade_size = 50
+train_size = 0.85
+random_clade_size = 700
 stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/"]
 
 
@@ -236,7 +236,7 @@ def start_training(vocab_size, forward_dict, rev_dict):
         # predict seq on test data
         print("Prediction on test data...")
         with tf.device('/device:cpu:0'):
-            epo_tr_gen_te_loss = utils.predict_sequence(test_dataset_in, test_dataset_out, LEN_AA, vocab_size, enc_units, TRAIN_ENC_MODEL, TRAIN_GEN_MODEL)
+            epo_tr_gen_te_loss = utils.predict_sequence(test_dataset_in, test_dataset_out, LEN_AA, vocab_size, enc_units, TRAIN_GEN_ENC_MODEL, TRAIN_GEN_DEC_MODEL)
         train_te_loss.append(epo_tr_gen_te_loss)
 
     # save loss files
