@@ -108,7 +108,10 @@ def d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, u
         fake_output = discriminator([real_x, fake_y], training=True)
         # discriminate pairs of true parent and random sequences
         unreal_output = discriminator([unreal_x, unreal_y], training=True)
-        combined_fake_output = fake_output[:int(batch_size / 2)] + unreal_output[:int(batch_size / 2)]
+        # halve the fake outpus and combine them to keep the final size same as the real output
+        t1 = fake_output[:int(batch_size/2.0)]
+        t2 = unreal_output[:int(batch_size/2.0)]
+        combined_fake_output = tf.concat([t1, t2], 0)
         # compute discriminator loss
         disc_real_loss, disc_fake_loss = discriminator_loss(real_output, combined_fake_output)
         total_disc_loss = disc_real_loss + disc_fake_loss
