@@ -59,13 +59,13 @@ SCE = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
 embedding_dim = 128
 batch_size = 32
 enc_units = 128
-pretrain_epochs = 3
-epochs = 6
+pretrain_epochs = 1
+epochs = 5
 max_l_dist = 10
 test_train_size = 0.85
 pretrain_train_size = 0.5
 random_clade_size = 700
-to_pretrain = True
+o_pretrain = False
 stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/"]
 
 
@@ -197,7 +197,7 @@ def start_training(vocab_size, forward_dict, rev_dict):
     # create discriminator model
     disc_parent_encoder_model, disc_gen_encoder_model = neural_network.make_disc_par_gen_model(LEN_AA, vocab_size, embedding_dim, enc_units)
     discriminator = neural_network.make_discriminator_model(LEN_AA, vocab_size, embedding_dim, enc_units)
-
+    #sys.exit()
     # use the pretrained generator and train it along with discriminator
     print("Training Generator and Discriminator...")
     train_gen_total_loss = list()

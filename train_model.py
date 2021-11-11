@@ -29,7 +29,7 @@ cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 m_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
 n_disc_step = 2
 n_gen_step = 1
-unrolled_steps = 5
+unrolled_steps = 3
 
 
 def wasserstein_loss(y_true, y_pred):
@@ -115,8 +115,10 @@ def d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, u
         # compute discriminator loss
         disc_real_loss, disc_fake_loss = discriminator_loss(real_output, combined_fake_output)
         total_disc_loss = disc_real_loss + disc_fake_loss
-    gradients_of_discriminator = disc_tape.gradient(total_disc_loss, discriminator.trainable_variables)
-    discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
+    # update discriminator's parameters
+    disc_trainable_vars = discriminator.trainable_variables + disc_par_enc.trainable_variables + disc_gen_enc.trainable_variables
+    gradients_of_discriminator = disc_tape.gradient(total_disc_loss, disc_trainable_vars)
+    discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, disc_trainable_vars))
     return encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, disc_real_loss, disc_fake_loss, total_disc_loss
 
 
@@ -136,37 +138,46 @@ def g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, u
     return encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, gen_true_loss, gen_fake_loss, total_gen_loss
 
 
+def sample_true_x_y(mut_indices, batch_size, X_train, y_train, batch_mut_distribution):
+    mut_keys = list(mut_indices.keys())
+    rand_mut_keys = np.array(choices(mut_keys, k=batch_size))
+    x_batch_train = list()
+    y_batch_train = list()
+    rand_batch_indices = list()
+    for key in rand_mut_keys:
+        list_mut_rows = mut_indices[key]
+        rand_row_index = np.random.randint(0, len(list_mut_rows), 1)[0]
+        rand_batch_indices.append(list_mut_rows[rand_row_index])
+
+    x_batch_train = X_train[rand_batch_indices]
+    y_batch_train = y_train[rand_batch_indices]
+
+    batch_mut_distribution = utils.save_batch(x_batch_train, y_batch_train, batch_mut_distribution)
+
+    unrolled_x = utils.convert_to_array(x_batch_train)
+    unrolled_y = utils.convert_to_array(y_batch_train)
+    return unrolled_x, unrolled_y, batch_mut_distribution
+
+
+def sample_unrelated_x_y(unrelated_X, unrelated_y, batch_size):
+    un_rand_row_index = np.random.randint(0, unrelated_X.shape[0], batch_size)
+    un_X = unrelated_X[un_rand_row_index]
+    un_y = unrelated_y[un_rand_row_index]
+    return utils.convert_to_array(un_X), utils.convert_to_array(un_y)
+
+
 def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vocab_size, n_batches, batch_size, pretr_parent_child_mut_indices, epochs):
   X_train, y_train = inputs
-  mut_keys = list(pretr_parent_child_mut_indices.keys())
   epo_avg_gen_loss = list()
   batch_mut_distribution = dict()
   for step in range(n_batches):
-      rand_mut_keys = np.array(choices(mut_keys, k=batch_size))
-      x_batch_train = list()
-      y_batch_train = list()
-      rand_batch_indices = list()
-      for key in rand_mut_keys:
-          list_mut_rows = pretr_parent_child_mut_indices[key]
-          rand_row_index = np.random.randint(0, len(list_mut_rows), 1)[0]
-          rand_batch_indices.append(list_mut_rows[rand_row_index])
-
-      x_batch_train = X_train[rand_batch_indices]
-      y_batch_train = y_train[rand_batch_indices]
-
-      batch_mut_distribution = utils.save_batch(x_batch_train, y_batch_train, batch_mut_distribution)
-
-      unrolled_x = utils.convert_to_array(x_batch_train)
-      unrolled_y = utils.convert_to_array(y_batch_train)
-
+      unrolled_x, unrolled_y, batch_mut_distribution = sample_true_x_y(pretr_parent_child_mut_indices, batch_size, X_train, y_train, batch_mut_distribution)
       seq_len = unrolled_x.shape[1]
-      batch_size = unrolled_x.shape[0]
       with tf.GradientTape() as gen_tape:
           noise = tf.random.normal((batch_size, enc_units))
           enc_output, enc_state = gen_encoder(unrolled_x, training=True)
           enc_state = tf.math.add(enc_state, noise)
           dec_state = enc_state
-          # gen_step_train(seq_len, batch_size, vocab_size, decoder, transformed_enc_state, unrolled_y, True)
           gen_logits, gen_decoder, gen_loss = gen_step_train(seq_len, batch_size, vocab_size, gen_decoder, dec_state, unrolled_y, True)
           print("Pretrain Gen epoch {}/{}, batch {}/{} step loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches), str(gen_loss.numpy())))
           epo_avg_gen_loss.append(gen_loss)
@@ -205,51 +216,37 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
 
   mut_keys = list(parent_child_mut_indices.keys())
   for step in range(n_train_batches):
-      rand_mut_keys = np.array(choices(mut_keys, k=batch_size))
-      x_batch_train = list()
-      y_batch_train = list()
-      rand_batch_indices = list()
-      for key in rand_mut_keys:
-          list_mut_rows = parent_child_mut_indices[key]
-          rand_row_index = np.random.randint(0, len(list_mut_rows), 1)[0]
-          rand_batch_indices.append(list_mut_rows[rand_row_index])
-
-      x_batch_train = X_train[rand_batch_indices]
-      y_batch_train = y_train[rand_batch_indices]
-
-      un_rand_row_index = np.random.randint(0, unrelated_X.shape[0], batch_size)
-      un_X = unrelated_X[un_rand_row_index]
-      un_y = unrelated_y[un_rand_row_index]
-
-      batch_mut_distribution = utils.save_batch(x_batch_train, y_batch_train, batch_mut_distribution)
-
-      unrolled_x = utils.convert_to_array(x_batch_train)
-      unrolled_y = utils.convert_to_array(y_batch_train)
-
-      un_X = utils.convert_to_array(un_X)
-      un_y = utils.convert_to_array(un_y)
-
+      unrolled_x, unrolled_y, batch_mut_distribution = sample_true_x_y(parent_child_mut_indices, batch_size, X_train, y_train, batch_mut_distribution)
+      un_X, un_y = sample_unrelated_x_y(unrelated_X, unrelated_y, batch_size)
       seq_len = unrolled_x.shape[1]
-      batch_size = unrolled_x.shape[0]
-
       disc_gen = step % n_disc_step
-
       if disc_gen in list(range(0, n_disc_step - n_gen_step)):
-          
+          # train discriminator
           encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, disc_real_loss, disc_fake_loss, total_disc_loss = d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator)
       else:
+          # train generator with unrolled discriminator
           print("Applying unrolled steps...")
           discriminator.save_weights(DISC_WEIGHTS)
+          # save encoder to reset disc_par_enc and disc_gen_enc after unrolling
+          encoder.save_weights(ENC_WEIGHTS_SAVE_PATH)
+          # unrolling steps
           for i in range(unrolled_steps):
               print("Unrolled step: {}/{}".format(str(i), str(unrolled_steps)))
-              _, _, disc_par_enc, disc_gen_enc, discriminator, d_r_l, d_f_l, d_t_l = d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator)
+              # sample data for unrolling
+              unroll_x, unroll_y, _ = sample_true_x_y(parent_child_mut_indices, batch_size, X_train, y_train, batch_mut_distribution)
+              un_unroll_X, un_unroll_y = sample_unrelated_x_y(unrelated_X, unrelated_y, batch_size)
+              # train discriminator
+              _, _, disc_par_enc, disc_gen_enc, discriminator, d_r_l, d_f_l, d_t_l = d_loop(seq_len, batch_size, vocab_size, enc_units, unroll_x, unroll_y, un_unroll_X, un_unroll_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator)
               print("Unrolled disc losses: {}, {}, {}".format(str(d_r_l.numpy()), str(d_f_l.numpy()), str(d_t_l.numpy())))
+          # finish unrolling
+          # train generator with unrolled discriminator
           encoder, decoder, disc_par_enc, disc_gen_enc, _, gen_true_loss, gen_fake_loss, total_gen_loss = g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator)
+          # reset weights of discriminator, disc_par_enc and disc_gen_enc after unrolling
           discriminator.load_weights(DISC_WEIGHTS)
-          # set weights of discriminator's encoder from generator's encoder
           disc_par_enc.load_weights(ENC_WEIGHTS_SAVE_PATH)
           disc_gen_enc.layers[1].set_weights(disc_par_enc.layers[1].get_weights())
       print("Training epoch {}/{}, Batch {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}, D true loss: {}, D fake loss: {}, Total D loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_train_batches), str(gen_true_loss.numpy()), str(gen_fake_loss.numpy()), str(total_gen_loss.numpy()), str(disc_real_loss.numpy()), str(disc_fake_loss.numpy()), str(total_disc_loss.numpy())))
+      # write off results
       epo_ave_gen_true_loss.append(gen_true_loss.numpy())
       epo_avg_gen_fake_loss.append(gen_fake_loss.numpy())
       epo_avg_total_gen_loss.append(total_gen_loss.numpy())
