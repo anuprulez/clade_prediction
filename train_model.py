@@ -214,7 +214,7 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
       x_batch_train = X_train[rand_batch_indices]
       y_batch_train = y_train[rand_batch_indices]
 
-      un_rand_row_index = np.random.randint(0, unrelated_X.shape[0], int(batch_size/2))
+      un_rand_row_index = np.random.randint(0, unrelated_X.shape[0], batch_size)
       un_X = unrelated_X[un_rand_row_index]
       un_y = unrelated_y[un_rand_row_index]
 

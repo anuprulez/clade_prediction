@@ -65,6 +65,7 @@ max_l_dist = 10
 test_train_size = 0.85
 pretrain_train_size = 0.5
 random_clade_size = 700
+to_pretrain = True
 stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/"]
 
 
@@ -175,20 +176,24 @@ def start_training(vocab_size, forward_dict, rev_dict):
     pretr_parent_child_mut_indices = utils.get_mutation_tr_indices(X_pretrain, y_pretrain, forward_dict, rev_dict)
     utils.save_as_json(PRETR_MUT_INDICES, pretr_parent_child_mut_indices)
 
-    # get pretraining dataset as sliced tensors
-    n_pretrain_batches = int(X_pretrain.shape[0]/float(batch_size))
-    print("Num of pretrain batches: {}".format(str(n_pretrain_batches)))
-    for i in range(pretrain_epochs):
-        print("Pre training epoch {}/{}...".format(str(i+1), str(pretrain_epochs)))
-        epo_pretrain_gen_loss, encoder, decoder = train_model.pretrain_generator([X_pretrain, y_pretrain], i, encoder, decoder, enc_units, vocab_size, n_pretrain_batches, batch_size, pretr_parent_child_mut_indices, pretrain_epochs)
-        print("Pre training loss at step {}/{}: Generator loss: {}".format(str(i+1), str(pretrain_epochs), str(epo_pretrain_gen_loss)))
-        pretrain_gen_loss.append(epo_pretrain_gen_loss)
-        print("Pretrain: predicting on test datasets...")
-        with tf.device('/device:cpu:0'):
-            epo_pt_gen_te_loss = utils.predict_sequence(test_dataset_in, test_dataset_out, LEN_AA, vocab_size, enc_units, PRETRAIN_GEN_ENC_MODEL, PRETRAIN_GEN_DEC_MODEL)
-        pretrain_gen_test_loss.append(epo_pt_gen_te_loss)
-    np.savetxt(PRETRAIN_GEN_LOSS, pretrain_gen_loss)
-    np.savetxt(PRETRAIN_GEN_TEST_LOSS, pretrain_gen_test_loss)
+    # pretrain generator
+    if to_pretrain is True:
+        # get pretraining dataset as sliced tensors
+        n_pretrain_batches = int(X_pretrain.shape[0]/float(batch_size))
+        print("Num of pretrain batches: {}".format(str(n_pretrain_batches)))
+        for i in range(pretrain_epochs):
+            print("Pre training epoch {}/{}...".format(str(i+1), str(pretrain_epochs)))
+            epo_pretrain_gen_loss, encoder, decoder = train_model.pretrain_generator([X_pretrain, y_pretrain], i, encoder, decoder, enc_units, vocab_size, n_pretrain_batches, batch_size, pretr_parent_child_mut_indices, pretrain_epochs)
+            print("Pre training loss at step {}/{}: Generator loss: {}".format(str(i+1), str(pretrain_epochs), str(epo_pretrain_gen_loss)))
+            pretrain_gen_loss.append(epo_pretrain_gen_loss)
+            print("Pretrain: predicting on test datasets...")
+            with tf.device('/device:cpu:0'):
+                epo_pt_gen_te_loss = utils.predict_sequence(test_dataset_in, test_dataset_out, LEN_AA, vocab_size, enc_units, PRETRAIN_GEN_ENC_MODEL, PRETRAIN_GEN_DEC_MODEL)
+            pretrain_gen_test_loss.append(epo_pt_gen_te_loss)
+        np.savetxt(PRETRAIN_GEN_LOSS, pretrain_gen_loss)
+        np.savetxt(PRETRAIN_GEN_TEST_LOSS, pretrain_gen_test_loss)
+
+    # GAN training
     # create discriminator model
     disc_parent_encoder_model, disc_gen_encoder_model = neural_network.make_disc_par_gen_model(LEN_AA, vocab_size, embedding_dim, enc_units)
     discriminator = neural_network.make_discriminator_model(LEN_AA, vocab_size, embedding_dim, enc_units)
