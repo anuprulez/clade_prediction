@@ -24,15 +24,16 @@ def compute_Levenshtein_dist(seq_in, seq_out):
 
 def clean_up(list_folders):
     for folder in list_folders:
-        for filename in os.listdir(folder):
-            file_path = os.path.join(folder, filename)
-            try:
+        try:
+            for filename in os.listdir(folder):
+                file_path = os.path.join(folder, filename)
                 if os.path.isfile(file_path) or os.path.islink(file_path):
                     os.unlink(file_path)
                 elif os.path.isdir(file_path):
                     shutil.rmtree(file_path)
-            except Exception as e:
-                print('Failed to delete %s. Reason: %s' % (file_path, e))
+        except Exception as e:
+            print('Failed to delete %s. Reason: %s' % (file_path, e))
+            continue
 
 
 def generate_cross_product(x_seq, y_seq, max_l_dist, cols=["X", "Y"], unrelated=False, unrelated_threshold=15):
