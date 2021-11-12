@@ -208,9 +208,6 @@ def start_training(vocab_size, forward_dict, rev_dict):
     train_disc_fake_loss = list()
     train_te_loss = list()
 
-    X_train = combined_X
-    y_train = combined_y
-
     n_train_batches = int(X_train.shape[0]/float(batch_size))
     print("Num of train batches: {}".format(str(n_train_batches)))
 

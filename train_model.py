@@ -25,7 +25,7 @@ TRAIN_GEN_ENC_MODEL = "data/generated_files/gen_enc_model"
 TRAIN_GEN_DEC_MODEL = "data/generated_files/gen_dec_model"
 
 
-pretrain_generator_optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3, beta_1=0.5) #0.01
+pretrain_generator_optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3, beta_1=0.5)
 generator_optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3, beta_1=0.5)
 discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5, beta_1=0.5)
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
