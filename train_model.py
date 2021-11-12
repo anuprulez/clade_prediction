@@ -14,7 +14,8 @@ import copy
 import utils
 
 
-ENC_WEIGHTS_SAVE_PATH = "data/generated_files/generator_encoder_weights.h5"
+GEN_ENC_WEIGHTS = "data/generated_files/generator_encoder_weights.h5"
+GEN_DEC_WEIGHTS = "data/generated_files/generator_decoder_weights.h5"
 DISC_WEIGHTS = "data/generated_files/disc_weights.h5"
 DISC_PAR_ENC_WEIGHTS = "data/generated_files/disc_par_enc_weights.h5"
 DISC_GEN_ENC_WEIGHTS = "data/generated_files/disc_gen_enc_weights.h5"
@@ -136,7 +137,7 @@ def g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, u
     gen_trainable_vars = decoder.trainable_variables + encoder.trainable_variables
     gradients_of_generator = gen_tape.gradient(total_gen_loss, gen_trainable_vars)
     generator_optimizer.apply_gradients(zip(gradients_of_generator, gen_trainable_vars))
-    encoder.save_weights(ENC_WEIGHTS_SAVE_PATH)
+    encoder.save_weights(GEN_ENC_WEIGHTS)
     return encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, gen_true_loss, gen_fake_loss, total_gen_loss
 
 
@@ -187,7 +188,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
       gradients_of_generator = gen_tape.gradient(gen_loss, gen_trainable_vars)
       pretrain_generator_optimizer.apply_gradients(zip(gradients_of_generator, gen_trainable_vars))
   # save model
-  gen_encoder.save_weights(ENC_WEIGHTS_SAVE_PATH)
+  gen_encoder.save_weights(GEN_ENC_WEIGHTS)
   tf.keras.models.save_model(gen_encoder, PRETRAIN_GEN_ENC_MODEL)
   tf.keras.models.save_model(gen_decoder, PRETRAIN_GEN_DEC_MODEL)
   utils.save_as_json("data/generated_files/pretr_ave_batch_x_y_mut_epo_{}.json".format(str(epo_step)), batch_mut_distribution)

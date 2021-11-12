@@ -11,7 +11,7 @@ import h5py
 
 import preprocess_sequences
 
-ENC_WEIGHTS_SAVE_PATH = "data/generated_files/generator_encoder_weights.h5"
+GEN_ENC_WEIGHTS = "data/generated_files/generator_encoder_weights.h5"
 DROPOUT = 0.3
 LEAKY_ALPHA = 0.1
 
@@ -60,7 +60,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     attention_vector = tf.keras.layers.Dropout(DROPOUT)(attention_vector)
     logits = dec_fc(attention_vector)
     decoder_model = tf.keras.Model([new_tokens, e_state], [logits, state])
-    encoder_model.save_weights(ENC_WEIGHTS_SAVE_PATH)
+    encoder_model.save_weights(GEN_ENC_WEIGHTS)
     return encoder_model, decoder_model
 
 
@@ -97,7 +97,7 @@ def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units):
     disc_gen_encoder_model = tf.keras.Model([gen_inputs], [gen_enc_state])
      
     # initialize weights of discriminator's encoder model for parent and generated seqs
-    disc_par_encoder_model.load_weights(ENC_WEIGHTS_SAVE_PATH)
+    disc_par_encoder_model.load_weights(GEN_ENC_WEIGHTS)
     disc_gen_encoder_model.layers[1].set_weights(enc_embedding.get_weights())
 
     return disc_par_encoder_model, disc_gen_encoder_model
