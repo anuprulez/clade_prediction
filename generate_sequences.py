@@ -17,23 +17,23 @@ import preprocess_sequences
 import utils
 
 
-RESULT_PATH = "test_results/test_27_10/"
+RESULT_PATH = "test_results/11_11_local/"
 
 min_diff = 0
-max_diff = 10
+max_diff = 2000
 train_size = 1.0
 enc_units = 128
 LEN_AA = 1273
 random_size = 20
 FUTURE_GEN_TEST = "test/20A_20B.csv"
 
-clade_parent = "20B" # 20A
-clade_childen = ["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] 
+clade_parent = "20A" # 20A
+clade_childen = ["20B"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] 
 #["20G", "21C_Epsilon", "21F_Iota"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] # ["20B"]
 # ["20G", "21C_Epsilon", "21F_Iota"]
 # {"20B": ["20I (Alpha, V1)", "20F", "20D", "21G (Lambda)", "21H"]}
 
-generating_factor = 10
+generating_factor = 5
 
 PATH_PRE = "data/ncov_global/"
 #PATH_SEQ = PATH_PRE + "spikeprot0815.fasta"
@@ -229,11 +229,11 @@ if __name__ == "__main__":
     start_time = time.time()
     # enable only when predicting future sequences
     wu_seq = None
-    wu_seq = prepare_pred_future_seq()
+    #wu_seq = prepare_pred_future_seq()
     # when not gen_future, file_path = RESULT_PATH + "test/*.csv"
     # when gen_future, file_path = COMBINED_FILE
-    file_path = COMBINED_FILE
-    #file_path = RESULT_PATH + "test/20A_20C.csv"
+    #file_path = COMBINED_FILE
+    file_path = RESULT_PATH + "test/20A_20B.csv"
     load_model_generated_sequences(file_path, wu_seq)
     end_time = time.time()
     print("Program finished in {} seconds".format(str(np.round(end_time - start_time, 2))))

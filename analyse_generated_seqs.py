@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 
 import utils
 
-data_path = "test_results/02_11_20A_20B_GPU_5EPO/" #"test_results/19_10_20A_20B_unrolled_GPU/" # 08_10_one_hot_3_CPU_20A_20B
-gen_file = "true_predicted_multiple_20A_20B_3_times_max_LD_61.csv"
+data_path = "test_results/11_11_local/" #"test_results/19_10_20A_20B_unrolled_GPU/" # 08_10_one_hot_3_CPU_20A_20B
+gen_file = "true_predicted_multiple_20A_2_0_B_5_times_max_LD_2000.csv"
 #parent_clade = "20A"
 #child_clade = "20B"
 
@@ -41,7 +41,7 @@ def read_dataframe():
     gen_seqs = dataframe["Generated"]
     print(gen_seqs)
     u_gen_seqs = gen_seqs.drop_duplicates()
-    #print()
+    print()
     print(u_gen_seqs)
     '''u_gen_seqs = u_gen_seqs.tolist()
     u_gen_seqs = u_gen_seqs[0].split(",")

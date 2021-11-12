@@ -16,6 +16,8 @@ import utils
 
 ENC_WEIGHTS_SAVE_PATH = "data/generated_files/generator_encoder_weights.h5"
 DISC_WEIGHTS = "data/generated_files/disc_weights.h5"
+DISC_PAR_ENC_WEIGHTS = "data/generated_files/disc_par_enc_weights.h5"
+DISC_GEN_ENC_WEIGHTS = "data/generated_files/disc_gen_enc_weights.h5"
 PRETRAIN_GEN_ENC_MODEL = "data/generated_files/pretrain_gen_encoder"
 PRETRAIN_GEN_DEC_MODEL = "data/generated_files/pretrain_gen_decoder"
 TRAIN_GEN_ENC_MODEL = "data/generated_files/gen_enc_model"
@@ -101,7 +103,7 @@ def gen_step_train(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real
 def d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator):
     print("Applying gradient update on discriminator...")
     with tf.GradientTape() as disc_tape:
-        real_x, real_y, fake_y, unreal_x, unreal_y, encoder, decoder, disc_par_enc, disc_gen_enc, _ = get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc)
+        real_x, real_y, fake_y, unreal_x, unreal_y, _, _, disc_par_enc, disc_gen_enc, _ = get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc)
         # discriminate pairs of true parent and true child sequences
         real_output = discriminator([real_x, real_y], training=True)
         # discriminate pairs of true parent and generated child sequences
@@ -125,7 +127,7 @@ def d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, u
 def g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator):
     print("Applying gradient update on generator...")
     with tf.GradientTape() as gen_tape:
-        real_x, _, fake_y, _, _, encoder, decoder, disc_par_enc, disc_gen_enc, gen_true_loss = get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc)
+        real_x, _, fake_y, _, _, encoder, decoder, _, _, gen_true_loss = get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc)
         # discriminate pairs of true parent and generated child sequences
         fake_output = discriminator([real_x, fake_y], training=True)
         gen_fake_loss = generator_loss(fake_output)
@@ -222,29 +224,34 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
       disc_gen = step % n_disc_step
       if disc_gen in list(range(0, n_disc_step - n_gen_step)):
           # train discriminator
-          encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, disc_real_loss, disc_fake_loss, total_disc_loss = d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator)
+          _, _, disc_par_enc, disc_gen_enc, discriminator, disc_real_loss, disc_fake_loss, total_disc_loss = d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator)
       else:
           # train generator with unrolled discriminator
-          print("Applying unrolled steps...")
+          # save disc weights to reset after unrolling
           discriminator.save_weights(DISC_WEIGHTS)
-          # save encoder to reset disc_par_enc and disc_gen_enc after unrolling
-          encoder.save_weights(ENC_WEIGHTS_SAVE_PATH)
+          disc_par_enc.save_weights(DISC_PAR_ENC_WEIGHTS)
+          disc_gen_enc.save_weights(DISC_GEN_ENC_WEIGHTS)
+          print("Applying unrolled steps...")
+
           # unrolling steps
           for i in range(unrolled_steps):
-              print("Unrolled step: {}/{}".format(str(i), str(unrolled_steps)))
+              print("Unrolled step: {}/{}".format(str(i+1), str(unrolled_steps)))
               # sample data for unrolling
               unroll_x, unroll_y, _ = sample_true_x_y(parent_child_mut_indices, batch_size, X_train, y_train, batch_mut_distribution)
               un_unroll_X, un_unroll_y = sample_unrelated_x_y(unrelated_X, unrelated_y, batch_size)
               # train discriminator
               _, _, disc_par_enc, disc_gen_enc, discriminator, d_r_l, d_f_l, d_t_l = d_loop(seq_len, batch_size, vocab_size, enc_units, unroll_x, unroll_y, un_unroll_X, un_unroll_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator)
-              print("Unrolled disc losses: {}, {}, {}".format(str(d_r_l.numpy()), str(d_f_l.numpy()), str(d_t_l.numpy())))
+              print("Unrolled disc losses: real {}, fake {}, total {}".format(str(d_r_l.numpy()), str(d_f_l.numpy()), str(d_t_l.numpy())))
           # finish unrolling
+
           # train generator with unrolled discriminator
-          encoder, decoder, disc_par_enc, disc_gen_enc, _, gen_true_loss, gen_fake_loss, total_gen_loss = g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator)
+          encoder, decoder, _, _, _, gen_true_loss, gen_fake_loss, total_gen_loss = g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator)
+
           # reset weights of discriminator, disc_par_enc and disc_gen_enc after unrolling
           discriminator.load_weights(DISC_WEIGHTS)
-          disc_par_enc.load_weights(ENC_WEIGHTS_SAVE_PATH)
-          disc_gen_enc.layers[1].set_weights(disc_par_enc.layers[1].get_weights())
+          disc_par_enc.load_weights(DISC_PAR_ENC_WEIGHTS)
+          disc_gen_enc.load_weights(DISC_GEN_ENC_WEIGHTS)
+
       print("Training epoch {}/{}, Batch {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}, D true loss: {}, D fake loss: {}, Total D loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_train_batches), str(gen_true_loss.numpy()), str(gen_fake_loss.numpy()), str(total_gen_loss.numpy()), str(disc_real_loss.numpy()), str(disc_fake_loss.numpy()), str(total_disc_loss.numpy())))
       # write off results
       epo_ave_gen_true_loss.append(gen_true_loss.numpy())
