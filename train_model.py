@@ -30,9 +30,9 @@ generator_optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3, beta_1=0.5)
 discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5, beta_1=0.5)
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 m_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
-n_disc_step = 2
-n_gen_step = 1
-unrolled_steps = 3
+n_disc_step = 4
+n_gen_step = 2
+unrolled_steps = 0
 
 
 def wasserstein_loss(y_true, y_pred):
@@ -106,20 +106,22 @@ def d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, u
     with tf.GradientTape() as disc_tape:
         real_x, real_y, fake_y, unreal_x, unreal_y, _, _, disc_par_enc, disc_gen_enc, _ = get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc)
         # discriminate pairs of true parent and true child sequences
-        real_output = discriminator([real_x, real_y], training=True)
+        #real_output = discriminator([real_x, real_y], training=True)
         # discriminate pairs of true parent and generated child sequences
-        fake_output = discriminator([real_x, fake_y], training=True)
+        #fake_output = discriminator([real_x, fake_y], training=True)
         # discriminate pairs of true parent and random sequences
-        unreal_output = discriminator([unreal_x, unreal_y], training=True)
+        #unreal_output = discriminator([unreal_x, unreal_y], training=True)
         # halve the fake outpus and combine them to keep the final size same as the real output
-        t1 = fake_output[:int(batch_size/2.0)]
-        t2 = unreal_output[:int(batch_size/2.0)]
-        combined_fake_output = tf.concat([t1, t2], 0)
+        #t1 = fake_output[:int(batch_size/2.0)]
+        #t2 = unreal_output[:int(batch_size/2.0)]
+        #combined_fake_output = tf.concat([t1, t2], 0)
+        real_output = discriminator([real_y], training=True)
+        fake_output = discriminator([fake_y], training=True)
         # compute discriminator loss
-        disc_real_loss, disc_fake_loss = discriminator_loss(real_output, combined_fake_output)
+        disc_real_loss, disc_fake_loss = discriminator_loss(real_output, fake_output)
         total_disc_loss = disc_real_loss + disc_fake_loss
     # update discriminator's parameters
-    disc_trainable_vars = discriminator.trainable_variables + disc_par_enc.trainable_variables + disc_gen_enc.trainable_variables
+    disc_trainable_vars = discriminator.trainable_variables + disc_gen_enc.trainable_variables #+ disc_par_enc.trainable_variables
     gradients_of_discriminator = disc_tape.gradient(total_disc_loss, disc_trainable_vars)
     discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, disc_trainable_vars))
     return encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, disc_real_loss, disc_fake_loss, total_disc_loss
@@ -130,7 +132,8 @@ def g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, u
     with tf.GradientTape() as gen_tape:
         real_x, _, fake_y, _, _, encoder, decoder, _, _, gen_true_loss = get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc)
         # discriminate pairs of true parent and generated child sequences
-        fake_output = discriminator([real_x, fake_y], training=True)
+        #fake_output = discriminator([real_x, fake_y], training=True)
+        fake_output = discriminator([fake_y], training=True)
         gen_fake_loss = generator_loss(fake_output)
         total_gen_loss = gen_fake_loss + gen_true_loss
     # get all trainable vars for generator

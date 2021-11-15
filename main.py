@@ -64,7 +64,7 @@ epochs = 1
 max_l_dist = 10
 test_train_size = 0.85
 pretrain_train_size = 0.5
-random_clade_size = 30
+random_clade_size = 20
 to_pretrain = False
 stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/"]
 
@@ -196,8 +196,8 @@ def start_training(vocab_size, forward_dict, rev_dict):
     # GAN training
     # create discriminator model
     disc_parent_encoder_model, disc_gen_encoder_model = neural_network.make_disc_par_gen_model(LEN_AA, vocab_size, embedding_dim, enc_units)
-    discriminator = neural_network.make_discriminator_model(LEN_AA, vocab_size, embedding_dim, enc_units)
-    #sys.exit()
+    discriminator = neural_network.make_discriminator_model(enc_units)
+
     # use the pretrained generator and train it along with discriminator
     print("Training Generator and Discriminator...")
     train_gen_total_loss = list()

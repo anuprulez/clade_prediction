@@ -89,28 +89,28 @@ def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units):
     gen_enc_inputs = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(gen_enc_inputs)
     gen_enc_inputs = tf.keras.layers.Dropout(DROPOUT)(gen_enc_inputs)
     g_noise = tf.keras.layers.GaussianNoise(1.0)
+
     #gen_enc_outputs, gen_enc_state = enc_GRU(gen_enc_inputs)
     gen_bi_output = enc_GRU(gen_enc_inputs)
     gen_enc_outputs = gen_bi_output[0]
     gen_enc_state = tf.keras.layers.Add()([gen_bi_output[1], gen_bi_output[2]])
     gen_enc_state = g_noise(gen_enc_state)
     disc_gen_encoder_model = tf.keras.Model([gen_inputs], [gen_enc_state])
-     
+
     # initialize weights of discriminator's encoder model for parent and generated seqs
     disc_par_encoder_model.load_weights(GEN_ENC_WEIGHTS)
     disc_gen_encoder_model.layers[1].set_weights(enc_embedding.get_weights())
-
     return disc_par_encoder_model, disc_gen_encoder_model
 
 
-def make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units):
-    parent_state = tf.keras.Input(shape=(enc_units,))
+def make_discriminator_model(enc_units):
+    #parent_state = tf.keras.Input(shape=(enc_units,))
     generated_state = tf.keras.Input(shape=(enc_units,))
-    x = tf.keras.layers.Concatenate()([parent_state, generated_state])
-    x = tf.keras.layers.Dropout(DROPOUT)(x)
+    #x = tf.keras.layers.Concatenate()([parent_state, generated_state])
+    #x = tf.keras.layers.Dropout(DROPOUT)(x)
     #x = tf.keras.layers.LayerNormalization()(x)
-    x = tf.keras.layers.BatchNormalization()(x)
-    x = tf.keras.layers.Dense(enc_units/2)(x)
+    #x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.Dense(enc_units/2)(generated_state)
     x = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(x)
     x = tf.keras.layers.Dropout(DROPOUT)(x)
     #x = tf.keras.layers.LayerNormalization()(x)
@@ -121,5 +121,5 @@ def make_discriminator_model(seq_len, vocab_size, embedding_dim, enc_units):
     #x = tf.keras.layers.LayerNormalization()(x)
     x = tf.keras.layers.BatchNormalization()(x)
     output_class = tf.keras.layers.Dense(1, activation="sigmoid")(x)
-    disc_model = tf.keras.Model([parent_state, generated_state], [output_class])
+    disc_model = tf.keras.Model([generated_state], [output_class])
     return disc_model
