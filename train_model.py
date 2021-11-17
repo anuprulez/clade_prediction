@@ -40,17 +40,17 @@ def wasserstein_loss(y_true, y_pred):
 
 
 def discriminator_loss(real_output, fake_output):
-    #real_loss = -tf.math.reduce_mean(real_output)
-    #fake_loss = tf.math.reduce_mean(fake_output)
-    real_loss = cross_entropy(tf.ones_like(real_output), real_output)
+    real_loss = -tf.math.reduce_mean(real_output)
+    fake_loss = tf.math.reduce_mean(fake_output)
+    #real_loss = cross_entropy(tf.ones_like(real_output), real_output)
     # loss on real parent and generated child sequences
-    fake_loss = cross_entropy(tf.zeros_like(fake_output), fake_output)
+    #fake_loss = cross_entropy(tf.zeros_like(fake_output), fake_output)
     return real_loss, fake_loss
 
 
 def generator_loss(fake_output):
-    return cross_entropy(tf.ones_like(fake_output), fake_output)
-    #return -tf.math.reduce_mean(fake_output)
+    #return cross_entropy(tf.ones_like(fake_output), fake_output)
+    return -tf.math.reduce_mean(fake_output)
 
 
 def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc_model, disc_gen_enc_model):
