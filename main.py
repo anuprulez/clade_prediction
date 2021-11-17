@@ -28,7 +28,7 @@ PATH_R_DICT = PATH_PRE + "r_word_dictionaries.json"
 PATH_TRAINING_CLADES = "data/train_clade_in_out.json"
 PATH_UNRELATED_CLADES = "data/unrelated_clades.json"
 
-
+PRETRAIN_DATA = "data/pretrain/pretrain.csv"
 PRETRAIN_GEN_LOSS = "data/generated_files/pretr_gen_loss.txt"
 PRETRAIN_GEN_TEST_LOSS = "data/generated_files/pretr_gen_test_loss.txt"
 
@@ -65,8 +65,8 @@ max_l_dist = 10
 test_train_size = 0.85
 pretrain_train_size = 0.5
 random_clade_size = 20
-to_pretrain = False
-stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/"]
+to_pretrain = True
+stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/", "data/pretrain/"]
 
 
 def get_samples_clades():
@@ -171,15 +171,21 @@ def start_training(vocab_size, forward_dict, rev_dict):
         X_pretrain, X_train, y_pretrain, y_train  = train_test_split(combined_X, combined_y, test_size=pretrain_train_size)
         X_pretrain = np.array(X_pretrain)
         y_pretrain = np.array(y_pretrain)
-    X_train = np.array(X_train)
-    y_train = np.array(y_train)
+        df_pretrain = pd.DataFrame(list(zip(X_pretrain, y_pretrain)), columns=["X", "Y"])
+        df_pretrain.to_csv(PRETRAIN_DATA, sep="\t", index=None)
+        print("Pretrain data sizes")
+        print(X_pretrain.shape, y_pretrain.shape)
+        # save update train dataset
+        df_train = pd.DataFrame(list(zip(X_train, y_train)), columns=["X", "Y"])
+        df_train.to_csv(tr_clade_files[0], sep="\t", index=None)
+
     print("Train data sizes")
     print(X_train.shape, y_train.shape)
+    X_train = np.array(X_train)
+    y_train = np.array(y_train)
 
     # pretrain generator
     if to_pretrain is True:
-        print("Pretrain data sizes")
-        print(X_pretrain.shape, y_pretrain.shape)
         print("Pretraining generator...")
         # balance tr data by mutations
         pretr_parent_child_mut_indices = utils.get_mutation_tr_indices(X_pretrain, y_pretrain, forward_dict, rev_dict)
