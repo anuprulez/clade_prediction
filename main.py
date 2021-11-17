@@ -164,20 +164,26 @@ def start_training(vocab_size, forward_dict, rev_dict):
     test_dataset_out = tf.data.Dataset.from_tensor_slices((combined_te_y)).batch(te_batch_size)
 
     # divide into pretrain and train
-    X_pretrain, X_train, y_pretrain, y_train  = train_test_split(combined_X, combined_y, test_size=pretrain_train_size)
-    X_pretrain = np.array(X_pretrain)
+    if to_pretrain is False:
+        X_train = combined_X
+        y_train = combined_y
+    else:
+        X_pretrain, X_train, y_pretrain, y_train  = train_test_split(combined_X, combined_y, test_size=pretrain_train_size)
+        X_pretrain = np.array(X_pretrain)
+        y_pretrain = np.array(y_pretrain)
     X_train = np.array(X_train)
-    y_pretrain = np.array(y_pretrain)
     y_train = np.array(y_train)
-    print("Pre-train and train data sizes")
-    print(X_pretrain.shape, y_pretrain.shape, X_train.shape, y_train.shape)
-    print("Pretraining generator...")
-    # balance tr data by mutations
-    pretr_parent_child_mut_indices = utils.get_mutation_tr_indices(X_pretrain, y_pretrain, forward_dict, rev_dict)
-    utils.save_as_json(PRETR_MUT_INDICES, pretr_parent_child_mut_indices)
+    print("Train data sizes")
+    print(X_train.shape, y_train.shape)
 
     # pretrain generator
     if to_pretrain is True:
+        print("Pretrain data sizes")
+        print(X_pretrain.shape, y_pretrain.shape)
+        print("Pretraining generator...")
+        # balance tr data by mutations
+        pretr_parent_child_mut_indices = utils.get_mutation_tr_indices(X_pretrain, y_pretrain, forward_dict, rev_dict)
+        utils.save_as_json(PRETR_MUT_INDICES, pretr_parent_child_mut_indices)
         # get pretraining dataset as sliced tensors
         n_pretrain_batches = int(X_pretrain.shape[0]/float(batch_size))
         print("Num of pretrain batches: {}".format(str(n_pretrain_batches)))
