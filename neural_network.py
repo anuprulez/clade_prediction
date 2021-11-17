@@ -104,13 +104,13 @@ def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units):
 
 
 def make_discriminator_model(enc_units):
-    #parent_state = tf.keras.Input(shape=(enc_units,))
+    parent_state = tf.keras.Input(shape=(enc_units,))
     generated_state = tf.keras.Input(shape=(enc_units,))
-    #x = tf.keras.layers.Concatenate()([parent_state, generated_state])
-    #x = tf.keras.layers.Dropout(DROPOUT)(x)
+    x = tf.keras.layers.Concatenate()([parent_state, generated_state])
+    x = tf.keras.layers.Dropout(DROPOUT)(x)
     #x = tf.keras.layers.LayerNormalization()(x)
-    #x = tf.keras.layers.BatchNormalization()(x)
-    x = tf.keras.layers.Dense(enc_units/2)(generated_state)
+    x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.Dense(enc_units/2)(x)
     x = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(x)
     x = tf.keras.layers.Dropout(DROPOUT)(x)
     #x = tf.keras.layers.LayerNormalization()(x)
@@ -121,5 +121,5 @@ def make_discriminator_model(enc_units):
     #x = tf.keras.layers.LayerNormalization()(x)
     x = tf.keras.layers.BatchNormalization()(x)
     output_class = tf.keras.layers.Dense(1, activation="sigmoid")(x)
-    disc_model = tf.keras.Model([generated_state], [output_class])
+    disc_model = tf.keras.Model([parent_state, generated_state], [output_class])
     return disc_model
