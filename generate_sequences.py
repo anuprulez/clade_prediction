@@ -105,8 +105,7 @@ def load_model_generated_sequences(file_path, encoded_wuhan_seq=None, gen_future
     for te_name in te_clade_files:
         print(te_name)
         te_clade_df = pd.read_csv(te_name, sep="\t")
-        te_X = te_clade_df["X"].drop_dulicates()
-        #te_y = te_clade_df["Y"]
+        te_X = te_clade_df["X"].drop_duplicates()
         print(te_clade_df)
         print()
         print(te_X)
@@ -123,7 +122,7 @@ def predict_multiple(test_x, LEN_AA, vocab_size, batch_size, encoded_wuhan_seq, 
     num_te_batches = int(len(test_x) / float(batch_size))
     print("Num test batches: {}".format(str(num_te_batches)))
 
-    for step, (x, y) in enumerate(zip(test_dataset_in)):
+    for step, x in enumerate(test_dataset_in):
         batch_x_test = utils.pred_convert_to_array(x)
         print("Generating multiple sequences for each test sequence...")
         for i in range(generating_factor):
@@ -151,14 +150,12 @@ def predict_multiple(test_x, LEN_AA, vocab_size, batch_size, encoded_wuhan_seq, 
             for k in range(0, len(one_x)):
                wu_bleu_score = 0.0
                l_dist_x_pred = utils.compute_Levenshtein_dist(one_x[k], pred_y[k])
-               bleu_score = sentence_bleu([one_y[k].split(",")], pred_y[k].split(","))
                if not (encoded_wuhan_seq is None):
                    wu_bleu_score = sentence_bleu([encoded_wuhan_seq.split(",")], pred_y[k].split(","))
                if l_dist_x_pred > min_diff and l_dist_x_pred < max_diff:
                    l_x_gen.append(l_dist_x_pred)
                    true_x.append(one_x[k])
                    predicted_y.append(pred_y[k])
-                   l_b_score.append(bleu_score)
                    l_b_wu_score.append(wu_bleu_score)
 
             print("Step:{}, mean levenshtein distance (x and pred): {}".format(str(i+1), str(np.mean(l_x_gen))))
