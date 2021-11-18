@@ -21,7 +21,7 @@ import utils
 RESULT_PATH = "test_results/18_11_local/"
 
 min_diff = 0
-max_diff = 150000
+max_diff = 61
 train_size = 1.0
 enc_units = 128
 LEN_AA = 1273

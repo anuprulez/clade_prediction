@@ -193,10 +193,8 @@ def get_sequence_variation_percentage(logits):
     return percent_variation
 
 
-def predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, enc_units, enc_path, dec_path):
+def predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, enc_units, loaded_encoder, loaded_generator):
     avg_test_loss = []
-    loaded_encoder = tf.keras.models.load_model(enc_path)
-    loaded_generator = tf.keras.models.load_model(dec_path)
     for step, (x, y) in enumerate(zip(test_dataset_in, test_dataset_out)):
         batch_x_test = convert_to_array(x, test=True)
         batch_y_test = convert_to_array(y, test=True)
@@ -210,13 +208,10 @@ def predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, enc
         generated_logits, _, loss = generator_step(seq_len, batch_size, vocab_size, loaded_generator, enc_state, batch_y_test, False)
         variation_score = get_sequence_variation_percentage(generated_logits)
         print("Generated sequence variation score: {}".format(str(variation_score)))
-        print("Test: Batch {} true loss: {}".format(str(step), str(loss)))
+        print("Test true loss: {}".format(str(loss)))
         print()
         avg_test_loss.append(loss)
-    mean_loss = np.mean(avg_test_loss)
-    print("Total test loss: {}".format(str(mean_loss)))
-    print()
-    return mean_loss
+    return np.mean(avg_test_loss)
 
 
 def generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real_o, train_gen):
