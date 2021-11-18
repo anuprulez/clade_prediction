@@ -34,8 +34,6 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     bi_output = gen_gru(embed)
     gen_output = bi_output[0]
     gen_state = tf.keras.layers.Add()([bi_output[1], bi_output[2]])
-    gen_output, gen_state = gen_gru(embed)
-    #gen_state = g_noise(gen_state)
     encoder_model = tf.keras.Model([gen_inputs], [gen_output, gen_state])
 
     # Create decoder for Generator
@@ -74,7 +72,6 @@ def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units):
                                    recurrent_initializer='glorot_uniform'), merge_mode='ave')
     parent_inputs_embedding = enc_embedding(parent_inputs)
     parent_inputs_embedding = tf.keras.layers.Dropout(DROPOUT)(parent_inputs_embedding)
-    enc_outputs, enc_state = enc_GRU(parent_inputs_embedding)
     par_bi_output = enc_GRU(parent_inputs_embedding)
     enc_outputs = par_bi_output[0]
     enc_state = tf.keras.layers.Add()([par_bi_output[1], par_bi_output[2]])
@@ -86,11 +83,10 @@ def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units):
     gen_enc_inputs = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(gen_enc_inputs)
     gen_enc_inputs = tf.keras.layers.Dropout(DROPOUT)(gen_enc_inputs)
 
-    gen_enc_outputs, gen_enc_state = enc_GRU(gen_enc_inputs)
     gen_bi_output = enc_GRU(gen_enc_inputs)
     gen_enc_outputs = gen_bi_output[0]
     gen_enc_state = tf.keras.layers.Add()([gen_bi_output[1], gen_bi_output[2]])
-    #gen_enc_state = g_noise(gen_enc_state)
+
     disc_gen_encoder_model = tf.keras.Model([gen_inputs], [gen_enc_state])
 
     # initialize weights of discriminator's encoder model for parent and generated seqs

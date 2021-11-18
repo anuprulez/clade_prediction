@@ -80,29 +80,7 @@ def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, un
 
     # encode generated child sequences for discriminator
     fake_state_y = disc_gen_enc_model(generated_logits, training=True)
-    # generate random list of numbers as unreal children
-    #unrolled_random = np.random.randint(1, vocab_size - 1, (unrolled_x.shape[0], unrolled_x.shape[1]))
-    #one_hot_unrolled_random = tf.one_hot(unrolled_random, depth=generated_logits.shape[-1], axis=-1)
-    #random_state_y = disc_gen_enc_model(one_hot_unrolled_random, training=True)
     return real_state_x, real_state_y, fake_state_y, unrelated_real_state_x, unrelated_real_state_y, encoder, decoder, disc_par_enc_model, disc_gen_enc_model, gen_t_loss
-
-
-'''def gen_step_train(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real_o, train_gen):
-    step_loss = tf.constant(0.0)
-    pred_logits = np.zeros((batch_size, seq_len, vocab_size))
-    i_token = tf.fill([batch_size, 1], 0)
-    for t in tf.range(seq_len):
-        o_token = real_o[:, t:t+1]
-        dec_result, dec_state = gen_decoder([i_token, dec_state], training=True)
-        dec_numpy = dec_result.numpy()
-        pred_logits[:, t, :] = np.reshape(dec_numpy, (dec_numpy.shape[0], dec_numpy.shape[2]))
-        loss = m_loss(o_token, dec_result)
-        step_loss += loss
-        # teacher forcing, actual output as the next input
-        i_token = o_token
-    step_loss = step_loss / seq_len
-    pred_logits = tf.convert_to_tensor(pred_logits)
-    return pred_logits, gen_decoder, step_loss'''
 
 
 def d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator):
@@ -234,7 +212,7 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
           _, _, disc_par_enc, disc_gen_enc, discriminator, disc_real_loss, disc_fake_loss, total_disc_loss = d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator)
           # share weights with generator's encoder
           disc_par_enc.load_weights(GEN_ENC_WEIGHTS)
-          disc_gen_enc.set_weights(disc_par_enc.layers[1].get_weights())
+          disc_gen_enc.layers[1].set_weights(disc_par_enc.layers[1].get_weights())
       else:
           # train generator with unrolled discriminator
           # save disc weights to reset after unrolling

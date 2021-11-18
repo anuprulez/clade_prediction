@@ -227,63 +227,6 @@ def generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real
     pred_logits = tf.convert_to_tensor(pred_logits)
     return pred_logits, gen_decoder, step_loss
 
-'''def gen_step_predict(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real_o):
-    step_loss = tf.constant(0.0)
-    pred_logits = np.zeros((batch_size, seq_len, vocab_size))
-    # set initial token
-    i_token = tf.fill([batch_size, 1], 0)
-    for t in tf.range(seq_len):
-        o_token = real_o[:, t:t+1]
-        dec_result, dec_state = gen_decoder([i_token, dec_state], training=False)
-        dec_numpy = dec_result.numpy()
-        pred_logits[:, t, :] = np.reshape(dec_numpy, (dec_numpy.shape[0], dec_numpy.shape[2]))
-        loss = SCE(o_token, dec_result)
-        step_loss += loss
-        dec_tokens = tf.math.argmax(dec_result, axis=-1)
-        # teacher forcing, set current output as the next input
-        i_token = dec_tokens
-    step_loss = step_loss / seq_len
-    pred_logits = tf.convert_to_tensor(pred_logits)
-    return pred_logits, gen_decoder, step_loss
-
-
-def gen_step_train(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real_o, train_gen):
-    step_loss = tf.constant(0.0)
-    pred_logits = np.zeros((batch_size, seq_len, vocab_size))
-    i_token = tf.fill([batch_size, 1], 0)
-    for t in tf.range(seq_len):
-        o_token = real_o[:, t:t+1]
-        dec_result, dec_state = gen_decoder([i_token, dec_state], training=True)
-        dec_numpy = dec_result.numpy()
-        pred_logits[:, t, :] = np.reshape(dec_numpy, (dec_numpy.shape[0], dec_numpy.shape[2]))
-        loss = m_loss(o_token, dec_result)
-        step_loss += loss
-        # teacher forcing, actual output as the next input
-        i_token = o_token
-    step_loss = step_loss / seq_len
-    pred_logits = tf.convert_to_tensor(pred_logits)
-    return pred_logits, gen_decoder, step_loss
-
-
-def gen_step_predict(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real_o):
-    step_loss = tf.constant(0.0)
-    pred_logits = np.zeros((batch_size, seq_len, vocab_size))
-    # set initial token
-    i_token = tf.fill([batch_size, 1], 0)
-    for t in tf.range(seq_len):
-        o_token = real_o[:, t:t+1]
-        dec_result, dec_state = gen_decoder([i_token, dec_state], training=False)
-        dec_numpy = dec_result.numpy()
-        pred_logits[:, t, :] = np.reshape(dec_numpy, (dec_numpy.shape[0], dec_numpy.shape[2]))
-        loss = SCE(o_token, dec_result)
-        step_loss += loss
-        dec_tokens = tf.math.argmax(dec_result, axis=-1)
-        # teacher forcing, set current output as the next input
-        i_token = dec_tokens
-    step_loss = step_loss / seq_len
-    pred_logits = tf.convert_to_tensor(pred_logits)
-    return pred_logits, gen_decoder, step_loss'''
-
 
 def balance_train_dataset_by_levenshtein_dist(x, y, x_y_l):
     lst_x = x
