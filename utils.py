@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 import random
 from random import choices
-
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 from Levenshtein import distance as lev_dist
 

@@ -9,6 +9,7 @@ import numpy as np
 import logging
 import glob
 import itertools
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from nltk.translate.bleu_score import sentence_bleu
