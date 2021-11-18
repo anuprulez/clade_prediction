@@ -192,7 +192,6 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
   epo_avg_total_disc_loss = list()
   epo_avg_disc_fake_loss = list()
   epo_avg_disc_real_loss = list()
-  train_gen = False
   disc_real_loss = tf.constant(0)
   disc_fake_loss = tf.constant(0)
   total_disc_loss = tf.constant(0)
