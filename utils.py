@@ -208,10 +208,14 @@ def predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, enc
         enc_state = tf.math.add(enc_state, noise)
         # generate seqs stepwise - teacher forcing
         generated_logits, _, loss = generator_step(seq_len, batch_size, vocab_size, loaded_generator, enc_state, batch_y_test, False)
+        variation_score = utils.get_sequence_variation_percentage(generated_logits)
+        print("Generated sequence variation score: {}".format(str(variation_score)))
         print("Test: Batch {} true loss: {}".format(str(step), str(loss)))
+        print()
         avg_test_loss.append(loss)
     mean_loss = np.mean(avg_test_loss)
     print("Total test loss: {}".format(str(mean_loss)))
+    print()
     return mean_loss
 
 
@@ -232,8 +236,8 @@ def generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real
         if train_gen == False:
             i_token = tf.math.argmax(dec_result, axis=-1)
         else:
-            i_token = o_token 
-    step_loss = step_loss / seq_len
+            i_token = o_token
+    step_loss = step_loss / float(batch_size)
     pred_logits = tf.convert_to_tensor(pred_logits)
     return pred_logits, gen_decoder, step_loss
 

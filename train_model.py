@@ -33,7 +33,6 @@ pretrain_generator_optimizer = tf.keras.optimizers.Adam() # learning_rate=1e-3, 
 generator_optimizer = tf.keras.optimizers.Adam() # learning_rate=1e-3, beta_1=0.5
 discriminator_optimizer = tf.keras.optimizers.Adam() # learning_rate=3e-5, beta_1=0.5
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
-m_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
 n_disc_step = 2
 n_gen_step = 1
 unrolled_steps = 1
@@ -171,6 +170,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           variation_score = utils.get_sequence_variation_percentage(gen_logits)
           print("Generated sequence variation score: {}".format(str(variation_score)))
           print("Pretrain Gen epoch {}/{}, batch {}/{} step loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches), str(gen_loss.numpy())))
+          print()
           epo_avg_gen_loss.append(gen_loss)
       gen_trainable_vars = gen_decoder.trainable_variables + gen_encoder.trainable_variables
       gradients_of_generator = gen_tape.gradient(gen_loss, gen_trainable_vars)
