@@ -104,7 +104,7 @@ def read_files():
     else:
         encoder = tf.keras.models.load_model(PRETRAIN_GEN_ENC_MODEL)
         decoder = tf.keras.models.load_model(PRETRAIN_GEN_DEC_MODEL)
-    start_training(len(rev_dict) + 1, forward_dict, rev_dict, encoder=encoder, decoder=decoder)
+    start_training(len(rev_dict) + 1, forward_dict, rev_dict, encoder, decoder)
 
 def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     if gen_encoder is None or gen_decoder is None:
