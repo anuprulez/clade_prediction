@@ -65,7 +65,7 @@ max_l_dist = 10
 test_train_size = 0.85
 pretrain_train_size = 0.5
 random_clade_size = 15
-to_pretrain = False
+to_pretrain = True
 stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/", "data/pretrain/"]
 
 

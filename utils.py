@@ -10,7 +10,7 @@ from random import choices
 import tensorflow as tf
 from Levenshtein import distance as lev_dist
 
-SCE = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
+SCE = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False, reduction='none')
 
 
 def make_kmers(seq, size):
@@ -231,13 +231,12 @@ def generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real
         if len(real_o) > 0:
             o_token = real_o[:, t:t+1]
             loss = SCE(o_token, dec_result)
-            step_loss += loss
+            step_loss += tf.reduce_mean(loss)
         # teacher forcing, set current output as the next input
         if train_gen == False:
             i_token = tf.math.argmax(dec_result, axis=-1)
         else:
             i_token = o_token
-    step_loss = step_loss / float(batch_size)
     pred_logits = tf.convert_to_tensor(pred_logits)
     return pred_logits, gen_decoder, step_loss
 
