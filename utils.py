@@ -208,7 +208,7 @@ def predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, enc
         enc_state = tf.math.add(enc_state, noise)
         # generate seqs stepwise - teacher forcing
         generated_logits, _, loss = generator_step(seq_len, batch_size, vocab_size, loaded_generator, enc_state, batch_y_test, False)
-        variation_score = utils.get_sequence_variation_percentage(generated_logits)
+        variation_score = get_sequence_variation_percentage(generated_logits)
         print("Generated sequence variation score: {}".format(str(variation_score)))
         print("Test: Batch {} true loss: {}".format(str(step), str(loss)))
         print()
