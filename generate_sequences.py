@@ -132,7 +132,7 @@ def predict_multiple(test_x, LEN_AA, vocab_size, encoded_wuhan_seq, gen_future):
 
             enc_output, enc_state = loaded_encoder(batch_x_test, training=False)
             enc_state = tf.math.add(enc_state, noise)
-            generated_logits, _, _ = utils.generator_step(LEN_AA, batch_size, vocab_size, loaded_decoder, enc_state, None, False)
+            generated_logits, _, _ = utils.generator_step(LEN_AA, batch_size, vocab_size, loaded_decoder, enc_state, [], False)
             p_y = tf.math.argmax(generated_logits, axis=-1)
             one_x = utils.convert_to_string_list(batch_x_test)
             pred_y = utils.convert_to_string_list(p_y)

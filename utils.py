@@ -215,7 +215,7 @@ def generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real
         dec_result, dec_state = gen_decoder([i_token, dec_state], training=train_gen)
         dec_numpy = dec_result.numpy()
         pred_logits[:, t, :] = np.reshape(dec_numpy, (dec_numpy.shape[0], dec_numpy.shape[2]))
-        if real_o != None:
+        if len(real_o) > 0:
             o_token = real_o[:, t:t+1]
             loss = SCE(o_token, dec_result)
             step_loss += loss
