@@ -65,6 +65,9 @@ def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, un
     transformed_enc_state = tf.math.add(enc_state, noise)
     # generate sequences
     generated_logits, decoder, gen_t_loss = utils.generator_step(seq_len, batch_size, vocab_size, decoder, transformed_enc_state, unrolled_y, True)
+    # compute generated sequence variation
+    variation_score = utils.get_sequence_variation_percentage(generated_logits)
+    print("Generated sequence variation score: {}".format(str(variation_score)))
     # encode parent sequences for discriminator
     real_state_x = disc_par_enc_model(unrolled_x, training=True)
     # unrelated real X
@@ -164,6 +167,9 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           enc_state = tf.math.add(enc_state, noise)
           dec_state = enc_state
           gen_logits, gen_decoder, gen_loss = utils.generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state, unrolled_y, True)
+          # compute generated sequence variation
+          variation_score = utils.get_sequence_variation_percentage(gen_logits)
+          print("Generated sequence variation score: {}".format(str(variation_score)))
           print("Pretrain Gen epoch {}/{}, batch {}/{} step loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches), str(gen_loss.numpy())))
           epo_avg_gen_loss.append(gen_loss)
       gen_trainable_vars = gen_decoder.trainable_variables + gen_encoder.trainable_variables

@@ -184,6 +184,15 @@ def convert_to_string_list(l):
     return l
 
 
+def get_sequence_variation_percentage(logits):
+    seq_tokens = tf.math.argmax(logits, axis=-1)
+    l_seq_tokens = convert_to_string_list(seq_tokens)
+    df_seqs = pd.DataFrame(l_seq_tokens, columns=["Sequences"])
+    u_df_seqs = df_seqs.drop_duplicates()
+    percent_variation = len(u_df_seqs.index) / float(len(df_seqs.index))
+    return percent_variation
+
+
 def predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, enc_units, enc_path, dec_path):
     avg_test_loss = []
     loaded_encoder = tf.keras.models.load_model(enc_path)

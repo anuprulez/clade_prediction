@@ -126,20 +126,17 @@ def predict_multiple(test_x, LEN_AA, vocab_size, encoded_wuhan_seq, gen_future):
         batch_x_test = utils.pred_convert_to_array(x)
         print("Generating multiple sequences for each test sequence...")
         for i in range(generating_factor):
+            l_x_gen = list()
+            l_b_score = list()
+            l_b_wu_score = list()
             print("Generating for iter {}/{}".format(str(i+1), str(generating_factor)))
-            
             noise = tf.random.normal((batch_size, enc_units))
-
             enc_output, enc_state = loaded_encoder(batch_x_test, training=False)
             enc_state = tf.math.add(enc_state, noise)
             generated_logits, _, _ = utils.generator_step(LEN_AA, batch_size, vocab_size, loaded_decoder, enc_state, [], False)
             p_y = tf.math.argmax(generated_logits, axis=-1)
             one_x = utils.convert_to_string_list(batch_x_test)
             pred_y = utils.convert_to_string_list(p_y)
-
-            l_x_gen = list()
-            l_b_score = list()
-            l_b_wu_score = list()
             for k in range(0, len(one_x)):
                wu_bleu_score = 0.0
                l_dist_x_pred = utils.compute_Levenshtein_dist(one_x[k], pred_y[k])
