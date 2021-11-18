@@ -14,13 +14,17 @@ import copy
 import utils
 
 
-GEN_ENC_WEIGHTS = "data/generated_files/generator_encoder_weights.h5"
-GEN_DEC_WEIGHTS = "data/generated_files/generator_decoder_weights.h5"
+PRE_TR_GEN_ENC_WEIGHTS = "data/generated_files/pretr_generator_encoder_weights.h5"
+PRE_TR_GEN_DEC_WEIGHTS = "data/generated_files/pretr_generator_decoder_weights.h5"
+PRETRAIN_GEN_ENC_MODEL = "data/generated_files/pretrain_gen_encoder"
+PRETRAIN_GEN_DEC_MODEL = "data/generated_files/pretrain_gen_decoder"
+
 DISC_WEIGHTS = "data/generated_files/disc_weights.h5"
 DISC_PAR_ENC_WEIGHTS = "data/generated_files/disc_par_enc_weights.h5"
 DISC_GEN_ENC_WEIGHTS = "data/generated_files/disc_gen_enc_weights.h5"
-PRETRAIN_GEN_ENC_MODEL = "data/generated_files/pretrain_gen_encoder"
-PRETRAIN_GEN_DEC_MODEL = "data/generated_files/pretrain_gen_decoder"
+
+GEN_ENC_WEIGHTS = "data/generated_files/generator_encoder_weights.h5"
+GEN_DEC_WEIGHTS = "data/generated_files/generator_decoder_weights.h5"
 TRAIN_GEN_ENC_MODEL = "data/generated_files/gen_enc_model"
 TRAIN_GEN_DEC_MODEL = "data/generated_files/gen_dec_model"
 
@@ -30,9 +34,9 @@ generator_optimizer = tf.keras.optimizers.Adam() # learning_rate=1e-3, beta_1=0.
 discriminator_optimizer = tf.keras.optimizers.Adam() # learning_rate=3e-5, beta_1=0.5
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 m_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
-n_disc_step = 6
-n_gen_step = 3
-unrolled_steps = 3
+n_disc_step = 2
+n_gen_step = 1
+unrolled_steps = 1
 
 
 def wasserstein_loss(y_true, y_pred):
@@ -60,7 +64,7 @@ def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, un
     # add noise to encoded state to have variations while generating sequences
     transformed_enc_state = tf.math.add(enc_state, noise)
     # generate sequences
-    generated_logits, decoder, gen_t_loss = gen_step_train(seq_len, batch_size, vocab_size, decoder, transformed_enc_state, unrolled_y, True)
+    generated_logits, decoder, gen_t_loss = utils.generator_step(seq_len, batch_size, vocab_size, decoder, transformed_enc_state, unrolled_y, True)
     # encode parent sequences for discriminator
     real_state_x = disc_par_enc_model(unrolled_x, training=True)
     # unrelated real X
@@ -83,13 +87,13 @@ def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, un
     return real_state_x, real_state_y, fake_state_y, unrelated_real_state_x, unrelated_real_state_y, encoder, decoder, disc_par_enc_model, disc_gen_enc_model, gen_t_loss
 
 
-def gen_step_train(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real_o, train_gen):
+'''def gen_step_train(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real_o, train_gen):
     step_loss = tf.constant(0.0)
     pred_logits = np.zeros((batch_size, seq_len, vocab_size))
     i_token = tf.fill([batch_size, 1], 0)
     for t in tf.range(seq_len):
         o_token = real_o[:, t:t+1]
-        dec_result, dec_state = gen_decoder([i_token, dec_state], training=train_gen)
+        dec_result, dec_state = gen_decoder([i_token, dec_state], training=True)
         dec_numpy = dec_result.numpy()
         pred_logits[:, t, :] = np.reshape(dec_numpy, (dec_numpy.shape[0], dec_numpy.shape[2]))
         loss = m_loss(o_token, dec_result)
@@ -98,7 +102,7 @@ def gen_step_train(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real
         i_token = o_token
     step_loss = step_loss / seq_len
     pred_logits = tf.convert_to_tensor(pred_logits)
-    return pred_logits, gen_decoder, step_loss
+    return pred_logits, gen_decoder, step_loss'''
 
 
 def d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator):
@@ -137,7 +141,6 @@ def g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, u
     gen_trainable_vars = decoder.trainable_variables + encoder.trainable_variables
     gradients_of_generator = gen_tape.gradient(total_gen_loss, gen_trainable_vars)
     generator_optimizer.apply_gradients(zip(gradients_of_generator, gen_trainable_vars))
-    encoder.save_weights(GEN_ENC_WEIGHTS)
     return encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, gen_true_loss, gen_fake_loss, total_gen_loss
 
 
@@ -182,7 +185,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           enc_output, enc_state = gen_encoder(unrolled_x, training=True)
           enc_state = tf.math.add(enc_state, noise)
           dec_state = enc_state
-          gen_logits, gen_decoder, gen_loss = gen_step_train(seq_len, batch_size, vocab_size, gen_decoder, dec_state, unrolled_y, True)
+          gen_logits, gen_decoder, gen_loss = utils.generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state, unrolled_y, True)
           print("Pretrain Gen epoch {}/{}, batch {}/{} step loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches), str(gen_loss.numpy())))
           epo_avg_gen_loss.append(gen_loss)
       gen_trainable_vars = gen_decoder.trainable_variables + gen_encoder.trainable_variables
@@ -192,6 +195,8 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
   gen_encoder.save_weights(GEN_ENC_WEIGHTS)
   tf.keras.models.save_model(gen_encoder, PRETRAIN_GEN_ENC_MODEL)
   tf.keras.models.save_model(gen_decoder, PRETRAIN_GEN_DEC_MODEL)
+  gen_encoder.save_weights(PRE_TR_GEN_ENC_WEIGHTS)
+  gen_decoder.save_weights(PRE_TR_GEN_DEC_WEIGHTS)
   utils.save_as_json("data/generated_files/pretr_ave_batch_x_y_mut_epo_{}.json".format(str(epo_step)), batch_mut_distribution)
   return np.mean(epo_avg_gen_loss), gen_encoder, gen_decoder
 
@@ -227,6 +232,9 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
       if disc_gen in list(range(0, n_disc_step - n_gen_step)):
           # train discriminator
           _, _, disc_par_enc, disc_gen_enc, discriminator, disc_real_loss, disc_fake_loss, total_disc_loss = d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator)
+          # share weights with generator's encoder
+          disc_par_enc.load_weights(GEN_ENC_WEIGHTS)
+          disc_gen_enc.set_weights(disc_par_enc.layers[1].get_weights())
       else:
           # train generator with unrolled discriminator
           # save disc weights to reset after unrolling
@@ -248,7 +256,7 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
 
           # train generator with unrolled discriminator
           encoder, decoder, _, _, _, gen_true_loss, gen_fake_loss, total_gen_loss = g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator)
-
+          encoder.save_weights(GEN_ENC_WEIGHTS)
           # reset weights of discriminator, disc_par_enc and disc_gen_enc after unrolling
           discriminator.load_weights(DISC_WEIGHTS)
           disc_par_enc.load_weights(DISC_PAR_ENC_WEIGHTS)
@@ -268,5 +276,7 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
   print("Tr step {} finished, Saving model...".format(str(epo_step+1)))
   tf.keras.models.save_model(encoder, TRAIN_GEN_ENC_MODEL)
   tf.keras.models.save_model(decoder, TRAIN_GEN_DEC_MODEL)
+  encoder.save_weights(GEN_ENC_WEIGHTS)
+  decoder.save_weights(GEN_DEC_WEIGHTS)
   utils.save_as_json("data/generated_files/ave_batch_x_y_mut_epo_{}.json".format(str(epo_step)), batch_mut_distribution)
   return np.mean(epo_ave_gen_true_loss), np.mean(epo_avg_gen_fake_loss), np.mean(epo_avg_total_gen_loss), np.mean(epo_avg_disc_real_loss), np.mean(epo_avg_disc_fake_loss), np.mean(epo_avg_total_disc_loss), encoder, decoder

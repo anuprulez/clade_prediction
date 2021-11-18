@@ -12,7 +12,7 @@ import h5py
 import preprocess_sequences
 
 GEN_ENC_WEIGHTS = "data/generated_files/generator_encoder_weights.h5"
-DROPOUT = 0.3
+DROPOUT = 0.2
 LEAKY_ALPHA = 0.1
 
 
@@ -27,7 +27,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     				return_sequences=True,
     				return_state=True,
     				recurrent_initializer='glorot_uniform'), merge_mode='ave')
-    g_noise = tf.keras.layers.GaussianNoise(1.0)
+    #g_noise = tf.keras.layers.GaussianNoise(1.0)
     inputs = tf.keras.Input(shape=(seq_len,))
     # create model
     embed = gen_embedding(gen_inputs)
@@ -36,7 +36,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     gen_output = bi_output[0]
     gen_state = tf.keras.layers.Add()([bi_output[1], bi_output[2]])
     #gen_output, gen_state = gen_gru(embed)
-    gen_state = g_noise(gen_state)
+    #gen_state = g_noise(gen_state)
     encoder_model = tf.keras.Model([gen_inputs], [gen_output, gen_state])
 
     # Create decoder for Generator
@@ -73,14 +73,14 @@ def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units):
                                    return_sequences=True,
                                    return_state=True,
                                    recurrent_initializer='glorot_uniform'), merge_mode='ave')
-    g_noise = tf.keras.layers.GaussianNoise(1.0)
+    #g_noise = tf.keras.layers.GaussianNoise(1.0)
     parent_inputs_embedding = enc_embedding(parent_inputs)
     parent_inputs_embedding = tf.keras.layers.Dropout(DROPOUT)(parent_inputs_embedding)
     #enc_outputs, enc_state = enc_GRU(parent_inputs_embedding)
     par_bi_output = enc_GRU(parent_inputs_embedding)
     enc_outputs = par_bi_output[0]
     enc_state = tf.keras.layers.Add()([par_bi_output[1], par_bi_output[2]])
-    enc_state = g_noise(enc_state)
+    #enc_state = g_noise(enc_state)
     disc_par_encoder_model = tf.keras.Model([parent_inputs], [enc_state])
 
     # generated seq encoder model
@@ -88,13 +88,13 @@ def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units):
     gen_enc_inputs = tf.keras.layers.Dense(embedding_dim, use_bias=False)(gen_inputs)
     gen_enc_inputs = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(gen_enc_inputs)
     gen_enc_inputs = tf.keras.layers.Dropout(DROPOUT)(gen_enc_inputs)
-    g_noise = tf.keras.layers.GaussianNoise(1.0)
+    #g_noise = tf.keras.layers.GaussianNoise(1.0)
 
     #gen_enc_outputs, gen_enc_state = enc_GRU(gen_enc_inputs)
     gen_bi_output = enc_GRU(gen_enc_inputs)
     gen_enc_outputs = gen_bi_output[0]
     gen_enc_state = tf.keras.layers.Add()([gen_bi_output[1], gen_bi_output[2]])
-    gen_enc_state = g_noise(gen_enc_state)
+    #gen_enc_state = g_noise(gen_enc_state)
     disc_gen_encoder_model = tf.keras.Model([gen_inputs], [gen_enc_state])
 
     # initialize weights of discriminator's encoder model for parent and generated seqs
@@ -108,18 +108,18 @@ def make_discriminator_model(enc_units):
     generated_state = tf.keras.Input(shape=(enc_units,))
     x = tf.keras.layers.Concatenate()([parent_state, generated_state])
     x = tf.keras.layers.Dropout(DROPOUT)(x)
-    x = tf.keras.layers.LayerNormalization()(x)
-    #x = tf.keras.layers.BatchNormalization()(x)
+    #x = tf.keras.layers.LayerNormalization()(x)
+    x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.Dense(enc_units)(x)
+    x = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(x)
+    x = tf.keras.layers.Dropout(DROPOUT)(x)
+    #x = tf.keras.layers.LayerNormalization()(x)
+    x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.Dense(enc_units/2)(x)
     x = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(x)
     x = tf.keras.layers.Dropout(DROPOUT)(x)
-    x = tf.keras.layers.LayerNormalization()(x)
-    #x = tf.keras.layers.BatchNormalization()(x)
-    x = tf.keras.layers.Dense(enc_units/4)(x)
-    x = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(x)
-    x = tf.keras.layers.Dropout(DROPOUT)(x)
-    x = tf.keras.layers.LayerNormalization()(x)
-    #x = tf.keras.layers.BatchNormalization()(x)
+    #x = tf.keras.layers.LayerNormalization()(x)
+    x = tf.keras.layers.BatchNormalization()(x)
     output_class = tf.keras.layers.Dense(1, activation="linear")(x)
     disc_model = tf.keras.Model([parent_state, generated_state], [output_class])
     return disc_model
