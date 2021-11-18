@@ -237,6 +237,7 @@ def generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real
             i_token = tf.math.argmax(dec_result, axis=-1)
         else:
             i_token = o_token
+    step_loss = step_loss / float(seq_len)
     pred_logits = tf.convert_to_tensor(pred_logits)
     return pred_logits, gen_decoder, step_loss
 

@@ -57,15 +57,16 @@ LEN_AA = 1273
 SCE = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
 # Neural network parameters
 embedding_dim = 128
-batch_size = 4
-enc_units = 128
-pretrain_epochs = 1
-epochs = 1
+batch_size = 128
+enc_units = 256
+pretrain_epochs = 2
+epochs = 2
 max_l_dist = 10
 test_train_size = 0.85
 pretrain_train_size = 0.5
-random_clade_size = 15
+random_clade_size = 100
 to_pretrain = True
+pretrained_model = True
 stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/", "data/pretrain/"]
 
 
@@ -81,27 +82,35 @@ def get_samples_clades():
 def read_files():
     #to preprocess once, uncomment get_samples_clades
     #get_samples_clades()
-    print("Cleaning up stale folders...")
-    utils.clean_up(stale_folders)
-    print("Preprocessing sample-clade assignment file...")
-    dataf = pd.read_csv(PATH_SAMPLES_CLADES, sep=",")
-    filtered_dataf = preprocess_sequences.filter_samples_clades(dataf)
     forward_dict = utils.read_json(PATH_F_DICT)
     rev_dict = utils.read_json(PATH_R_DICT)
-    clades_in_clades_out = utils.read_json(PATH_TRAINING_CLADES)
-    print(clades_in_clades_out)
-    unrelated_clades = utils.read_json(PATH_UNRELATED_CLADES)
-    print("Generating cross product of real parent child...")
-    preprocess_sequences.make_cross_product(clades_in_clades_out, filtered_dataf, train_size=test_train_size, edit_threshold=max_l_dist, random_size=random_clade_size)
-    print("Generating cross product of real sequences but not parent-child...")
-    preprocess_sequences.make_cross_product(unrelated_clades, filtered_dataf, train_size=1.0, edit_threshold=max_l_dist, random_size=random_clade_size, unrelated=True)
-    start_training(len(rev_dict) + 1, forward_dict, rev_dict)
+    encoder = None
+    decoder = None
+    if pretrained_model is False:
+        print("Cleaning up stale folders...")
+        utils.clean_up(stale_folders)
+        print("Preprocessing sample-clade assignment file...")
+        dataf = pd.read_csv(PATH_SAMPLES_CLADES, sep=",")
+        filtered_dataf = preprocess_sequences.filter_samples_clades(dataf)
+        
+        clades_in_clades_out = utils.read_json(PATH_TRAINING_CLADES)
+        print(clades_in_clades_out)
+        unrelated_clades = utils.read_json(PATH_UNRELATED_CLADES)
+        print("Generating cross product of real parent child...")
+        preprocess_sequences.make_cross_product(clades_in_clades_out, filtered_dataf, train_size=test_train_size, edit_threshold=max_l_dist, random_size=random_clade_size)
+        print("Generating cross product of real sequences but not parent-child...")
+        preprocess_sequences.make_cross_product(unrelated_clades, filtered_dataf, train_size=1.0, edit_threshold=max_l_dist, random_size=random_clade_size, unrelated=True)
+    else:
+        encoder = tf.keras.models.load_model(PRETRAIN_GEN_ENC_MODEL)
+        decoder = tf.keras.models.load_model(PRETRAIN_GEN_DEC_MODEL)
+    start_training(len(rev_dict) + 1, forward_dict, rev_dict, encoder=encoder, decoder=decoder)
 
-
-def start_training(vocab_size, forward_dict, rev_dict):
-    encoder, decoder = neural_network.make_generator_model(LEN_AA, vocab_size, embedding_dim, enc_units, batch_size)
-    pretrain_gen_loss = list()
-    pretrain_gen_test_loss = list()
+def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
+    if gen_encoder is None or gen_decoder is None:
+        encoder, decoder = neural_network.make_generator_model(LEN_AA, vocab_size, embedding_dim, enc_units, batch_size)
+    else:
+        encoder = gen_encoder
+        decoder = gen_decoder
 
     print("Loading datasets...")
     tr_clade_files = glob.glob('data/train/*.csv')
@@ -186,6 +195,8 @@ def start_training(vocab_size, forward_dict, rev_dict):
 
     # pretrain generator
     if to_pretrain is True:
+        pretrain_gen_loss = list()
+        pretrain_gen_test_loss = list()
         print("Pretraining generator...")
         # balance tr data by mutations
         pretr_parent_child_mut_indices = utils.get_mutation_tr_indices(X_pretrain, y_pretrain, forward_dict, rev_dict)
@@ -195,7 +206,7 @@ def start_training(vocab_size, forward_dict, rev_dict):
         print("Num of pretrain batches: {}".format(str(n_pretrain_batches)))
         for i in range(pretrain_epochs):
             print("Pre training epoch {}/{}...".format(str(i+1), str(pretrain_epochs)))
-            epo_pretrain_gen_loss, encoder, decoder = train_model.pretrain_generator([X_pretrain, y_pretrain], i, encoder, decoder, enc_units, vocab_size, n_pretrain_batches, batch_size, pretr_parent_child_mut_indices, pretrain_epochs)
+            epo_pretrain_gen_loss, encoder, decoder = train_model.pretrain_generator([X_pretrain, y_pretrain, test_dataset_in, test_dataset_out], i, encoder, decoder, enc_units, vocab_size, n_pretrain_batches, batch_size, pretr_parent_child_mut_indices, pretrain_epochs)
             print("Pre training loss at step {}/{}: Generator loss: {}".format(str(i+1), str(pretrain_epochs), str(epo_pretrain_gen_loss)))
             pretrain_gen_loss.append(epo_pretrain_gen_loss)
             print("Pretrain: predicting on test datasets...")
@@ -229,7 +240,7 @@ def start_training(vocab_size, forward_dict, rev_dict):
 
     for n in range(epochs):
         print("Training epoch {}/{}...".format(str(n+1), str(epochs)))
-        epo_gen_true_loss, epo_gen_fake_loss, epo_total_gen_loss, epo_disc_true_loss, epo_disc_fake_loss, epo_total_disc_loss, encoder, decoder = train_model.start_training_mut_balanced([X_train, y_train, unrelated_X, unrelated_y], n, encoder, decoder, disc_parent_encoder_model, disc_gen_encoder_model, discriminator, enc_units, vocab_size, n_train_batches, batch_size, tr_parent_child_mut_indices, epochs)
+        epo_gen_true_loss, epo_gen_fake_loss, epo_total_gen_loss, epo_disc_true_loss, epo_disc_fake_loss, epo_total_disc_loss, encoder, decoder = train_model.start_training_mut_balanced([X_train, y_train, unrelated_X, unrelated_y, test_dataset_in, test_dataset_out], n, encoder, decoder, disc_parent_encoder_model, disc_gen_encoder_model, discriminator, enc_units, vocab_size, n_train_batches, batch_size, tr_parent_child_mut_indices, epochs)
 
         print("Training loss at step {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}, D true loss: {}, D fake loss: {}, Total D loss: {}".format(str(n+1), str(epochs), str(epo_gen_true_loss), str(epo_gen_fake_loss), str(epo_total_gen_loss), str(epo_disc_true_loss), str(epo_disc_fake_loss), str(epo_total_disc_loss)))
 

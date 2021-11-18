@@ -10,6 +10,8 @@ import tensorflow as tf
 import h5py
 
 import preprocess_sequences
+#import bahdanauAttention
+
 
 GEN_ENC_WEIGHTS = "data/generated_files/generator_encoder_weights.h5"
 DROPOUT = 0.2
@@ -19,6 +21,7 @@ LEAKY_ALPHA = 0.1
 def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_size):
     # Create encoder model for Generator
     # define layers
+    #attention_layer = bahdanauAttention.BahdanauAttention(enc_units)
     gen_inputs = tf.keras.Input(shape=(seq_len,))
     gen_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
     gen_gru = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(enc_units, 
@@ -51,6 +54,13 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     vectors = tf.keras.layers.Dropout(DROPOUT)(vectors)
     rnn_output, state = dec_gru(vectors, initial_state=e_state)
     rnn_output = tf.keras.layers.Dropout(DROPOUT)(rnn_output)
+    # attention
+    '''context_vector, attention_weights = attention_layer(
+        query=rnn_output,
+        value=example_enc_output,
+        mask=(example_tokens != 0)
+    )'''
+
     attention_vector = dec_Wc(rnn_output)
     attention_vector = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(attention_vector)
     attention_vector = tf.keras.layers.Dropout(DROPOUT)(attention_vector)
@@ -90,7 +100,7 @@ def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units):
 
     # initialize weights of discriminator's encoder model for parent and generated seqs
     disc_par_encoder_model.load_weights(GEN_ENC_WEIGHTS)
-    disc_gen_encoder_model.layers[1].set_weights(enc_embedding.get_weights())
+    disc_gen_encoder_model.layers[1].set_weights(disc_par_encoder_model.layers[1].get_weights())
     return disc_par_encoder_model, disc_gen_encoder_model
 
 
