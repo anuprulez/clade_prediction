@@ -67,7 +67,7 @@ def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, un
     generated_logits, decoder, gen_t_loss = utils.generator_step(seq_len, batch_size, vocab_size, decoder, transformed_enc_state, unrolled_y, True)
     # compute generated sequence variation
     variation_score = utils.get_sequence_variation_percentage(generated_logits)
-    print("Generated sequence variation score: {}".format(str(variation_score)))
+    print("Generation variation score: {}".format(str(variation_score)))
     # encode parent sequences for discriminator
     real_state_x = disc_par_enc_model(unrolled_x, training=True)
     # unrelated real X
@@ -169,13 +169,11 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           gen_logits, gen_decoder, gen_loss = utils.generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state, unrolled_y, True)
           # compute generated sequence variation
           variation_score = utils.get_sequence_variation_percentage(gen_logits)
-          print("Generated sequence variation score: {}".format(str(variation_score)))
+          print("Pretr: generation variation score: {}".format(str(variation_score)))
           print("Pretrain Gen epoch {}/{}, batch {}/{} step loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches), str(gen_loss.numpy())))
 
           if step % test_log_step == 0:
-              #tf.keras.models.save_model(gen_encoder, PRETRAIN_GEN_ENC_MODEL)
-              #tf.keras.models.save_model(gen_decoder, PRETRAIN_GEN_DEC_MODEL)
-              print("Prediction on test data...")
+              print("Pretr: Prediction on test data...")
               with tf.device('/device:cpu:0'):
                   epo_tr_gen_te_loss = utils.predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, enc_units, gen_encoder, gen_decoder)
           print()
@@ -254,9 +252,7 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
 
       print("Training epoch {}/{}, Batch {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}, D true loss: {}, D fake loss: {}, Total D loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_train_batches), str(gen_true_loss.numpy()), str(gen_fake_loss.numpy()), str(total_gen_loss.numpy()), str(disc_real_loss.numpy()), str(disc_fake_loss.numpy()), str(total_disc_loss.numpy())))
       if step % test_log_step == 0:
-          #tf.keras.models.save_model(encoder, TRAIN_GEN_ENC_MODEL)
-          #tf.keras.models.save_model(decoder, TRAIN_GEN_DEC_MODEL)
-          print("Prediction on test data...")
+          print("Training: prediction on test data...")
           with tf.device('/device:cpu:0'):
               epo_tr_gen_te_loss = utils.predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, enc_units, encoder, decoder)
       # write off results
