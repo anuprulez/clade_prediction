@@ -67,8 +67,8 @@ max_l_dist = 10
 test_train_size = 0.85
 pretrain_train_size = 0.5
 random_clade_size = 8
-to_pretrain = True
-pretrained_model = False
+to_pretrain = False
+pretrained_model = True
 stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/", "data/pretrain/"]
 
 
@@ -266,7 +266,7 @@ def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_dec
         train_disc_fake_loss.append(epo_disc_fake_loss)
 
         train_gen_batch_test_loss.append(epo_bat_te_loss)
-        epo_tr_bat_te_seq_var.append(epo_bat_gen_seq_var)
+        train_gen_batch_test_seq_var.append(epo_bat_gen_seq_var)
 
         # predict seq on test data
         print("Prediction on test data...")
