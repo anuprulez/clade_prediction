@@ -33,15 +33,15 @@ PRETRAIN_DATA = "data/pretrain/pretrain.csv"
 PRETRAIN_GEN_LOSS = "data/generated_files/pretr_gen_loss.txt"
 PRETRAIN_GEN_TEST_LOSS = "data/generated_files/pretr_gen_test_loss.txt"
 
-TRAIN_GEN_TOTAL_LOSS = "data/generated_files/tr_gen_total_loss.txt"
-TRAIN_GEN_FAKE_LOSS = "data/generated_files/tr_gen_fake_loss.txt"
-TRAIN_GEN_TRUE_LOSS = "data/generated_files/tr_gen_true_loss.txt"
+TRAIN_GEN_TOTAL_LOSS = "data/generated_files/train_gen_total_loss.txt"
+TRAIN_GEN_FAKE_LOSS = "data/generated_files/train_gen_fake_loss.txt"
+TRAIN_GEN_TRUE_LOSS = "data/generated_files/train_gen_true_loss.txt"
 
-TRAIN_DISC_TOTAL_LOSS = "data/generated_files/tr_disc_total_loss.txt"
-TRAIN_DISC_FAKE_LOSS = "data/generated_files/tr_disc_fake_loss.txt"
-TRAIN_DISC_TRUE_LOSS = "data/generated_files/tr_disc_true_loss.txt"
+TRAIN_DISC_TOTAL_LOSS = "data/generated_files/train_disc_total_loss.txt"
+TRAIN_DISC_FAKE_LOSS = "data/generated_files/train_disc_fake_loss.txt"
+TRAIN_DISC_TRUE_LOSS = "data/generated_files/train_disc_true_loss.txt"
 
-TEST_LOSS = "data/generated_files/te_loss.txt"
+TEST_LOSS = "data/generated_files/train_te_loss.txt"
 
 PRETRAIN_GEN_ENC_MODEL = "data/generated_files/pretrain_gen_encoder"
 PRETRAIN_GEN_DEC_MODEL = "data/generated_files/pretrain_gen_decoder"
@@ -59,16 +59,16 @@ LEN_AA = 1273
 embedding_dim = 128
 batch_size = 4
 te_batch_size = 4
-n_te_batches = 5
+n_te_batches = 2
 enc_units = 64
 pretrain_epochs = 2
 epochs = 2
 max_l_dist = 10
 test_train_size = 0.85
 pretrain_train_size = 0.5
-random_clade_size = 12
-to_pretrain = True
-pretrained_model = False
+random_clade_size = 10
+to_pretrain = False
+pretrained_model = True
 stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/", "data/pretrain/"]
 
 
@@ -205,7 +205,7 @@ def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_dec
         for i in range(pretrain_epochs):
             print("Pre training epoch {}/{}...".format(str(i+1), str(pretrain_epochs)))
             epo_pretrain_gen_loss, bat_te_gen_loss, bat_te_seq_var, encoder, decoder = train_model.pretrain_generator([X_pretrain, y_pretrain, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches], i, encoder, decoder, enc_units, vocab_size, n_pretrain_batches, batch_size, pretr_parent_child_mut_indices, pretrain_epochs)
-            print("Pre training loss at step {}/{}: Generator loss: {}".format(str(i+1), str(pretrain_epochs), str(epo_pretrain_gen_loss)))
+            print("Pre training loss at epoch {}/{}: Generator loss: {}".format(str(i+1), str(pretrain_epochs), str(epo_pretrain_gen_loss)))
             pretrain_gen_loss.append(epo_pretrain_gen_loss)
             epo_pretr_bat_te_gen_loss.append(bat_te_gen_loss)
             epo_pretr_bat_te_seq_var.append(bat_te_seq_var)
@@ -214,12 +214,15 @@ def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_dec
                 epo_pt_gen_te_loss, epo_pt_gen_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, LEN_AA, vocab_size, enc_units, encoder, decoder)
                 pretrain_gen_test_loss.append(epo_pt_gen_te_loss)
                 pretrain_gen_seq_var.append(epo_pt_gen_seq_var)
+            print("Pre-training epoch {} finished".format(str(i+1)))
+            print()
         np.savetxt(PRETRAIN_GEN_LOSS, pretrain_gen_loss)
         np.savetxt(PRETRAIN_GEN_TEST_LOSS, pretrain_gen_test_loss)
         np.savetxt("data/generated_files/pretrain_gen_seq_var.txt", pretrain_gen_seq_var)
-        np.savetxt("data/generated_files/epo_pretr_bat_te_gen_loss.txt", epo_pretr_bat_te_gen_loss)
-        np.savetxt("data/generated_files/epo_pretr_bat_te_seq_var.txt", epo_pretr_bat_te_seq_var)
-
+        np.savetxt("data/generated_files/pretrain_bat_te_gen_loss.txt", epo_pretr_bat_te_gen_loss)
+        np.savetxt("data/generated_files/pretrain_bat_te_seq_var.txt", epo_pretr_bat_te_seq_var)
+        print("Pre-training finished")
+        print()
     # GAN training
     # create discriminator model
     disc_parent_encoder_model, disc_gen_encoder_model = neural_network.make_disc_par_gen_model(LEN_AA, vocab_size, embedding_dim, enc_units)
@@ -250,7 +253,7 @@ def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_dec
         print("Training epoch {}/{}...".format(str(n+1), str(epochs)))
         epo_gen_true_loss, epo_gen_fake_loss, epo_total_gen_loss, epo_disc_true_loss, epo_disc_fake_loss, epo_total_disc_loss, epo_bat_te_loss, epo_bat_gen_seq_var, encoder, decoder = train_model.start_training_mut_balanced([X_train, y_train, unrelated_X, unrelated_y, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches], n, encoder, decoder, disc_parent_encoder_model, disc_gen_encoder_model, discriminator, enc_units, vocab_size, n_train_batches, batch_size, tr_parent_child_mut_indices, epochs)
 
-        print("Training loss at step {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}, D true loss: {}, D fake loss: {}, Total D loss: {}".format(str(n+1), str(epochs), str(epo_gen_true_loss), str(epo_gen_fake_loss), str(epo_total_gen_loss), str(epo_disc_true_loss), str(epo_disc_fake_loss), str(epo_total_disc_loss)))
+        print("Training loss at epoch {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}, D true loss: {}, D fake loss: {}, Total D loss: {}".format(str(n+1), str(epochs), str(epo_gen_true_loss), str(epo_gen_fake_loss), str(epo_total_gen_loss), str(epo_disc_true_loss), str(epo_disc_fake_loss), str(epo_total_disc_loss)))
 
         train_gen_total_loss.append(epo_total_gen_loss)
         train_gen_true_loss.append(epo_gen_true_loss)
@@ -269,7 +272,8 @@ def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_dec
             epo_tr_gen_te_loss, epo_tr_gen_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, LEN_AA, vocab_size, enc_units, encoder, decoder)
             train_te_loss.append(epo_tr_gen_te_loss)
             train_gen_seq_var.append(epo_tr_gen_seq_var)
-
+        print()
+    print("Training finished")
     # save loss files
     np.savetxt(TRAIN_GEN_TOTAL_LOSS, train_gen_total_loss)
     np.savetxt(TRAIN_GEN_FAKE_LOSS, train_gen_fake_loss)
@@ -278,9 +282,8 @@ def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_dec
     np.savetxt(TRAIN_DISC_TRUE_LOSS, train_disc_true_loss)
     np.savetxt(TRAIN_DISC_TOTAL_LOSS, train_disc_total_loss)
     np.savetxt(TEST_LOSS, train_te_loss)
-
-    np.savetxt("data/generated_files/epo_tr_bat_te_gen_loss.txt", epo_tr_bat_te_gen_loss)
-    np.savetxt("data/generated_files/epo_tr_bat_te_seq_var.txt", epo_tr_bat_te_seq_var)
+    np.savetxt("data/generated_files/train_bat_te_gen_loss.txt", epo_tr_bat_te_gen_loss)
+    np.savetxt("data/generated_files/train_bat_te_seq_var.txt", epo_tr_bat_te_seq_var)
     np.savetxt("data/generated_files/train_gen_seq_var.txt", train_gen_seq_var)
 
 

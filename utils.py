@@ -209,13 +209,12 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
         # generate seqs stepwise - teacher forcing
         generated_logits, _, loss = generator_step(seq_len, te_batch_size, vocab_size, loaded_generator, enc_state, batch_y_test, False)
         variation_score = get_sequence_variation_percentage(generated_logits)
-        print("Test step {} variation score: {}".format(str(step+1), str(variation_score)))
-        print("Test step {} true loss: {}".format(str(step+1), str(loss.numpy())))
+        print("Test batch {} variation score: {}".format(str(step+1), str(variation_score)))
+        print("Test batch {} true loss: {}".format(str(step+1), str(loss.numpy())))
         avg_test_loss.append(loss)
         avg_test_seq_var.append(variation_score)
-    print()
-    print("Total test seq variation in {} steps: {}".format(str(n_te_batches), str(np.mean(avg_test_seq_var))))
-    print("Total test loss in {} steps: {}".format(str(n_te_batches), str(np.mean(avg_test_loss))))
+    print("Total test seq variation in {} batches: {}".format(str(n_te_batches), str(np.mean(avg_test_seq_var))))
+    print("Total test loss in {} batches: {}".format(str(n_te_batches), str(np.mean(avg_test_loss))))
     return np.mean(avg_test_loss), np.mean(avg_test_seq_var)
 
 
