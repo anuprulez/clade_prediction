@@ -93,12 +93,12 @@ def get_all_possible_words(vocab):
 
 
 def convert_to_array(str_data, test=False):
-    if test == True:
+    '''if test == True:
         tolst = str_data.numpy()
         f_list = [item.decode("utf-8").split(",") for item in tolst]
-    else:
-        tolst = str_data.tolist()
-        f_list = [item.split(",") for item in tolst]
+    else:'''
+    tolst = str_data.tolist()
+    f_list = [item.split(",") for item in tolst]
     toarray = np.array([list(map(int, lst)) for lst in f_list])
     tensor = tf.convert_to_tensor(toarray, dtype=tf.int32)
     return toarray
@@ -193,18 +193,19 @@ def get_sequence_variation_percentage(logits):
     return percent_variation
 
 
-def sample_unrelated_x_y(unrelated_X, unrelated_y, batch_size, test=False):
+def sample_unrelated_x_y(unrelated_X, unrelated_y, batch_size, istest=False):
     un_rand_row_index = np.random.randint(0, unrelated_X.shape[0], batch_size)
     un_X = unrelated_X[un_rand_row_index]
     un_y = unrelated_y[un_rand_row_index]
-    return convert_to_array(un_X, test), convert_to_array(un_y, test)
+    return convert_to_array(un_X, istest), convert_to_array(un_y, istest)
 
 
 def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, loaded_encoder, loaded_generator):
     avg_test_loss = []
     for step in range(n_te_batches):
 
-        batch_x_test, batch_y_test = utils.sample_unrelated_x_y(unrelated_X, unrelated_y, te_batch_size, True)
+        batch_x_test, batch_y_test = sample_unrelated_x_y(test_dataset_in, test_dataset_out, te_batch_size, istest=True)
+        
         #batch_x_test = convert_to_array(x, test=True)
         #batch_y_test = convert_to_array(y, test=True)
         #batch_size = batch_x_test.shape[0]
@@ -213,14 +214,14 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
         enc_output, enc_state = loaded_encoder(batch_x_test, training=False)
         # add noise to the encoder state
         enc_state = tf.math.add(enc_state, noise)
+        #print(batch_x_test.shape, batch_y_test.shape, noise.shape, enc_state.shape)
         # generate seqs stepwise - teacher forcing
-        generated_logits, _, loss = generator_step(seq_len, n_te_batches, vocab_size, loaded_generator, enc_state, batch_y_test, False)
+        generated_logits, _, loss = generator_step(seq_len, te_batch_size, vocab_size, loaded_generator, enc_state, batch_y_test, False)
         variation_score = get_sequence_variation_percentage(generated_logits)
-        print("Test variation score: {}".format(str(variation_score)))
-        print("Test true loss: {}".format(str(loss)))
+        print("Test step {} variation score: {}".format(str(step+1), str(variation_score)))
+        print("Test step {} true loss: {}".format(str(step+1), str(loss)))
         avg_test_loss.append(loss)
-    print("Total test loss in {} steps: ".format(str(n_te_batches), str(np.mean(avg_test_loss))))
-    print()
+    print("Total test loss in {} steps: {}".format(str(n_te_batches), str(np.mean(avg_test_loss))))
     return np.mean(avg_test_loss)
 
 

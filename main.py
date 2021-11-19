@@ -53,23 +53,22 @@ TR_MUT_INDICES = "data/generated_files/tr_mut_indices.json"
 PRETR_MUT_INDICES = "data/generated_files/pretr_mut_indices.json"
 
 
-l_dist_name = "levenshtein_distance"
 LEN_AA = 1273
-SCE = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
+
 # Neural network parameters
 embedding_dim = 128
-batch_size = 32
-te_batch_size = 32
+batch_size = 4
+te_batch_size = 4
 n_te_batches = 5
-enc_units = 256
+enc_units = 64
 pretrain_epochs = 2
 epochs = 2
 max_l_dist = 10
 test_train_size = 0.85
 pretrain_train_size = 0.5
-random_clade_size = 100
+random_clade_size = 20
 to_pretrain = True
-pretrained_model = True
+pretrained_model = False
 stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/", "data/pretrain/"]
 
 
