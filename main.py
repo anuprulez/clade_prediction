@@ -58,7 +58,9 @@ LEN_AA = 1273
 SCE = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
 # Neural network parameters
 embedding_dim = 128
-batch_size = 128
+batch_size = 32
+te_batch_size = 32
+n_te_batches = 5
 enc_units = 256
 pretrain_epochs = 2
 epochs = 2
@@ -166,12 +168,9 @@ def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_dec
     combined_te_X = np.array(combined_te_X)
     combined_te_y = np.array(combined_te_y)
     
-    te_batch_size = len(combined_te_X)
-    print("Te batch size: {}".format(str(te_batch_size)))
-
     # get test dataset as sliced tensors
-    test_dataset_in = tf.data.Dataset.from_tensor_slices((combined_te_X)).batch(te_batch_size)
-    test_dataset_out = tf.data.Dataset.from_tensor_slices((combined_te_y)).batch(te_batch_size)
+    test_dataset_in = combined_te_X #tf.data.Dataset.from_tensor_slices((combined_te_X)).batch(te_batch_size)
+    test_dataset_out = combined_te_y #tf.data.Dataset.from_tensor_slices((combined_te_y)).batch(te_batch_size)
 
     # divide into pretrain and train
     if to_pretrain is False:
@@ -207,12 +206,12 @@ def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_dec
         print("Num of pretrain batches: {}".format(str(n_pretrain_batches)))
         for i in range(pretrain_epochs):
             print("Pre training epoch {}/{}...".format(str(i+1), str(pretrain_epochs)))
-            epo_pretrain_gen_loss, encoder, decoder = train_model.pretrain_generator([X_pretrain, y_pretrain, test_dataset_in, test_dataset_out], i, encoder, decoder, enc_units, vocab_size, n_pretrain_batches, batch_size, pretr_parent_child_mut_indices, pretrain_epochs)
+            epo_pretrain_gen_loss, encoder, decoder = train_model.pretrain_generator([X_pretrain, y_pretrain, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches], i, encoder, decoder, enc_units, vocab_size, n_pretrain_batches, batch_size, pretr_parent_child_mut_indices, pretrain_epochs)
             print("Pre training loss at step {}/{}: Generator loss: {}".format(str(i+1), str(pretrain_epochs), str(epo_pretrain_gen_loss)))
             pretrain_gen_loss.append(epo_pretrain_gen_loss)
             print("Pretrain: predicting on test datasets...")
             with tf.device('/device:cpu:0'):
-                epo_pt_gen_te_loss = utils.predict_sequence(test_dataset_in, test_dataset_out, LEN_AA, vocab_size, enc_units, encoder, decoder)
+                epo_pt_gen_te_loss = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, LEN_AA, vocab_size, enc_units, encoder, decoder)
             pretrain_gen_test_loss.append(epo_pt_gen_te_loss)
         np.savetxt(PRETRAIN_GEN_LOSS, pretrain_gen_loss)
         np.savetxt(PRETRAIN_GEN_TEST_LOSS, pretrain_gen_test_loss)
@@ -241,7 +240,7 @@ def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_dec
 
     for n in range(epochs):
         print("Training epoch {}/{}...".format(str(n+1), str(epochs)))
-        epo_gen_true_loss, epo_gen_fake_loss, epo_total_gen_loss, epo_disc_true_loss, epo_disc_fake_loss, epo_total_disc_loss, encoder, decoder = train_model.start_training_mut_balanced([X_train, y_train, unrelated_X, unrelated_y, test_dataset_in, test_dataset_out], n, encoder, decoder, disc_parent_encoder_model, disc_gen_encoder_model, discriminator, enc_units, vocab_size, n_train_batches, batch_size, tr_parent_child_mut_indices, epochs)
+        epo_gen_true_loss, epo_gen_fake_loss, epo_total_gen_loss, epo_disc_true_loss, epo_disc_fake_loss, epo_total_disc_loss, encoder, decoder = train_model.start_training_mut_balanced([X_train, y_train, unrelated_X, unrelated_y, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches], n, encoder, decoder, disc_parent_encoder_model, disc_gen_encoder_model, discriminator, enc_units, vocab_size, n_train_batches, batch_size, tr_parent_child_mut_indices, epochs)
 
         print("Training loss at step {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}, D true loss: {}, D fake loss: {}, Total D loss: {}".format(str(n+1), str(epochs), str(epo_gen_true_loss), str(epo_gen_fake_loss), str(epo_total_gen_loss), str(epo_disc_true_loss), str(epo_disc_fake_loss), str(epo_total_disc_loss)))
 
@@ -256,7 +255,7 @@ def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_dec
         # predict seq on test data
         print("Prediction on test data...")
         with tf.device('/device:cpu:0'):
-            epo_tr_gen_te_loss = utils.predict_sequence(test_dataset_in, test_dataset_out, LEN_AA, vocab_size, enc_units, encoder, decoder)
+            epo_tr_gen_te_loss = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, LEN_AA, vocab_size, enc_units, encoder, decoder)
         train_te_loss.append(epo_tr_gen_te_loss)
 
     # save loss files

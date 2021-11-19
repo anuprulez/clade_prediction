@@ -147,15 +147,8 @@ def sample_true_x_y(mut_indices, batch_size, X_train, y_train, batch_mut_distrib
     return unrolled_x, unrolled_y, batch_mut_distribution
 
 
-def sample_unrelated_x_y(unrelated_X, unrelated_y, batch_size):
-    un_rand_row_index = np.random.randint(0, unrelated_X.shape[0], batch_size)
-    un_X = unrelated_X[un_rand_row_index]
-    un_y = unrelated_y[un_rand_row_index]
-    return utils.convert_to_array(un_X), utils.convert_to_array(un_y)
-
-
 def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vocab_size, n_batches, batch_size, pretr_parent_child_mut_indices, epochs):
-  X_train, y_train, test_dataset_in, test_dataset_out = inputs
+  X_train, y_train, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches = inputs
   epo_avg_gen_loss = list()
   batch_mut_distribution = dict()
   for step in range(n_batches):
@@ -175,7 +168,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           if step % test_log_step == 0:
               print("Pretr: Prediction on test data...")
               with tf.device('/device:cpu:0'):
-                  epo_tr_gen_te_loss = utils.predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, enc_units, gen_encoder, gen_decoder)
+                  epo_tr_gen_te_loss = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, gen_encoder, gen_decoder)
           print()
           epo_avg_gen_loss.append(gen_loss)
       gen_trainable_vars = gen_encoder.trainable_variables + gen_decoder.trainable_variables
@@ -195,7 +188,7 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
   """
   Training sequences balanced by mutation type
   """
-  X_train, y_train, unrelated_X, unrelated_y, test_dataset_in, test_dataset_out = inputs
+  X_train, y_train, unrelated_X, unrelated_y, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches = inputs
 
   epo_avg_total_gen_loss = list()
   epo_ave_gen_true_loss = list()
@@ -215,7 +208,7 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
   mut_keys = list(parent_child_mut_indices.keys())
   for step in range(n_train_batches):
       unrolled_x, unrolled_y, batch_mut_distribution = sample_true_x_y(parent_child_mut_indices, batch_size, X_train, y_train, batch_mut_distribution)
-      un_X, un_y = sample_unrelated_x_y(unrelated_X, unrelated_y, batch_size)
+      un_X, un_y = utils.sample_unrelated_x_y(unrelated_X, unrelated_y, batch_size)
       seq_len = unrolled_x.shape[1]
       disc_gen = step % n_disc_step
       if disc_gen in list(range(0, n_disc_step - n_gen_step)):
@@ -236,7 +229,7 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
               print("Unrolled step: {}/{}".format(str(i+1), str(unrolled_steps)))
               # sample data for unrolling
               unroll_x, unroll_y, _ = sample_true_x_y(parent_child_mut_indices, batch_size, X_train, y_train, batch_mut_distribution)
-              un_unroll_X, un_unroll_y = sample_unrelated_x_y(unrelated_X, unrelated_y, batch_size)
+              un_unroll_X, un_unroll_y = utils.sample_unrelated_x_y(unrelated_X, unrelated_y, batch_size)
               # train discriminator
               _, _, disc_par_enc, disc_gen_enc, discriminator, d_r_l, d_f_l, d_t_l = d_loop(seq_len, batch_size, vocab_size, enc_units, unroll_x, unroll_y, un_unroll_X, un_unroll_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator)
               print("Unrolled disc losses: real {}, fake {}, total {}".format(str(d_r_l.numpy()), str(d_f_l.numpy()), str(d_t_l.numpy())))
@@ -254,7 +247,7 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
       if step % test_log_step == 0:
           print("Training: prediction on test data...")
           with tf.device('/device:cpu:0'):
-              epo_tr_gen_te_loss = utils.predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, enc_units, encoder, decoder)
+              epo_tr_gen_te_loss = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, encoder, decoder)
       # write off results
       epo_ave_gen_true_loss.append(gen_true_loss.numpy())
       epo_avg_gen_fake_loss.append(gen_fake_loss.numpy())

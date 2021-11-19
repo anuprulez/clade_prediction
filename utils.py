@@ -193,23 +193,34 @@ def get_sequence_variation_percentage(logits):
     return percent_variation
 
 
-def predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, enc_units, loaded_encoder, loaded_generator):
+def sample_unrelated_x_y(unrelated_X, unrelated_y, batch_size, test=False):
+    un_rand_row_index = np.random.randint(0, unrelated_X.shape[0], batch_size)
+    un_X = unrelated_X[un_rand_row_index]
+    un_y = unrelated_y[un_rand_row_index]
+    return convert_to_array(un_X, test), convert_to_array(un_y, test)
+
+
+def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, loaded_encoder, loaded_generator):
     avg_test_loss = []
-    for step, (x, y) in enumerate(zip(test_dataset_in, test_dataset_out)):
-        batch_x_test = convert_to_array(x, test=True)
-        batch_y_test = convert_to_array(y, test=True)
-        batch_size = batch_x_test.shape[0]
+    for step in range(n_te_batches):
+
+        batch_x_test, batch_y_test = utils.sample_unrelated_x_y(unrelated_X, unrelated_y, te_batch_size, True)
+        #batch_x_test = convert_to_array(x, test=True)
+        #batch_y_test = convert_to_array(y, test=True)
+        #batch_size = batch_x_test.shape[0]
         # generated noise for variation in predicted sequences
-        noise = tf.random.normal((batch_size, enc_units))
+        noise = tf.random.normal((te_batch_size, enc_units))
         enc_output, enc_state = loaded_encoder(batch_x_test, training=False)
         # add noise to the encoder state
         enc_state = tf.math.add(enc_state, noise)
         # generate seqs stepwise - teacher forcing
-        generated_logits, _, loss = generator_step(seq_len, batch_size, vocab_size, loaded_generator, enc_state, batch_y_test, False)
+        generated_logits, _, loss = generator_step(seq_len, n_te_batches, vocab_size, loaded_generator, enc_state, batch_y_test, False)
         variation_score = get_sequence_variation_percentage(generated_logits)
         print("Test variation score: {}".format(str(variation_score)))
         print("Test true loss: {}".format(str(loss)))
         avg_test_loss.append(loss)
+    print("Total test loss in {} steps: ".format(str(n_te_batches), str(np.mean(avg_test_loss))))
+    print()
     return np.mean(avg_test_loss)
 
 
