@@ -17,7 +17,7 @@ SAMPLE_CLADE_MUTATION = "data/generated_files/sample_clade_mutation.csv"
 search_key = "S"
 
 
-def to_tabular(clade_info):
+def to_tabular(clade_info, all_sample_names):
     sample_names = list()
     clade_names = list()
     mutations = list()
@@ -28,6 +28,9 @@ def to_tabular(clade_info):
     sample_clade_mutation = pd.DataFrame(list(zip(sample_names, clade_names, mutations)), columns=["Samples", "Nextstrain clades", "Mutations"])
     #sample_clade_mutation = sample_clade_mutation.sort_values(by="Nextstrain clades")
     sample_clade_mutation.to_csv(SAMPLE_CLADE_MUTATION)
+    u_samples = list(set(all_sample_names))
+    print(len(u_samples), u_samples)
+    read_spike_fasta()
 
 def read_phylogenetic_data(json_file=GISAID):
     with open(json_file, "r") as fp:
@@ -36,12 +39,13 @@ def read_phylogenetic_data(json_file=GISAID):
     clade_info = dict()
     all_sample_names = list()
     recursive_branch(tree, clade_info, all_sample_names)
-    to_tabular(clade_info)
+    to_tabular(clade_info, all_sample_names)
     with open(CLADES_PATH, "w") as fread:
         fread.write(json.dumps(clade_info))
 
 
 def recursive_branch(obj, clade_info, all_sample_names):
+    all_s_names = list()
     if "branch_attrs" in obj:
         branch_attr = obj["branch_attrs"]
         if "children" in obj:
@@ -57,11 +61,13 @@ def recursive_branch(obj, clade_info, all_sample_names):
                             if search_key in obj["branch_attrs"]["mutations"]:
                                 branch_nuc = obj["branch_attrs"]["mutations"][search_key]
                     all_sample_names.append(item["name"])
+                    #all_s_names.append(item["name"])
                     #if item["name"] == "hCoV-19/USA/MD-MDH-0380/2020":
                     if search_key in item["branch_attrs"]["mutations"]:
                         print(item["name"], item["branch_attrs"]["mutations"][search_key])
                     if search_key in item["branch_attrs"]["mutations"]:
                         sample_name = item["name"]
+                        all_sample_names.append(item["name"])
                         if sample_name not in clade_info:
                             clade_info[sample_name] = list()
                         # add nuc from branch to all children if available
@@ -72,6 +78,7 @@ def recursive_branch(obj, clade_info, all_sample_names):
                         clade_info[sample_name].append({search_key: branch_nuc})
     else:
         return None
+
 
 def get_item(item):
     ref_pos_alt = [char for char in item]

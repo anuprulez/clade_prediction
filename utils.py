@@ -1,25 +1,73 @@
+import os
+import shutil
 import itertools
 import json
 import pandas as pd
 import numpy as np
 import random
 from random import choices
-
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 from Levenshtein import distance as lev_dist
 
-SCE = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
+SCE = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False, reduction='none')
 
 
 def make_kmers(seq, size):
-    # remove all letters other than A,C,G and T
-    #list(filter(lambda ch: ch in 'ACGT', kmers))
     return [seq[x:x+size] for x in range(len(seq) - size + 1)]
 
 
 def compute_Levenshtein_dist(seq_in, seq_out):
-    return np.random.randint(1, 5)
-    #return lev_dist(seq_in, seq_out)
+    #return np.random.randint(1, 5)
+    return lev_dist(seq_in, seq_out)
+
+
+def clean_up(list_folders):
+    for folder in list_folders:
+        try:
+            for filename in os.listdir(folder):
+                file_path = os.path.join(folder, filename)
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+        except Exception as e:
+            print('Failed to delete %s. Reason: %s' % (folder, e))
+            continue
+
+
+def generate_cross_product(x_seq, y_seq, max_l_dist, cols=["X", "Y"], unrelated=False, unrelated_threshold=15):
+    print(len(x_seq), len(y_seq))
+    x_y = list(itertools.product(x_seq, y_seq))
+    print(len(x_y))
+    print("Filtering for range of levenshtein distance...")
+    l_distance = list()
+    filtered_l_distance = list()
+    filtered_x = list()
+    filtered_y = list()
+    for i, x_i in enumerate(x_seq):
+        for j, y_j in enumerate(y_seq):
+            l_dist = compute_Levenshtein_dist(x_i, y_j)
+            l_distance.append(l_dist)
+            if unrelated is False:
+                if l_dist > 0 and l_dist < max_l_dist:
+                    filtered_x.append(x_i)
+                    filtered_y.append(y_j)
+                    filtered_l_distance.append(l_dist)
+            else:
+                if l_dist > max_l_dist:
+                    filtered_x.append(x_i)
+                    filtered_y.append(y_j)
+                    filtered_l_distance.append(l_dist)
+
+    filtered_dataframe = pd.DataFrame(list(zip(filtered_x, filtered_y)), columns=["X", "Y"])
+    print("Combined dataframe size: {}".format(str(len(filtered_dataframe.index))))
+    np.savetxt("data/generated_files/l_distance.txt", l_distance)
+    np.savetxt("data/generated_files/filtered_l_distance.txt", filtered_l_distance)
+    print("Mean levenshtein dist: {}".format(str(np.mean(l_distance))))
+    print("Mean filtered levenshtein dist: {}".format(str(np.mean(filtered_l_distance))))
+    print("Filtered dataframe size: {}".format(str(len(filtered_dataframe.index))))
+    return filtered_dataframe
 
 
 def transform_noise(noise):
@@ -44,21 +92,15 @@ def get_all_possible_words(vocab):
     return [char for char in vocab]
 
 
-def convert_to_array(str_data, test=False):
-    shp = str_data.shape[0]
-    if test == True:
-        tolst = str_data.numpy()
-        f_list = [item.decode("utf-8").split(",") for item in tolst]
-    else:
-        tolst = str_data.tolist()
-        f_list = [item.split(",") for item in tolst]
+def convert_to_array(str_data):
+    tolst = str_data.tolist()
+    f_list = [item.split(",") for item in tolst]
     toarray = np.array([list(map(int, lst)) for lst in f_list])
     tensor = tf.convert_to_tensor(toarray, dtype=tf.int32)
     return toarray
 
 
 def pred_convert_to_array(str_data):
-    shp = str_data.shape[0]
     tolst = str_data.numpy()
     f_list = [item.decode("utf-8").split(",") for item in tolst]
     toarray = np.array([list(map(int, lst)) for lst in f_list])
@@ -138,48 +180,64 @@ def convert_to_string_list(l):
     return l
 
 
-def predict_sequence(test_dataset_in, test_dataset_out, seq_len, vocab_size, enc_units, enc_path, dec_path):
+def get_sequence_variation_percentage(logits):
+    seq_tokens = tf.math.argmax(logits, axis=-1)
+    l_seq_tokens = convert_to_string_list(seq_tokens)
+    df_seqs = pd.DataFrame(l_seq_tokens, columns=["Sequences"])
+    u_df_seqs = df_seqs.drop_duplicates()
+    percent_variation = len(u_df_seqs.index) / float(len(df_seqs.index))
+    return percent_variation
+
+
+def sample_unrelated_x_y(unrelated_X, unrelated_y, batch_size):
+    un_rand_row_index = np.random.randint(0, unrelated_X.shape[0], batch_size)
+    un_X = unrelated_X[un_rand_row_index]
+    un_y = unrelated_y[un_rand_row_index]
+    return convert_to_array(un_X), convert_to_array(un_y)
+
+
+def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, loaded_encoder, loaded_generator):
     avg_test_loss = []
-    i = 0
-    loaded_encoder = tf.keras.models.load_model(enc_path)
-    loaded_generator = tf.keras.models.load_model(dec_path)
-    for step, (x, y) in enumerate(zip(test_dataset_in, test_dataset_out)):
-        batch_x_test = convert_to_array(x, test=True)
-        batch_y_test = convert_to_array(y, test=True)
-        batch_size = batch_x_test.shape[0]
-        if batch_x_test.shape[0] == batch_size:
-            # generated noise for variation in predicted sequences
-            noise = tf.random.normal((batch_size, enc_units))
-            enc_output, enc_state = loaded_encoder(batch_x_test, training=False)
-            # add noise to the encoder state
-            enc_state = tf.math.add(enc_state, noise)
-            dec_state = enc_state
-            # generate seqs stepwise - teacher forcing
-            generated_logits, _, loss = gen_step_predict(seq_len, batch_size, vocab_size, loaded_generator, dec_state, batch_y_test)
-            print("Test: Batch {} true loss: {}".format(str(i), str(loss)))
-            avg_test_loss.append(loss)
-            i += 1
-    mean_loss = np.mean(avg_test_loss)
-    print("Total test loss: {}".format(str(mean_loss)))
-    return mean_loss
+    avg_test_seq_var = []
+    for step in range(n_te_batches):
+        batch_x_test, batch_y_test = sample_unrelated_x_y(test_dataset_in, test_dataset_out, te_batch_size)
+        # generated noise for variation in predicted sequences
+        noise = tf.random.normal((te_batch_size, enc_units))
+        enc_output, enc_state = loaded_encoder(batch_x_test, training=False)
+        # add noise to the encoder state
+        enc_state = tf.math.add(enc_state, noise)
+        # generate seqs stepwise - teacher forcing
+        generated_logits, _, loss = generator_step(seq_len, te_batch_size, vocab_size, loaded_generator, enc_state, batch_y_test, False)
+        variation_score = get_sequence_variation_percentage(generated_logits)
+        print("Test step {} variation score: {}".format(str(step+1), str(variation_score)))
+        print("Test step {} true loss: {}".format(str(step+1), str(loss.numpy())))
+        avg_test_loss.append(loss)
+        avg_test_seq_var.append(variation_score)
+    print()
+    print("Total test seq variation in {} steps: {}".format(str(n_te_batches), str(np.mean(avg_test_seq_var))))
+    print("Total test loss in {} steps: {}".format(str(n_te_batches), str(np.mean(avg_test_loss))))
+    return np.mean(avg_test_loss), np.mean(avg_test_seq_var)
 
 
-def gen_step_predict(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real_o):
+def generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real_o, train_gen):
     step_loss = tf.constant(0.0)
     pred_logits = np.zeros((batch_size, seq_len, vocab_size))
     # set initial token
     i_token = tf.fill([batch_size, 1], 0)
     for t in tf.range(seq_len):
-        o_token = real_o[:, t:t+1]
-        dec_result, dec_state = gen_decoder([i_token, dec_state], training=False)
+        dec_result, dec_state = gen_decoder([i_token, dec_state], training=train_gen)
         dec_numpy = dec_result.numpy()
         pred_logits[:, t, :] = np.reshape(dec_numpy, (dec_numpy.shape[0], dec_numpy.shape[2]))
-        loss = SCE(o_token, dec_result)
-        step_loss += loss
-        dec_tokens = tf.math.argmax(dec_result, axis=-1)
+        if len(real_o) > 0:
+            o_token = real_o[:, t:t+1]
+            loss = SCE(o_token, dec_result)
+            step_loss += tf.reduce_mean(loss)
         # teacher forcing, set current output as the next input
-        i_token = dec_tokens
-    step_loss = step_loss / seq_len
+        if train_gen == False:
+            i_token = tf.math.argmax(dec_result, axis=-1)
+        else:
+            i_token = o_token
+    step_loss = step_loss / float(seq_len)
     pred_logits = tf.convert_to_tensor(pred_logits)
     return pred_logits, gen_decoder, step_loss
 
@@ -247,8 +305,8 @@ def get_mutation_tr_indices(train_in, train_out, f_dict, r_dict):
             first = true_x[i:i+1]
             sec = true_y[i:i+1]
 
-            first_aa = [f_dict[int(j)] for j in first]
-            sec_aa = [f_dict[int(j)] for j in sec]
+            first_aa = [f_dict[j] for j in first]
+            sec_aa = [f_dict[j] for j in sec]
         
             first_mut = first_aa[0]
             second_mut = sec_aa[0]

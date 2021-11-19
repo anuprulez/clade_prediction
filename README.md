@@ -27,3 +27,11 @@ http://www.cryst.bbk.ac.uk/education/AminoAcid/the_twenty.html
 https://openaccess.thecvf.com/content_CVPR_2020/papers/Alharbi_Disentangled_Image_Generation_Through_Structured_Noise_Injection_CVPR_2020_paper.pdf
 ### F5L, F12S, D614G
 https://www.frontiersin.org/articles/10.3389/fimmu.2021.725240/full
+
+### Unrolled GAN
+https://github.com/MarisaKirisame/unroll_gan/blob/master/main.py
+https://github.com/andrewliao11/unrolled-gans/blob/master/unrolled_gan.ipynb
+
+1. conda create --name clade_pred python=3.9
+2. conda activate clade_pred
+3. pip install tensorflow-gpu pandas matplotlib bio h5py scikit-learn nltk python-Levenshtein
