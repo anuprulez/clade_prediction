@@ -33,10 +33,10 @@ pretrain_generator_optimizer = tf.keras.optimizers.Adam() # learning_rate=1e-3, 
 generator_optimizer = tf.keras.optimizers.Adam() # learning_rate=1e-3, beta_1=0.5
 discriminator_optimizer = tf.keras.optimizers.Adam() # learning_rate=3e-5, beta_1=0.5
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
-n_disc_step = 2
-n_gen_step = 1
-unrolled_steps = 1
-test_log_step = 2
+n_disc_step = 6
+n_gen_step = 3
+unrolled_steps = 3
+test_log_step = 1
 
 
 def wasserstein_loss(y_true, y_pred):
@@ -149,7 +149,9 @@ def sample_true_x_y(mut_indices, batch_size, X_train, y_train, batch_mut_distrib
 
 def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vocab_size, n_batches, batch_size, pretr_parent_child_mut_indices, epochs):
   X_train, y_train, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches = inputs
-  epo_avg_gen_loss = list()
+  epo_avg_tr_gen_loss = list()
+  epo_te_gen_loss = list()
+  epo_te_seq_var = list()
   batch_mut_distribution = dict()
   for step in range(n_batches):
       unrolled_x, unrolled_y, batch_mut_distribution = sample_true_x_y(pretr_parent_child_mut_indices, batch_size, X_train, y_train, batch_mut_distribution)
@@ -169,20 +171,24 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
               print()
               print("Pretr: Prediction on test data...")
               with tf.device('/device:cpu:0'):
-                  epo_tr_gen_te_loss = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, gen_encoder, gen_decoder)
+                  gen_te_loss, gen_te_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, gen_encoder, gen_decoder)
+                  epo_te_gen_loss.append(gen_te_loss)
+                  epo_te_seq_var.append(gen_te_seq_var)
           print()
-          epo_avg_gen_loss.append(gen_loss)
+          epo_avg_tr_gen_loss.append(gen_loss)
+      
       gen_trainable_vars = gen_encoder.trainable_variables + gen_decoder.trainable_variables
       gradients_of_generator = gen_tape.gradient(gen_loss, gen_trainable_vars)
       pretrain_generator_optimizer.apply_gradients(zip(gradients_of_generator, gen_trainable_vars))
   # save model
+  epo_epo_te_gen_loss.append(np.mean(epo_bat_te_gen_loss))
   gen_encoder.save_weights(GEN_ENC_WEIGHTS)
   tf.keras.models.save_model(gen_encoder, PRETRAIN_GEN_ENC_MODEL)
   tf.keras.models.save_model(gen_decoder, PRETRAIN_GEN_DEC_MODEL)
   gen_encoder.save_weights(PRE_TR_GEN_ENC_WEIGHTS)
   gen_decoder.save_weights(PRE_TR_GEN_DEC_WEIGHTS)
   utils.save_as_json("data/generated_files/pretr_ave_batch_x_y_mut_epo_{}.json".format(str(epo_step)), batch_mut_distribution)
-  return np.mean(epo_avg_gen_loss), gen_encoder, gen_decoder
+  return np.mean(epo_avg_gen_loss), np.mean(epo_te_gen_loss), np.mean(epo_te_seq_var), gen_encoder, gen_decoder
 
 
 def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, enc_units, vocab_size, n_train_batches, batch_size, parent_child_mut_indices, epochs):
@@ -206,6 +212,9 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
   total_gen_loss = tf.constant(0)
   batch_mut_distribution = dict()
 
+  epo_te_gen_loss = list()
+  epo_te_seq_var = list()
+
   mut_keys = list(parent_child_mut_indices.keys())
   for step in range(n_train_batches):
       unrolled_x, unrolled_y, batch_mut_distribution = sample_true_x_y(parent_child_mut_indices, batch_size, X_train, y_train, batch_mut_distribution)
@@ -218,6 +227,7 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
           # share weights with generator's encoder
           disc_par_enc.load_weights(GEN_ENC_WEIGHTS)
           disc_gen_enc.layers[1].set_weights(disc_par_enc.layers[1].get_weights())
+          print("Training epoch {}/{}, Batch {}/{}, D true loss: {}, D fake loss: {}, Total D loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_train_batches), str(disc_real_loss.numpy()), str(disc_fake_loss.numpy()), str(total_disc_loss.numpy())))
       else:
           # train generator with unrolled discriminator
           # save disc weights to reset after unrolling
@@ -235,21 +245,26 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
               _, _, disc_par_enc, disc_gen_enc, discriminator, d_r_l, d_f_l, d_t_l = d_loop(seq_len, batch_size, vocab_size, enc_units, unroll_x, unroll_y, un_unroll_X, un_unroll_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator)
               print("Unrolled disc losses: real {}, fake {}, total {}".format(str(d_r_l.numpy()), str(d_f_l.numpy()), str(d_t_l.numpy())))
           # finish unrolling
-
           # train generator with unrolled discriminator
           encoder, decoder, _, _, _, gen_true_loss, gen_fake_loss, total_gen_loss = g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator)
+
+          print("Training epoch {}/{}, Batch {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_train_batches), str(gen_true_loss.numpy()), str(gen_fake_loss.numpy()), str(total_gen_loss.numpy())))
           encoder.save_weights(GEN_ENC_WEIGHTS)
+          
+          if step % test_log_step == 0:
+              print()
+              print("Training: prediction on test data...")
+              with tf.device('/device:cpu:0'):
+                  epo_bat_gen_te_loss, gen_bat_te_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, encoder, decoder)
+                  epo_te_gen_loss.append(epo_bat_gen_te_loss)
+                  epo_te_seq_var.append(gen_bat_te_seq_var)
           # reset weights of discriminator, disc_par_enc and disc_gen_enc after unrolling
           discriminator.load_weights(DISC_WEIGHTS)
           disc_par_enc.load_weights(DISC_PAR_ENC_WEIGHTS)
           disc_gen_enc.load_weights(DISC_GEN_ENC_WEIGHTS)
-
+      print()
       print("Training epoch {}/{}, Batch {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}, D true loss: {}, D fake loss: {}, Total D loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_train_batches), str(gen_true_loss.numpy()), str(gen_fake_loss.numpy()), str(total_gen_loss.numpy()), str(disc_real_loss.numpy()), str(disc_fake_loss.numpy()), str(total_disc_loss.numpy())))
-      if step % test_log_step == 0:
-          print()
-          print("Training: prediction on test data...")
-          with tf.device('/device:cpu:0'):
-              epo_tr_gen_te_loss = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, encoder, decoder)
+      print()
       # write off results
       epo_ave_gen_true_loss.append(gen_true_loss.numpy())
       epo_avg_gen_fake_loss.append(gen_fake_loss.numpy())
@@ -257,8 +272,6 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
       epo_avg_disc_fake_loss.append(disc_fake_loss.numpy())
       epo_avg_disc_real_loss.append(disc_real_loss.numpy())
       epo_avg_total_disc_loss.append(total_disc_loss.numpy())
-      print("Running ave. of total disc loss: {}".format(str(np.mean(epo_avg_total_disc_loss))))
-      print()
   # save model
   print("Tr step {} finished, Saving model...".format(str(epo_step+1)))
   tf.keras.models.save_model(encoder, TRAIN_GEN_ENC_MODEL)
@@ -266,4 +279,4 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
   encoder.save_weights(GEN_ENC_WEIGHTS)
   decoder.save_weights(GEN_DEC_WEIGHTS)
   utils.save_as_json("data/generated_files/ave_batch_x_y_mut_epo_{}.json".format(str(epo_step)), batch_mut_distribution)
-  return np.mean(epo_ave_gen_true_loss), np.mean(epo_avg_gen_fake_loss), np.mean(epo_avg_total_gen_loss), np.mean(epo_avg_disc_real_loss), np.mean(epo_avg_disc_fake_loss), np.mean(epo_avg_total_disc_loss), encoder, decoder
+  return np.mean(epo_ave_gen_true_loss), np.mean(epo_avg_gen_fake_loss), np.mean(epo_avg_total_gen_loss), np.mean(epo_avg_disc_real_loss), np.mean(epo_avg_disc_fake_loss), np.mean(epo_avg_total_disc_loss), np.mean(epo_te_gen_loss), np.mean(epo_te_seq_var), encoder, decoder
