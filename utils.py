@@ -1,4 +1,5 @@
 import os
+import sys
 import shutil
 import itertools
 import json
@@ -219,7 +220,7 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
 
 
 def generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real_o, train_gen):
-    step_loss = tf.constant(0.0)
+    '''step_loss = tf.constant(0.0)
     pred_logits = np.zeros((batch_size, seq_len, vocab_size))
     # set initial token
     i_token = tf.fill([batch_size, 1], 0)
@@ -228,14 +229,19 @@ def generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real
         dec_numpy = dec_result.numpy()
         pred_logits[:, t, :] = np.reshape(dec_numpy, (dec_numpy.shape[0], dec_numpy.shape[2]))
         if len(real_o) > 0:
-            print(real_o[:, t:t+1].shape, dec_result.shape)
             loss = cross_entropy_loss(real_o[:, t:t+1], dec_result)
             step_loss += tf.reduce_mean(loss)
         # teacher forcing, set current output as the next input
         i_token = tf.math.argmax(dec_result, axis=-1)
+    dec_result, dec_state = gen_decoder([i_token, dec_state], training=train_gen)
+    #dec_numpy = dec_result.numpy()
+    
     step_loss = step_loss / float(seq_len)
-    pred_logits = tf.convert_to_tensor(pred_logits)
-    return pred_logits, gen_decoder, step_loss
+    pred_logits = tf.convert_to_tensor(pred_logits)'''
+    pred_logits, dec_state = gen_decoder([real_o, dec_state], training=True)
+    gen_tokens = tf.math.argmax(pred_logits, axis=-1)
+    loss = tf.reduce_mean(cross_entropy_loss(real_o, pred_logits))
+    return pred_logits, gen_decoder, loss
 
 
 def balance_train_dataset_by_levenshtein_dist(x, y, x_y_l):
