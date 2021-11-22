@@ -232,10 +232,7 @@ def generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real
             loss = SCE(o_token, dec_result)
             step_loss += tf.reduce_mean(loss)
         # teacher forcing, set current output as the next input
-        if train_gen == False:
-            i_token = tf.math.argmax(dec_result, axis=-1)
-        else:
-            i_token = o_token
+        i_token = tf.math.argmax(dec_result, axis=-1)
     step_loss = step_loss / float(seq_len)
     pred_logits = tf.convert_to_tensor(pred_logits)
     return pred_logits, gen_decoder, step_loss
