@@ -10,7 +10,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 from Levenshtein import distance as lev_dist
 
-SCE = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False, reduction='none')
+cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False, reduction='none')
 
 
 def make_kmers(seq, size):
@@ -228,8 +228,8 @@ def generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real
         dec_numpy = dec_result.numpy()
         pred_logits[:, t, :] = np.reshape(dec_numpy, (dec_numpy.shape[0], dec_numpy.shape[2]))
         if len(real_o) > 0:
-            o_token = real_o[:, t:t+1]
-            loss = SCE(o_token, dec_result)
+            print(real_o[:, t:t+1].shape, dec_result.shape)
+            loss = cross_entropy_loss(real_o[:, t:t+1], dec_result)
             step_loss += tf.reduce_mean(loss)
         # teacher forcing, set current output as the next input
         i_token = tf.math.argmax(dec_result, axis=-1)
