@@ -11,7 +11,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 from Levenshtein import distance as lev_dist
 
-cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False, reduction='none')
+cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 
 
 def make_kmers(seq, size):
@@ -37,6 +37,10 @@ def clean_up(list_folders):
             continue
 
 
+def add_padding_to_seq(seq):
+    return "{},{}".format(str(0), seq)
+
+
 def generate_cross_product(x_seq, y_seq, max_l_dist, cols=["X", "Y"], unrelated=False, unrelated_threshold=15):
     print(len(x_seq), len(y_seq))
     x_y = list(itertools.product(x_seq, y_seq))
@@ -52,13 +56,13 @@ def generate_cross_product(x_seq, y_seq, max_l_dist, cols=["X", "Y"], unrelated=
             l_distance.append(l_dist)
             if unrelated is False:
                 if l_dist > 0 and l_dist < max_l_dist:
-                    filtered_x.append(x_i)
-                    filtered_y.append(y_j)
+                    filtered_x.append(add_padding_to_seq(x_i))
+                    filtered_y.append(add_padding_to_seq(y_j))
                     filtered_l_distance.append(l_dist)
             else:
                 if l_dist > max_l_dist:
-                    filtered_x.append(x_i)
-                    filtered_y.append(y_j)
+                    filtered_x.append(add_padding_to_seq(x_i))
+                    filtered_y.append(add_padding_to_seq(y_j))
                     filtered_l_distance.append(l_dist)
 
     filtered_dataframe = pd.DataFrame(list(zip(filtered_x, filtered_y)), columns=["X", "Y"])
@@ -209,6 +213,7 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
         enc_state = tf.math.add(enc_state, noise)
         # generate seqs stepwise - teacher forcing
         generated_logits, _, loss = generator_step(seq_len, te_batch_size, vocab_size, loaded_generator, enc_state, batch_y_test, False)
+        
         variation_score = get_sequence_variation_percentage(generated_logits)
         print("Test batch {} variation score: {}".format(str(step+1), str(variation_score)))
         print("Test batch {} true loss: {}".format(str(step+1), str(loss.numpy())))
@@ -235,15 +240,22 @@ def generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real
     return pred_logits, gen_decoder, step_loss
 
 
-def generated_output_seqs(seq_len, batch_size, vocab_size, gen_decoder, dec_state, train_gen):
-    gen_tokens = list()
+def generated_output_seqs(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real_o, train_gen):
+    gen_logits = list()
     step_loss = tf.constant(0.0)
     i_token = tf.fill([batch_size, 1], 0)
-    for t in tf.range(seq_len):
+    for t in tf.range(seq_len - 1):
         dec_result, dec_state = gen_decoder([i_token, dec_state], training=train_gen)
-        o_tokens = tf.argmax(dec_result, axis=-1)
-        gen_tokens.append(dec_result)
-        i_token = o_token
+        gen_logits.append(dec_result)
+        if len(real_o) > 0:
+            o_token = real_o[:, t+1:t+2]
+            loss = cross_entropy_loss(o_token, dec_result)
+            step_loss += tf.reduce_mean(loss)
+        else:
+            o_token = tf.argmax(dec_result, axis=-1)
+        #self feeding
+        i_token = tf.argmax(dec_result, axis=-1)
+    step_loss = step_loss / float(seq_len)
     pred_logits = tf.concat(gen_logits, axis=-2)
     return pred_logits, gen_decoder, step_loss
 

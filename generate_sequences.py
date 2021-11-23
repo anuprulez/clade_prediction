@@ -24,7 +24,6 @@ min_diff = 0
 max_diff = 61
 train_size = 1.0
 enc_units = 128
-LEN_AA = 1273
 random_size = 20
 FUTURE_GEN_TEST = "test/20A_20B.csv"
 
@@ -141,7 +140,7 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq):
             noise = tf.random.normal((batch_size, enc_units))
             enc_output, enc_state = loaded_encoder(batch_x_test, training=False)
             enc_state = tf.math.add(enc_state, noise)
-            generated_logits, _, _ = utils.generated_output_seqs(LEN_AA, batch_size, vocab_size, loaded_decoder, enc_state, False)
+            generated_logits, _, _ = utils.generated_output_seqs(LEN_AA, batch_size, vocab_size, loaded_decoder, enc_state, [], False)
             # compute generated sequence variation
             variation_score = utils.get_sequence_variation_percentage(generated_logits)
             print("Generated sequence variation score: {}".format(str(variation_score)))

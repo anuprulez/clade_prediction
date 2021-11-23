@@ -11,7 +11,7 @@ import h5py
 
 import utils
 
-LEN_AA = 1273
+LEN_AA = 1274
 l_dist_name = "levenshtein_distance"
 PATH_SAMPLES_CLADES = "data/ncov_global/sample_clade_sequence_df.csv"
 PATH_F_DICT = "data/ncov_global/f_word_dictionaries.json"

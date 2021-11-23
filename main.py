@@ -53,7 +53,7 @@ TR_MUT_INDICES = "data/generated_files/tr_mut_indices.json"
 PRETR_MUT_INDICES = "data/generated_files/pretr_mut_indices.json"
 
 
-LEN_AA = 1273
+LEN_AA = 1274
 
 # Neural network parameters
 embedding_dim = 32
@@ -66,8 +66,8 @@ epochs = 2
 max_l_dist = 10
 test_train_size = 0.85
 pretrain_train_size = 0.5
-random_clade_size = 100
-to_pretrain = False
+random_clade_size = 20
+to_pretrain = True
 pretrained_model = False
 stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/", "data/pretrain/"]
 
@@ -199,7 +199,7 @@ def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_dec
 
         print("Pretraining generator...")
         # balance tr data by mutations
-        pretr_parent_child_mut_indices = utils.get_mutation_tr_indices(X_pretrain, y_pretrain, forward_dict, rev_dict)
+        pretr_parent_child_mut_indices = dict() #utils.get_mutation_tr_indices(X_pretrain, y_pretrain, forward_dict, rev_dict)
         utils.save_as_json(PRETR_MUT_INDICES, pretr_parent_child_mut_indices)
         # get pretraining dataset as sliced tensors
         n_pretrain_batches = int(X_pretrain.shape[0]/float(batch_size))
@@ -248,7 +248,7 @@ def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_dec
     print("Num of train batches: {}".format(str(n_train_batches)))
 
     # balance tr data by mutations
-    tr_parent_child_mut_indices = utils.get_mutation_tr_indices(X_train, y_train, forward_dict, rev_dict)
+    tr_parent_child_mut_indices = dict() #utils.get_mutation_tr_indices(X_train, y_train, forward_dict, rev_dict)
     utils.save_as_json(TR_MUT_INDICES, tr_parent_child_mut_indices)
 
     for n in range(epochs):
