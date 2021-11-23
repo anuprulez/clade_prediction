@@ -56,19 +56,20 @@ PRETR_MUT_INDICES = "data/generated_files/pretr_mut_indices.json"
 LEN_AA = 1274
 
 # Neural network parameters
-embedding_dim = 32
-batch_size = 4
-te_batch_size = 4
-n_te_batches = 2
-enc_units = 32
+embedding_dim = 128
+batch_size = 32
+te_batch_size = 32
+n_te_batches = 5
+enc_units = 256
 pretrain_epochs = 2
 epochs = 2
 max_l_dist = 10
 test_train_size = 0.85
 pretrain_train_size = 0.5
-random_clade_size = 20
+random_clade_size = 30
 to_pretrain = True
 pretrained_model = False
+gan_train = False
 stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/", "data/pretrain/"]
 
 
@@ -225,6 +226,9 @@ def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_dec
         np.savetxt("data/generated_files/pretrain_gen_batch_test_seq_var.txt", pretrain_gen_batch_test_seq_var)
         print("Pre-training finished")
         print()
+
+    if gan_train is False:
+        sys.exit()
     # GAN training
     # create discriminator model
     disc_parent_encoder_model, disc_gen_encoder_model = neural_network.make_disc_par_gen_model(LEN_AA, vocab_size, embedding_dim, enc_units)
