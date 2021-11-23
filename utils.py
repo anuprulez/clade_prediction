@@ -212,7 +212,7 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
         # add noise to the encoder state
         enc_state = tf.math.add(enc_state, noise)
         # generate seqs stepwise - teacher forcing
-        generated_logits, _, loss = generator_step(seq_len, te_batch_size, vocab_size, loaded_generator, enc_state, batch_y_test, False)
+        generated_logits, _, loss = generated_output_seqs(seq_len, te_batch_size, vocab_size, loaded_generator, enc_state, batch_y_test, False)
         
         variation_score = get_sequence_variation_percentage(generated_logits)
         print("Test batch {} variation score: {}".format(str(step+1), str(variation_score)))

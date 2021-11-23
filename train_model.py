@@ -64,7 +64,7 @@ def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, un
     # add noise to encoded state to have variations while generating sequences
     transformed_enc_state = tf.math.add(enc_state, noise)
     # generate sequences
-    generated_logits, decoder, gen_t_loss = utils.generator_step(seq_len, batch_size, vocab_size, decoder, transformed_enc_state, unrolled_y, True)
+    generated_logits, decoder, gen_t_loss = utils.generated_output_seqs(seq_len, batch_size, vocab_size, decoder, transformed_enc_state, unrolled_y, True)
     # compute generated sequence variation
     variation_score = utils.get_sequence_variation_percentage(generated_logits)
     print("Generation variation score: {}".format(str(variation_score)))
@@ -161,7 +161,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           enc_output, enc_state = gen_encoder(unrolled_x, training=True)
           enc_state = tf.math.add(enc_state, noise)
           dec_state = enc_state
-          gen_logits, gen_decoder, gen_loss = utils.generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state, unrolled_y, True)
+          gen_logits, gen_decoder, gen_loss = utils.generated_output_seqs(seq_len, batch_size, vocab_size, gen_decoder, dec_state, unrolled_y, True)
           # compute generated sequence variation
           variation_score = utils.get_sequence_variation_percentage(gen_logits)
           print("Pretr: generation variation score: {}".format(str(variation_score)))
