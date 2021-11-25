@@ -18,12 +18,12 @@ import preprocess_sequences
 import utils
 
 
-RESULT_PATH = "test_results/24_11_CPU_1/"
+RESULT_PATH = "test_results/25_11_2/"
 
 min_diff = 0
 max_diff = 61
 train_size = 1.0
-enc_units = 256
+enc_units = 128
 random_size = 20
 LEN_AA = 1274
 FUTURE_GEN_TEST = "test/20A_20B.csv"
@@ -138,10 +138,17 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq):
             l_b_wu_score = list()
             l_ld_wuhan = list()
             print("Generating for iter {}/{}".format(str(i+1), str(generating_factor)))
-            noise = tf.random.normal((batch_size, enc_units))
-            enc_output, enc_state = loaded_encoder(batch_x_test, training=False)
-            enc_state = tf.math.add(enc_state, noise)
-            generated_logits, _, _ = utils.generated_output_seqs(LEN_AA, batch_size, vocab_size, loaded_decoder, enc_state, [], False)
+            #noise = tf.random.normal((batch_size, enc_units))
+            #enc_output, enc_state = loaded_encoder(batch_x_test, training=False)
+            #enc_state = tf.math.add(enc_state, noise)
+
+            noise = tf.random.normal((batch_size, 2 * enc_units))
+            enc_state_h, enc_state_c = loaded_encoder(batch_x_test, training=False)
+            enc_state_h = tf.math.add(enc_state_h, noise)
+            enc_state_c = tf.math.add(enc_state_c, noise)
+            dec_state_h, dec_state_c = enc_state_h, enc_state_c
+
+            generated_logits, _, _ = utils.generated_output_seqs(LEN_AA, batch_size, vocab_size, loaded_decoder, dec_state_h, dec_state_c, [], False)
             # compute generated sequence variation
             variation_score = utils.get_sequence_variation_percentage(generated_logits)
             print("Generated sequence variation score: {}".format(str(variation_score)))
