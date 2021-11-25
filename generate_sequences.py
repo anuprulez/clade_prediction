@@ -18,13 +18,14 @@ import preprocess_sequences
 import utils
 
 
-RESULT_PATH = "test_results/18_11_local/"
+RESULT_PATH = "test_results/24_11_CPU_1/"
 
 min_diff = 0
 max_diff = 61
 train_size = 1.0
-enc_units = 128
+enc_units = 256
 random_size = 20
+LEN_AA = 1274
 FUTURE_GEN_TEST = "test/20A_20B.csv"
 
 clade_parent = "20A" # 20A
@@ -122,10 +123,10 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq):
     num_te_batches = int(len(test_x) / float(batch_size))
     print("Num test batches: {}".format(str(num_te_batches)))
     print("Loading trained model from {}...".format(RESULT_PATH))
-    loaded_encoder = tf.keras.models.load_model(RESULT_PATH + "gen_enc_model")
-    loaded_encoder.load_weights(RESULT_PATH + GEN_ENC_WEIGHTS)
-    loaded_decoder = tf.keras.models.load_model(RESULT_PATH + "gen_dec_model")
-    loaded_decoder.load_weights(RESULT_PATH + GEN_DEC_WEIGHTS)
+    loaded_encoder = tf.keras.models.load_model(RESULT_PATH + "pretrain_gen_encoder")
+    #loaded_encoder.load_weights(RESULT_PATH + GEN_ENC_WEIGHTS)
+    loaded_decoder = tf.keras.models.load_model(RESULT_PATH + "pretrain_gen_decoder")
+    #loaded_decoder.load_weights(RESULT_PATH + GEN_DEC_WEIGHTS)
     for step, (x, y) in enumerate(zip(test_dataset_in, test_dataset_out)):
         batch_x_test = utils.pred_convert_to_array(x)
         #batch_y_test = utils.pred_convert_to_array(y)

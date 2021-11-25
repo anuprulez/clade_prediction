@@ -41,7 +41,7 @@ def add_padding_to_seq(seq):
     return "{},{}".format(str(0), seq)
 
 
-def generate_cross_product(x_seq, y_seq, max_l_dist, cols=["X", "Y"], unrelated=False, unrelated_threshold=15):
+def generate_cross_product(x_seq, y_seq, max_l_dist, len_aa_subseq, cols=["X", "Y"], unrelated=False, unrelated_threshold=15):
     print(len(x_seq), len(y_seq))
     x_y = list(itertools.product(x_seq, y_seq))
     print(len(x_y))
@@ -52,17 +52,22 @@ def generate_cross_product(x_seq, y_seq, max_l_dist, cols=["X", "Y"], unrelated=
     filtered_y = list()
     for i, x_i in enumerate(x_seq):
         for j, y_j in enumerate(y_seq):
-            l_dist = compute_Levenshtein_dist(x_i, y_j)
+            # cut sequences of specific length
+            sub_x_i = x_i.split(",")[:len_aa_subseq]
+            sub_x_i = ",".join(sub_x_i)
+            sub_y_j = y_j.split(",")[:len_aa_subseq]
+            sub_y_j = ",".join(sub_y_j)
+            l_dist = compute_Levenshtein_dist(sub_x_i, sub_y_j)
             l_distance.append(l_dist)
             if unrelated is False:
                 if l_dist > 0 and l_dist < max_l_dist:
-                    filtered_x.append(add_padding_to_seq(x_i))
-                    filtered_y.append(add_padding_to_seq(y_j))
+                    filtered_x.append(add_padding_to_seq(sub_x_i))
+                    filtered_y.append(add_padding_to_seq(sub_y_j))
                     filtered_l_distance.append(l_dist)
             else:
                 if l_dist > max_l_dist:
-                    filtered_x.append(add_padding_to_seq(x_i))
-                    filtered_y.append(add_padding_to_seq(y_j))
+                    filtered_x.append(add_padding_to_seq(sub_x_i))
+                    filtered_y.append(add_padding_to_seq(sub_y_j))
                     filtered_l_distance.append(l_dist)
 
     filtered_dataframe = pd.DataFrame(list(zip(filtered_x, filtered_y)), columns=["X", "Y"])

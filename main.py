@@ -1,23 +1,19 @@
 import time
 import sys
 import os
+import glob
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-import random
 import pandas as pd
 import numpy as np
-import logging
-import glob
 import tensorflow as tf
 
-import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 
 import preprocess_sequences
 import utils
 import neural_network
 import train_model
-
 
 
 PATH_PRE = "data/ncov_global/"
@@ -54,19 +50,20 @@ PRETR_MUT_INDICES = "data/generated_files/pretr_mut_indices.json"
 
 
 LEN_AA = 1274
-
+len_aa_subseq = 10
+len_aa_padding = len_aa_subseq + 1
 # Neural network parameters
-embedding_dim = 128
-batch_size = 32
-te_batch_size = 32
+embedding_dim = 32
+batch_size = 4
+te_batch_size = 4
 n_te_batches = 5
-enc_units = 256
-pretrain_epochs = 2
+enc_units = 32
+pretrain_epochs = 10
 epochs = 2
 max_l_dist = 10
 test_train_size = 0.85
 pretrain_train_size = 0.5
-random_clade_size = 30
+random_clade_size = 1000
 to_pretrain = True
 pretrained_model = False
 gan_train = False
@@ -78,9 +75,9 @@ def get_samples_clades():
     #samples_clades = preprocess_sequences.get_samples_clades(GALAXY_CLADE_ASSIGNMENT)
     samples_clades = preprocess_sequences.get_galaxy_samples_clades(GALAXY_CLADE_ASSIGNMENT)
     print("Preprocessing sequences...")
-    encoded_sequence_df, forward_dict, rev_dict = preprocess_sequences.preprocess_seq_galaxy_clades(PATH_SEQ, samples_clades)
+    encoded_sequence_df, forward_dict, rev_dict = preprocess_sequences.preprocess_seq_galaxy_clades(PATH_SEQ, samples_clades, LEN_AA)
     print(encoded_sequence_df)
-    
+
 
 def read_files():
     #to preprocess once, uncomment get_samples_clades
@@ -95,14 +92,14 @@ def read_files():
         print("Preprocessing sample-clade assignment file...")
         dataf = pd.read_csv(PATH_SAMPLES_CLADES, sep=",")
         filtered_dataf = preprocess_sequences.filter_samples_clades(dataf)
-        
+
         clades_in_clades_out = utils.read_json(PATH_TRAINING_CLADES)
         print(clades_in_clades_out)
         unrelated_clades = utils.read_json(PATH_UNRELATED_CLADES)
         print("Generating cross product of real parent child...")
-        preprocess_sequences.make_cross_product(clades_in_clades_out, filtered_dataf, train_size=test_train_size, edit_threshold=max_l_dist, random_size=random_clade_size)
+        preprocess_sequences.make_cross_product(clades_in_clades_out, filtered_dataf, len_aa_subseq, train_size=test_train_size, edit_threshold=max_l_dist, random_size=random_clade_size)
         print("Generating cross product of real sequences but not parent-child...")
-        preprocess_sequences.make_cross_product(unrelated_clades, filtered_dataf, train_size=1.0, edit_threshold=max_l_dist, random_size=random_clade_size, unrelated=True)
+        preprocess_sequences.make_cross_product(unrelated_clades, filtered_dataf, len_aa_subseq, train_size=1.0, edit_threshold=max_l_dist, random_size=random_clade_size, unrelated=True)
     else:
         encoder = tf.keras.models.load_model(PRETRAIN_GEN_ENC_MODEL)
         decoder = tf.keras.models.load_model(PRETRAIN_GEN_DEC_MODEL)
@@ -110,7 +107,7 @@ def read_files():
 
 def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     if gen_encoder is None or gen_decoder is None:
-        encoder, decoder = neural_network.make_generator_model(LEN_AA, vocab_size, embedding_dim, enc_units, batch_size)
+        encoder, decoder = neural_network.make_generator_model(len_aa_padding, vocab_size, embedding_dim, enc_units, batch_size)
     else:
         encoder = gen_encoder
         decoder = gen_decoder
@@ -122,7 +119,6 @@ def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_dec
 
     combined_X = list()
     combined_y = list()
-    combined_x_y_l = list()
     # load train data
     print("Loading training datasets...")
     for name in tr_clade_files:
@@ -214,7 +210,7 @@ def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_dec
             pretrain_gen_batch_test_seq_var.append(bat_te_seq_var)
             print("Pretrain: predicting on test datasets...")
             with tf.device('/device:cpu:0'):
-                pretrain_gen_te_loss, pretrain_gen_te_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, LEN_AA, vocab_size, enc_units, encoder, decoder)
+                pretrain_gen_te_loss, pretrain_gen_te_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, len_aa_padding, vocab_size, enc_units, encoder, decoder)
                 pretrain_gen_test_loss.append(pretrain_gen_te_loss)
                 pretrain_gen_test_seq_var.append(pretrain_gen_te_seq_var)
             print("Pre-training epoch {} finished".format(str(i+1)))
@@ -231,7 +227,7 @@ def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_dec
         sys.exit()
     # GAN training
     # create discriminator model
-    disc_parent_encoder_model, disc_gen_encoder_model = neural_network.make_disc_par_gen_model(LEN_AA, vocab_size, embedding_dim, enc_units)
+    disc_parent_encoder_model, disc_gen_encoder_model = neural_network.make_disc_par_gen_model(len_aa_padding, vocab_size, embedding_dim, enc_units)
     discriminator = neural_network.make_discriminator_model(enc_units)
 
     # use the pretrained generator and train it along with discriminator
@@ -275,7 +271,7 @@ def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_dec
         # predict seq on test data
         print("Prediction on test data...")
         with tf.device('/device:cpu:0'):
-            epo_tr_gen_te_loss, epo_tr_gen_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, LEN_AA, vocab_size, enc_units, encoder, decoder)
+            epo_tr_gen_te_loss, epo_tr_gen_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, len_aa_padding, vocab_size, enc_units, encoder, decoder)
             train_te_loss.append(epo_tr_gen_te_loss)
             train_gen_test_seq_var.append(epo_tr_gen_seq_var)
         print()

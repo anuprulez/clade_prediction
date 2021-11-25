@@ -1,17 +1,9 @@
 import sys
-import os
 import pandas as pd
-import numpy as np
-import json
-import itertools
-import glob
-import random
 from Bio import SeqIO
-import h5py
 
 import utils
 
-LEN_AA = 1274
 l_dist_name = "levenshtein_distance"
 PATH_SAMPLES_CLADES = "data/ncov_global/sample_clade_sequence_df.csv"
 PATH_F_DICT = "data/ncov_global/f_word_dictionaries.json"
@@ -33,14 +25,12 @@ def get_galaxy_samples_clades(path_seq_clades):
     return samples_clades
 
 
-def preprocess_seq_galaxy_clades(fasta_file, samples_clades):
+def preprocess_seq_galaxy_clades(fasta_file, samples_clades, LEN_AA):
     encoded_samples = list()
     amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"
-    max_seq_size = LEN_AA
     aa_chars = utils.get_all_possible_words(amino_acid_codes)
     f_word_dictionaries, r_word_dictionaries = utils.get_words_indices(aa_chars)
     all_sample_names = list(samples_clades.keys()) 
-    u_list = list()
     for sequence_obj in SeqIO.parse(fasta_file, "fasta"):
         row = list()
         seq_id = sequence_obj.id
@@ -76,10 +66,8 @@ def filter_samples_clades(dataframe):
     return new_df
 
 
-def make_cross_product(clade_in_clade_out, dataframe, train_size=0.8, edit_threshold=3, random_size=200, replace=False, unrelated=False):
+def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, train_size=0.8, edit_threshold=3, random_size=200, replace=False, unrelated=False):
     total_samples = 0
-    merged_train_df = None
-    merged_test_df = None
     
     for in_clade in clade_in_clade_out:
         # get df for parent clade
@@ -105,11 +93,11 @@ def make_cross_product(clade_in_clade_out, dataframe, train_size=0.8, edit_thres
             out_clade_df = out_clade_df.sample(n=random_size, replace=False)
             out_len = len(out_clade_df.index)
             print("Size of clade {}: {}".format(out_clade, str(out_len)))
-            
+
             out_clade_seq = out_clade_df["Sequence"]
             u_out_clade = out_clade_seq.drop_duplicates()
             u_out_clade = u_out_clade.tolist()
-            u_filtered_x_y = utils.generate_cross_product(u_in_clade, u_out_clade, edit_threshold, unrelated=unrelated)
+            u_filtered_x_y = utils.generate_cross_product(u_in_clade, u_out_clade, edit_threshold, len_aa_subseq, unrelated=unrelated)
             print("Unique size of clade combination {}_{}: {}".format(in_clade, out_clade, str(len(u_filtered_x_y.index))))
             total_samples += len(u_filtered_x_y.index)
 
