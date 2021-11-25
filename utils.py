@@ -212,12 +212,13 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
     for step in range(n_te_batches):
         batch_x_test, batch_y_test = sample_unrelated_x_y(test_dataset_in, test_dataset_out, te_batch_size)
         # generated noise for variation in predicted sequences
-        noise = tf.random.normal((te_batch_size, enc_units))
-        enc_output, enc_state = loaded_encoder(batch_x_test, training=False)
-        # add noise to the encoder state
-        enc_state = tf.math.add(enc_state, noise)
+        noise = tf.random.normal((te_batch_size, 2 * enc_units))
+        enc_state_h, enc_state_c = loaded_encoder(batch_x_test, training=False)
+        enc_state_h = tf.math.add(enc_state_h, noise)
+        enc_state_c = tf.math.add(enc_state_c, noise)
+        dec_state_h, dec_state_c = enc_state_h, enc_state_c
         # generate seqs stepwise - teacher forcing
-        generated_logits, _, loss = generated_output_seqs(seq_len, te_batch_size, vocab_size, loaded_generator, enc_state, batch_y_test, False)
+        generated_logits, _, loss = generated_output_seqs(seq_len, te_batch_size, vocab_size, loaded_generator, dec_state_h, dec_state_c, batch_y_test, False)
         
         variation_score = get_sequence_variation_percentage(generated_logits)
         print("Test batch {} variation score: {}".format(str(step+1), str(variation_score)))
@@ -229,13 +230,13 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
     return np.mean(avg_test_loss), np.mean(avg_test_seq_var)
 
 
-def generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real_o, train_gen):
+def generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state_h, dec_state_c, real_o, train_gen):
     gen_logits = list()
     step_loss = tf.constant(0.0)
     for t in tf.range(seq_len - 1):
         new_tokens = real_o[:, t:t+2]
         i_token, o_token = new_tokens[:, 0:1], new_tokens[:, 1:2]
-        dec_result, dec_state = gen_decoder([i_token, dec_state], training=train_gen)
+        dec_result, dec_state_h, dec_state_c = gen_decoder([i_token, dec_state_h, dec_state_c], training=train_gen)
         if len(real_o) > 0:
             loss = cross_entropy_loss(o_token, dec_result)
             step_loss += tf.reduce_mean(loss)
@@ -245,12 +246,13 @@ def generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real
     return pred_logits, gen_decoder, step_loss
 
 
-def generated_output_seqs(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real_o, train_gen):
+def generated_output_seqs(seq_len, batch_size, vocab_size, gen_decoder, dec_state_h, dec_state_c, real_o, train_gen):
     gen_logits = list()
     step_loss = tf.constant(0.0)
     i_token = tf.fill([batch_size, 1], 0)
     for t in tf.range(seq_len - 1):
-        dec_result, dec_state = gen_decoder([i_token, dec_state], training=train_gen)
+        #dec_result, dec_state = gen_decoder([i_token, dec_state], training=train_gen)
+        dec_result, dec_state_h, dec_state_c = gen_decoder([i_token, dec_state_h, dec_state_c], training=train_gen)
         gen_logits.append(dec_result)
         if len(real_o) > 0:
             o_token = real_o[:, t+1:t+2]

@@ -50,7 +50,7 @@ PRETR_MUT_INDICES = "data/generated_files/pretr_mut_indices.json"
 
 
 LEN_AA = 1274
-len_aa_subseq = 10
+len_aa_subseq = 300
 len_aa_padding = len_aa_subseq + 1
 # Neural network parameters
 embedding_dim = 32
@@ -63,7 +63,7 @@ epochs = 2
 max_l_dist = 10
 test_train_size = 0.85
 pretrain_train_size = 0.5
-random_clade_size = 1000
+random_clade_size = 100
 to_pretrain = True
 pretrained_model = False
 gan_train = False
@@ -208,6 +208,7 @@ def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_dec
             pretrain_gen_train_loss.append(pretrain_gen_tr_loss)
             pretrain_gen_batch_test_loss.append(bat_te_gen_loss)
             pretrain_gen_batch_test_seq_var.append(bat_te_seq_var)
+            print()
             print("Pretrain: predicting on test datasets...")
             with tf.device('/device:cpu:0'):
                 pretrain_gen_te_loss, pretrain_gen_te_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, len_aa_padding, vocab_size, enc_units, encoder, decoder)
