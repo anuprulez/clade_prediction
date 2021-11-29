@@ -9,6 +9,7 @@ PATH_SAMPLES_CLADES = "data/ncov_global/sample_clade_sequence_df.csv"
 PATH_F_DICT = "data/ncov_global/f_word_dictionaries.json"
 PATH_R_DICT = "data/ncov_global/r_word_dictionaries.json"
 PATH_ALL_SAMPLES_CLADES = "data/ncov_global/samples_clades.json"
+amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"
 
 
 def get_galaxy_samples_clades(path_seq_clades):
@@ -27,7 +28,6 @@ def get_galaxy_samples_clades(path_seq_clades):
 
 def preprocess_seq_galaxy_clades(fasta_file, samples_clades, LEN_AA):
     encoded_samples = list()
-    amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"
     aa_chars = utils.get_all_possible_words(amino_acid_codes)
     f_word_dictionaries, r_word_dictionaries = utils.get_words_indices(aa_chars)
     all_sample_names = list(samples_clades.keys()) 
@@ -66,9 +66,10 @@ def filter_samples_clades(dataframe):
     return new_df
 
 
-def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, train_size=0.8, edit_threshold=3, random_size=200, replace=False, unrelated=False):
+def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, kmer_f_dict, kmer_r_dict, train_size=0.8, edit_threshold=3, random_size=200, replace=False, unrelated=False, s_kmer=3):
     total_samples = 0
-    
+    forward_dict = utils.read_json(PATH_F_DICT)
+    rev_dict = utils.read_json(PATH_R_DICT)
     for in_clade in clade_in_clade_out:
         # get df for parent clade
         in_clade_df = dataframe[dataframe["Clade"].replace("/", "_") == in_clade]
@@ -103,6 +104,19 @@ def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, train_size=
 
             train_df = u_filtered_x_y.sample(frac=train_size, random_state=200)
             test_df = u_filtered_x_y.drop(train_df.index)
+
+            #######
+            print(train_df)
+            # convert to original seq and then to Kmers
+            print("Converting to Kmers...")
+            train_df = utils.ordinal_to_kmer(train_df, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, s_kmer)
+            test_df = utils.ordinal_to_kmer(test_df, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, s_kmer)
+
+            print(train_df)
+            print()
+            print(test_df)
+
+            #######
             train_df.to_csv(tr_filename, sep="\t", index=None)
             test_df.to_csv(te_filename, sep="\t", index=None)
             print("train size: {}".format(len(train_df.index)))

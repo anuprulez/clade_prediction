@@ -2,6 +2,7 @@ import os
 import sys
 import shutil
 import itertools
+from itertools import product
 import json
 import pandas as pd
 import numpy as np
@@ -11,11 +12,15 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 from Levenshtein import distance as lev_dist
 
+
+PATH_KMER_F_DICT = "data/ncov_global/kmer_f_word_dictionaries.json"
+PATH_KMER_R_DICT = "data/ncov_global/kmer_r_word_dictionaries.json"
+
 cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False, reduction='none')
 
 
 def make_kmers(seq, size):
-    return [seq[x:x+size] for x in range(len(seq) - size + 1)]
+    return ["".join(seq[x:x+size]) for x in range(len(seq) - size + 1)]
 
 
 def compute_Levenshtein_dist(seq_in, seq_out):
@@ -98,8 +103,13 @@ def reconstruct_seq(kmers):
     return "".join(reconstructed_seq)
 
 
-def get_all_possible_words(vocab):
-    return [char for char in vocab]
+def get_all_possible_words(vocab, kmer_size=3):
+    all_com = [''.join(c) for c in product(vocab, repeat=3)]
+    kmer_f_dict = {i + 1: all_com[i] for i in range(0, len(all_com))}
+    kmer_r_dict = {all_com[i]: i + 1  for i in range(0, len(all_com))}
+    save_as_json(PATH_KMER_F_DICT, kmer_f_dict)
+    save_as_json(PATH_KMER_R_DICT, kmer_r_dict)
+    return kmer_f_dict, kmer_r_dict
 
 
 def convert_to_array(str_data):
@@ -149,6 +159,34 @@ def read_in_out(path):
     samples["Sequence_x"] = samples["Sequence_x"].str.split(",")
     samples["Sequence_y"] = samples["Sequence_y"].str.split(",")
     return samples
+
+
+def ordinal_to_kmer(seq_df, f_dict, r_dict, kmer_f_dict, kmer_r_dict, kmer_s=3):
+    in_seq = list()
+    out_seq = list()
+    for index, (x, y) in seq_df.iterrows():
+        x = x.split(",")[1:]
+        x_chars = [str(f_dict[i]) for i in x]
+        x_seq = ",".join(x_chars)
+
+        y = y.split(",")[1:]
+        y_chars = [str(f_dict[i]) for i in y]
+        y_seq = ",".join(y_chars)
+
+        x_kmers = make_kmers(x_chars, kmer_s)
+        y_kmers = make_kmers(y_chars, kmer_s)
+
+        encoded_x = [str(kmer_r_dict[str(i)]) for i in x_kmers]
+        encoded_x = "0," + ",".join(encoded_x)
+        in_seq.append(encoded_x)
+        encoded_y = [str(kmer_r_dict[str(i)]) for i in y_kmers]
+        encoded_y = "0," + ",".join(encoded_y)
+        out_seq.append(encoded_y)
+
+    enc_df = pd.DataFrame(list(zip(in_seq, out_seq)), columns=seq_df.columns)
+    return enc_df
+        
+        
 
 
 def read_wuhan_seq(wu_path, rev_dict):

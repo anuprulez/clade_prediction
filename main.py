@@ -48,7 +48,7 @@ SAVE_TRUE_PRED_SEQ = "data/generated_files/true_predicted_df.csv"
 TR_MUT_INDICES = "data/generated_files/tr_mut_indices.json"
 PRETR_MUT_INDICES = "data/generated_files/pretr_mut_indices.json"
 
-
+s_kmer = 3
 LEN_AA = 1274
 len_aa_subseq = 300
 len_aa_padding = len_aa_subseq + 1
@@ -68,6 +68,7 @@ to_pretrain = True
 pretrained_model = False
 gan_train = False
 stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/", "data/pretrain/"]
+amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"
 
 
 def get_samples_clades():
@@ -86,6 +87,8 @@ def read_files():
     rev_dict = utils.read_json(PATH_R_DICT)
     encoder = None
     decoder = None
+    kmer_f_dict, kmer_r_dict = utils.get_all_possible_words(amino_acid_codes)
+
     if pretrained_model is False:
         print("Cleaning up stale folders...")
         utils.clean_up(stale_folders)
@@ -97,9 +100,9 @@ def read_files():
         print(clades_in_clades_out)
         unrelated_clades = utils.read_json(PATH_UNRELATED_CLADES)
         print("Generating cross product of real parent child...")
-        preprocess_sequences.make_cross_product(clades_in_clades_out, filtered_dataf, len_aa_subseq, train_size=test_train_size, edit_threshold=max_l_dist, random_size=random_clade_size)
+        preprocess_sequences.make_cross_product(clades_in_clades_out, filtered_dataf, len_aa_subseq, kmer_f_dict, kmer_r_dict, train_size=test_train_size, edit_threshold=max_l_dist, random_size=random_clade_size, s_kmer=s_kmer)
         print("Generating cross product of real sequences but not parent-child...")
-        preprocess_sequences.make_cross_product(unrelated_clades, filtered_dataf, len_aa_subseq, train_size=1.0, edit_threshold=max_l_dist, random_size=random_clade_size, unrelated=True)
+        preprocess_sequences.make_cross_product(unrelated_clades, filtered_dataf, len_aa_subseq, kmer_f_dict, kmer_r_dict, train_size=1.0, edit_threshold=max_l_dist, random_size=random_clade_size, unrelated=True, s_kmer=s_kmer)
     else:
         encoder = tf.keras.models.load_model(PRETRAIN_GEN_ENC_MODEL)
         decoder = tf.keras.models.load_model(PRETRAIN_GEN_DEC_MODEL)
@@ -185,6 +188,8 @@ def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_dec
     X_train = np.array(X_train)
     y_train = np.array(y_train)
 
+    sys.exit()
+
     # pretrain generator
     if to_pretrain is True:
         pretrain_gen_train_loss = list()
@@ -224,6 +229,7 @@ def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_dec
         print("Pre-training finished")
         print()
 
+    
     if gan_train is False:
         sys.exit()
     # GAN training
