@@ -239,8 +239,8 @@ def convert_to_string_list(l):
 
 def get_sequence_variation_percentage(logits):
     seq_tokens = tf.math.argmax(logits, axis=-1)
+    print("Gen seqs:")
     print(seq_tokens)
-    print()
     l_seq_tokens = convert_to_string_list(seq_tokens)
     df_seqs = pd.DataFrame(l_seq_tokens, columns=["Sequences"])
     u_df_seqs = df_seqs.drop_duplicates()
@@ -266,9 +266,10 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
         enc_state_h = tf.math.add(enc_state_h, noise)
         enc_state_c = tf.math.add(enc_state_c, noise)
         dec_state_h, dec_state_c = enc_state_h, enc_state_c
+        print("Test: true seq:")
+        print(batch_y_test)
         # generate seqs stepwise - teacher forcing
-        generated_logits, _, loss = generated_output_seqs(seq_len, te_batch_size, vocab_size, loaded_generator, dec_state_h, dec_state_c, batch_y_test, False)
-        
+        generated_logits, _, loss = generated_output_seqs(seq_len, te_batch_size, vocab_size, loaded_generator, dec_state_h, dec_state_c, batch_y_test, False)        
         variation_score = get_sequence_variation_percentage(generated_logits)
         print("Test batch {} variation score: {}".format(str(step+1), str(variation_score)))
         print("Test batch {} true loss: {}".format(str(step+1), str(loss.numpy())))
