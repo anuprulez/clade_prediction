@@ -93,16 +93,6 @@ def transform_noise(noise):
     return tf.convert_to_tensor(noise, dtype=tf.float32)
 
 
-def reconstruct_seq(kmers):
-    reconstructed_seq = []
-    for i, km in enumerate(kmers):
-         if i < len(kmers) - 1:
-             reconstructed_seq.append(km[0])
-         else:
-             reconstructed_seq.append(km)
-    return "".join(reconstructed_seq)
-
-
 def get_all_possible_words(vocab, kmer_size=3):
     all_com = [''.join(c) for c in product(vocab, repeat=3)]
     kmer_f_dict = {i + 1: all_com[i] for i in range(0, len(all_com))}
@@ -161,6 +151,16 @@ def read_in_out(path):
     return samples
 
 
+def reconstruct_seq(kmers):
+    reconstructed_seq = []
+    for i, km in enumerate(kmers):
+         if i < len(kmers) - 1:
+             reconstructed_seq.append(km[0])
+         else:
+             reconstructed_seq.append(km)
+    return "".join(reconstructed_seq)
+
+
 def ordinal_to_kmer(seq_df, f_dict, r_dict, kmer_f_dict, kmer_r_dict, kmer_s=3):
     in_seq = list()
     out_seq = list()
@@ -183,11 +183,20 @@ def ordinal_to_kmer(seq_df, f_dict, r_dict, kmer_f_dict, kmer_r_dict, kmer_s=3):
         encoded_y = "0," + ",".join(encoded_y)
         out_seq.append(encoded_y)
 
+        '''
+        # reconstruct seq from predicted kmers
+        enc_x = encoded_x.split(",")[1:]
+        print(enc_x)
+        print()
+        enc_x = [kmer_f_dict[int(i)] for i in enc_x]
+        print(enc_x)
+        orig_x = reconstruct_seq(enc_x)
+        print()
+        print(orig_x, len(orig_x))
+        '''
     enc_df = pd.DataFrame(list(zip(in_seq, out_seq)), columns=seq_df.columns)
     return enc_df
         
-        
-
 
 def read_wuhan_seq(wu_path, rev_dict):
     with open(wu_path, "r") as wu_file:
@@ -230,6 +239,8 @@ def convert_to_string_list(l):
 
 def get_sequence_variation_percentage(logits):
     seq_tokens = tf.math.argmax(logits, axis=-1)
+    print(seq_tokens)
+    print()
     l_seq_tokens = convert_to_string_list(seq_tokens)
     df_seqs = pd.DataFrame(l_seq_tokens, columns=["Sequences"])
     u_df_seqs = df_seqs.drop_duplicates()

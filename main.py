@@ -51,7 +51,8 @@ PRETR_MUT_INDICES = "data/generated_files/pretr_mut_indices.json"
 s_kmer = 3
 LEN_AA = 1274
 len_aa_subseq = 300
-len_aa_padding = len_aa_subseq + 1
+#len_final_aa_padding = len_aa_subseq + 1
+len_final_aa_padding = len_aa_subseq - s_kmer + 2
 # Neural network parameters
 embedding_dim = 32
 batch_size = 4
@@ -106,11 +107,12 @@ def read_files():
     else:
         encoder = tf.keras.models.load_model(PRETRAIN_GEN_ENC_MODEL)
         decoder = tf.keras.models.load_model(PRETRAIN_GEN_DEC_MODEL)
-    start_training(len(rev_dict) + 1, forward_dict, rev_dict, encoder, decoder)
+    start_training(len(kmer_f_dict) + 1, kmer_f_dict, kmer_r_dict, encoder, decoder)
+
 
 def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     if gen_encoder is None or gen_decoder is None:
-        encoder, decoder = neural_network.make_generator_model(len_aa_padding, vocab_size, embedding_dim, enc_units, batch_size)
+        encoder, decoder = neural_network.make_generator_model(len_final_aa_padding, vocab_size, embedding_dim, enc_units, batch_size)
     else:
         encoder = gen_encoder
         decoder = gen_decoder
@@ -188,8 +190,6 @@ def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_dec
     X_train = np.array(X_train)
     y_train = np.array(y_train)
 
-    sys.exit()
-
     # pretrain generator
     if to_pretrain is True:
         pretrain_gen_train_loss = list()
@@ -216,7 +216,7 @@ def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_dec
             print()
             print("Pretrain: predicting on test datasets...")
             with tf.device('/device:cpu:0'):
-                pretrain_gen_te_loss, pretrain_gen_te_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, len_aa_padding, vocab_size, enc_units, encoder, decoder)
+                pretrain_gen_te_loss, pretrain_gen_te_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, len_final_aa_padding, vocab_size, enc_units, encoder, decoder)
                 pretrain_gen_test_loss.append(pretrain_gen_te_loss)
                 pretrain_gen_test_seq_var.append(pretrain_gen_te_seq_var)
             print("Pre-training epoch {} finished".format(str(i+1)))
@@ -234,7 +234,7 @@ def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_dec
         sys.exit()
     # GAN training
     # create discriminator model
-    disc_parent_encoder_model, disc_gen_encoder_model = neural_network.make_disc_par_gen_model(len_aa_padding, vocab_size, embedding_dim, enc_units)
+    disc_parent_encoder_model, disc_gen_encoder_model = neural_network.make_disc_par_gen_model(len_final_aa_padding, vocab_size, embedding_dim, enc_units)
     discriminator = neural_network.make_discriminator_model(enc_units)
 
     # use the pretrained generator and train it along with discriminator
@@ -278,7 +278,7 @@ def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_dec
         # predict seq on test data
         print("Prediction on test data...")
         with tf.device('/device:cpu:0'):
-            epo_tr_gen_te_loss, epo_tr_gen_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, len_aa_padding, vocab_size, enc_units, encoder, decoder)
+            epo_tr_gen_te_loss, epo_tr_gen_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, len_final_aa_padding, vocab_size, enc_units, encoder, decoder)
             train_te_loss.append(epo_tr_gen_te_loss)
             train_gen_test_seq_var.append(epo_tr_gen_seq_var)
         print()

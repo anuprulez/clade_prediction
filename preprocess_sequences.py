@@ -105,18 +105,11 @@ def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, kmer_f_dict
             train_df = u_filtered_x_y.sample(frac=train_size, random_state=200)
             test_df = u_filtered_x_y.drop(train_df.index)
 
-            #######
-            print(train_df)
             # convert to original seq and then to Kmers
             print("Converting to Kmers...")
             train_df = utils.ordinal_to_kmer(train_df, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, s_kmer)
             test_df = utils.ordinal_to_kmer(test_df, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, s_kmer)
 
-            print(train_df)
-            print()
-            print(test_df)
-
-            #######
             train_df.to_csv(tr_filename, sep="\t", index=None)
             test_df.to_csv(te_filename, sep="\t", index=None)
             print("train size: {}".format(len(train_df.index)))
