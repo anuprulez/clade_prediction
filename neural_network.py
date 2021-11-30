@@ -14,7 +14,7 @@ import preprocess_sequences
 
 
 GEN_ENC_WEIGHTS = "data/generated_files/generator_encoder_weights.h5"
-DROPOUT = 0.2
+DROPOUT = 0.5
 LEAKY_ALPHA = 0.1
 
 
