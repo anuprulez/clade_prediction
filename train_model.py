@@ -158,11 +158,11 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
       seq_len = unrolled_x.shape[1]
       with tf.GradientTape() as gen_tape:
           noise = tf.random.normal((batch_size, 2 * enc_units))
-          enc_state_h, enc_state_c = gen_encoder(unrolled_x, training=True)
+          enc_out, enc_state_h, enc_state_c = gen_encoder(unrolled_x, training=True)
           enc_state_h = tf.math.add(enc_state_h, noise)
           enc_state_c = tf.math.add(enc_state_c, noise)
           dec_state_h, dec_state_c = enc_state_h, enc_state_c
-          gen_logits, gen_decoder, gen_loss = utils.generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state_h, dec_state_c, unrolled_y, True)
+          gen_logits, gen_decoder, gen_loss = utils.generator_step(seq_len, batch_size, vocab_size, gen_decoder, enc_out, dec_state_h, dec_state_c, unrolled_y, True)
           print("Training: true seq:")
           print(unrolled_y)
           # compute generated sequence variation
