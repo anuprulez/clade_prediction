@@ -32,13 +32,15 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     embed = gen_embedding(gen_inputs)
     embed = tf.keras.layers.Dropout(DROPOUT)(embed)
     enc_output, f_h, f_c, b_h, b_c = gen_gru(embed)
+    print("Enc output")
+    print(enc_output.shape)
     state_h = tf.keras.layers.Concatenate()([f_h, b_h])
     state_c = tf.keras.layers.Concatenate()([f_c, b_c])
     encoder_model = tf.keras.Model([gen_inputs], [enc_output, state_h, state_c])
 
 
     # Create decoder for Generator
-    enc_output = tf.keras.Input(shape=(seq_len))
+    enc_output = tf.keras.Input(shape=(seq_len, 2 * enc_units))
     i_dec_h = tf.keras.Input(shape=(2 * enc_units,))
     i_dec_c = tf.keras.Input(shape=(2 * enc_units,))
     new_tokens = tf.keras.Input(shape=(seq_len,))
@@ -56,16 +58,20 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
 
     rnn_output, dec_state_h, dec_state_c = dec_gru(vectors, initial_state=[i_dec_h, i_dec_c])
     rnn_output = tf.keras.layers.Dropout(DROPOUT)(rnn_output)
-
+    print("Rnn output, enc output")
+    print(rnn_output.shape, enc_output.shape)
     # apply attention
     context_vector, attention_weights = dec_attention(query=rnn_output, value=enc_output, mask=[])
+    print("Context vector")
     print(context_vector.shape)
     context_and_rnn_output = tf.concat([context_vector, rnn_output], axis=-1)
+    print("Concat context and rnn output")
     print(context_and_rnn_output.shape)
     attention_vector = dec_wc(context_and_rnn_output)
+    print("attention vector output")
     print(attention_vector.shape)
     logits = dec_fc(attention_vector)
-    decoder_model = tf.keras.Model([new_tokens, enc_output, i_dec_h, i_dec_c], [logits, dec_state_h, dec_state_c])
+    decoder_model = tf.keras.Model([new_tokens, enc_output, i_dec_h, i_dec_c], [logits, dec_state_h, dec_state_c, attention_weights])
     encoder_model.save_weights(GEN_ENC_WEIGHTS)
     return encoder_model, decoder_model
 
