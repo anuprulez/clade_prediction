@@ -29,14 +29,14 @@ TRAIN_GEN_ENC_MODEL = "data/generated_files/gen_enc_model"
 TRAIN_GEN_DEC_MODEL = "data/generated_files/gen_dec_model"
 
 
-pretrain_generator_optimizer = tf.keras.optimizers.Adam() # learning_rate=1e-3, beta_1=0.5
+pretrain_generator_optimizer = tf.keras.optimizers.RMSprop() #tf.keras.optimizers.Adam() # learning_rate=1e-3, beta_1=0.5
 generator_optimizer = tf.keras.optimizers.Adam() # learning_rate=1e-3, beta_1=0.5
 discriminator_optimizer = tf.keras.optimizers.Adam() # learning_rate=3e-5, beta_1=0.5
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 n_disc_step = 2
 n_gen_step = 1
 unrolled_steps = 1
-test_log_step = 10
+test_log_step = 5
 
 
 def wasserstein_loss(y_true, y_pred):
@@ -162,7 +162,6 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           #enc_state_h = tf.math.add(enc_state_h, noise)
           #enc_state_c = tf.math.add(enc_state_c, noise)
           dec_state_h, dec_state_c = enc_state_h, enc_state_c
-          print
           gen_logits, gen_decoder, gen_loss = utils.generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state_h, dec_state_c, unrolled_y, True)
           print("Training: true seq:")
           print(unrolled_y)
@@ -170,7 +169,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           variation_score = utils.get_sequence_variation_percentage(gen_logits)
           print("Pretr: generation variation score: {}".format(str(variation_score)))
           print("Pretrain epoch {}/{}, batch {}/{}, gen true loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches), str(gen_loss.numpy())))
-          if step % test_log_step == 0:
+          if step % test_log_step == 0 and step > 0:
               print("Pretr: Prediction on test data...")
               with tf.device('/device:cpu:0'):
                   gen_te_loss, gen_te_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, gen_encoder, gen_decoder)

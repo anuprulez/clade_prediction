@@ -15,7 +15,7 @@ from Levenshtein import distance as lev_dist
 
 PATH_KMER_F_DICT = "data/ncov_global/kmer_f_word_dictionaries.json"
 PATH_KMER_R_DICT = "data/ncov_global/kmer_r_word_dictionaries.json"
-teacher_forcing_ratio = 0.5
+teacher_forcing_ratio = 0.3
 
 cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False, reduction='none')
 
@@ -289,6 +289,7 @@ def generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state_h, de
         new_tokens = real_o[:, t:t+2]
         #i_token, o_token = new_tokens[:, 0:1], new_tokens[:, 1:2]
         dec_result, dec_state_h, dec_state_c = gen_decoder([i_token, dec_state_h, dec_state_c], training=train_gen)
+        #dec_result = dec_result[:, :, 1:]
         if len(real_o) > 0:
             o_token = new_tokens[:, 1:2]
             loss = cross_entropy_loss(o_token, dec_result)

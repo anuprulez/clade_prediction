@@ -24,7 +24,9 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
 
     gen_inputs = tf.keras.Input(shape=(seq_len,))
     gen_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
-    gen_gru = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(enc_units, 
+    gen_gru = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(enc_units,
+                    recurrent_dropout=DROPOUT,
+                    recurrent_initializer='glorot_uniform',
     				return_sequences=True,
     				return_state=True))
     inputs = tf.keras.Input(shape=(seq_len,))
@@ -46,11 +48,13 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     # define layers
     dec_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
     dec_gru = tf.keras.layers.LSTM(2 * enc_units,
+                                   recurrent_dropout=DROPOUT,
+                                   recurrent_initializer='glorot_uniform',
                                    return_sequences=True,
                                    return_state=True)
     #dec_attention = bahdanauAttention.BahdanauAttention(2 * enc_units)
     dec_wc = tf.keras.layers.Dense(2 * enc_units, activation=tf.math.tanh, use_bias=False)
-    dec_fc = tf.keras.layers.Dense(vocab_size, use_bias=True, activation='softmax')
+    dec_fc = tf.keras.layers.Dense(vocab_size, activation='softmax')
 
     vectors = dec_embedding(new_tokens)
     vectors = tf.keras.layers.Dropout(DROPOUT)(vectors)
