@@ -66,7 +66,7 @@ def filter_samples_clades(dataframe):
     return new_df
 
 
-def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, kmer_f_dict, kmer_r_dict, train_size=0.8, edit_threshold=3, random_size=200, replace=False, unrelated=False, s_kmer=3):
+def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, train_size=0.8, edit_threshold=3, random_size=200, replace=False, unrelated=False):
     total_samples = 0
     forward_dict = utils.read_json(PATH_F_DICT)
     rev_dict = utils.read_json(PATH_R_DICT)
@@ -106,9 +106,9 @@ def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, kmer_f_dict
             test_df = u_filtered_x_y.drop(train_df.index)
 
             # convert to original seq and then to Kmers
-            print("Converting to Kmers...")
-            train_df = utils.ordinal_to_kmer(train_df, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, s_kmer)
-            test_df = utils.ordinal_to_kmer(test_df, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, s_kmer)
+            #print("Converting to Kmers...")
+            #train_df = utils.ordinal_to_kmer(train_df, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, s_kmer)
+            #test_df = utils.ordinal_to_kmer(test_df, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, s_kmer)
 
             train_df.to_csv(tr_filename, sep="\t", index=None)
             test_df.to_csv(te_filename, sep="\t", index=None)

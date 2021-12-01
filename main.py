@@ -22,6 +22,8 @@ GALAXY_CLADE_ASSIGNMENT = PATH_PRE + "clade_assignment_2.9_Mil_samples.tabular"
 PATH_SAMPLES_CLADES = PATH_PRE + "sample_clade_sequence_df.csv"
 PATH_F_DICT = PATH_PRE + "f_word_dictionaries.json"
 PATH_R_DICT = PATH_PRE + "r_word_dictionaries.json"
+PATH_KMER_F_DICT = "data/ncov_global/kmer_f_word_dictionaries.json"
+PATH_KMER_R_DICT = "data/ncov_global/kmer_r_word_dictionaries.json"
 PATH_TRAINING_CLADES = "data/train_clade_in_out.json"
 PATH_UNRELATED_CLADES = "data/unrelated_clades.json"
 
@@ -48,9 +50,9 @@ SAVE_TRUE_PRED_SEQ = "data/generated_files/true_predicted_df.csv"
 TR_MUT_INDICES = "data/generated_files/tr_mut_indices.json"
 PRETR_MUT_INDICES = "data/generated_files/pretr_mut_indices.json"
 
-s_kmer = 5
+s_kmer = 3
 LEN_AA = 1274
-len_aa_subseq = 50
+len_aa_subseq = 25
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 2
 # Neural network parameters
@@ -59,12 +61,12 @@ batch_size = 4
 te_batch_size = batch_size
 n_te_batches = 2
 enc_units = 32
-pretrain_epochs = 2
+pretrain_epochs = 10
 epochs = 2
 max_l_dist = 10
 test_train_size = 0.85
 pretrain_train_size = 0.5
-random_clade_size = 200
+random_clade_size = 100
 to_pretrain = True
 pretrained_model = False
 gan_train = False
@@ -80,7 +82,6 @@ def get_samples_clades():
     encoded_sequence_df, forward_dict, rev_dict = preprocess_sequences.preprocess_seq_galaxy_clades(PATH_SEQ, samples_clades, LEN_AA)
     print(encoded_sequence_df)
 
-
 def read_files():
     #to preprocess once, uncomment get_samples_clades
     #get_samples_clades()
@@ -88,7 +89,7 @@ def read_files():
     rev_dict = utils.read_json(PATH_R_DICT)
     encoder = None
     decoder = None
-    kmer_f_dict, kmer_r_dict = utils.get_all_possible_words(amino_acid_codes, s_kmer)
+    #kmer_f_dict, kmer_r_dict = utils.get_all_possible_words(amino_acid_codes, s_kmer)
 
     if pretrained_model is False:
         print("Cleaning up stale folders...")
@@ -101,22 +102,17 @@ def read_files():
         print(clades_in_clades_out)
         unrelated_clades = utils.read_json(PATH_UNRELATED_CLADES)
         print("Generating cross product of real parent child...")
-        preprocess_sequences.make_cross_product(clades_in_clades_out, filtered_dataf, len_aa_subseq, kmer_f_dict, kmer_r_dict, train_size=test_train_size, edit_threshold=max_l_dist, random_size=random_clade_size, s_kmer=s_kmer)
+        preprocess_sequences.make_cross_product(clades_in_clades_out, filtered_dataf, len_aa_subseq, train_size=test_train_size, edit_threshold=max_l_dist, random_size=random_clade_size)
         print("Generating cross product of real sequences but not parent-child...")
-        preprocess_sequences.make_cross_product(unrelated_clades, filtered_dataf, len_aa_subseq, kmer_f_dict, kmer_r_dict, train_size=1.0, edit_threshold=max_l_dist, random_size=random_clade_size, unrelated=True, s_kmer=s_kmer)
+        preprocess_sequences.make_cross_product(unrelated_clades, filtered_dataf, len_aa_subseq, train_size=1.0, edit_threshold=max_l_dist, random_size=random_clade_size, unrelated=True)
     else:
         encoder = tf.keras.models.load_model(PRETRAIN_GEN_ENC_MODEL)
         decoder = tf.keras.models.load_model(PRETRAIN_GEN_DEC_MODEL)
-    start_training(len(kmer_f_dict) + 1, kmer_f_dict, kmer_r_dict, encoder, decoder)
+    start_training(forward_dict, rev_dict, encoder, decoder)
 
 
-def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
-    if gen_encoder is None or gen_decoder is None:
-        encoder, decoder = neural_network.make_generator_model(len_final_aa_padding, vocab_size, embedding_dim, enc_units, batch_size)
-    else:
-        encoder = gen_encoder
-        decoder = gen_decoder
-
+def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
+    
     print("Loading datasets...")
     tr_clade_files = glob.glob('data/train/*.csv')
     te_clade_files = glob.glob('data/test/*.csv')
@@ -164,10 +160,50 @@ def start_training(vocab_size, forward_dict, rev_dict, gen_encoder=None, gen_dec
 
     print("train and test data sizes")
     print(len(combined_X), len(combined_y), len(combined_te_X), len(combined_te_y))
+
+    # convert test and train datasets to kmers
+    kmers_global = list()
+    #print(forward_dict)
+    train_kmers = utils.get_all_kmers(combined_X, combined_y, forward_dict, s_kmer)
+    kmers_global.extend(train_kmers)
+    #print(train_kmers, len(train_kmers), len(kmers_global))
+
+    test_kmers = utils.get_all_kmers(combined_te_X, combined_te_y, forward_dict, s_kmer)
+    kmers_global.extend(test_kmers)
+    #print(test_kmers, len(test_kmers), len(kmers_global))
+
+    kmers_global = list(set(kmers_global))
+
+    vocab_size = len(kmers_global) + 1
+
+    kmer_f_dict = {i + 1: kmers_global[i] for i in range(0, len(kmers_global))}
+    kmer_r_dict = {kmers_global[i]: i + 1  for i in range(0, len(kmers_global))}
+    utils.save_as_json(PATH_KMER_F_DICT, kmer_f_dict)
+    utils.save_as_json(PATH_KMER_R_DICT, kmer_r_dict)
+
+    print(kmer_f_dict, kmer_r_dict)
+
+    combined_X, combined_y = utils.encode_sequences_kmers(forward_dict, kmer_r_dict, combined_X, combined_y, s_kmer)
+    combined_te_X, combined_te_y = utils.encode_sequences_kmers(forward_dict, kmer_r_dict, combined_te_X, combined_te_y, s_kmer)
+
+    '''print(combined_X)
+    print(combined_y)
+    print()
+    print(combined_te_X)
+    print(print(combined_te_y)'''
+    
+    #sys.exit()
+    
     combined_X = np.array(combined_X)
     combined_y = np.array(combined_y)
     test_dataset_in = np.array(combined_te_X)
     test_dataset_out = np.array(combined_te_y)
+
+    if gen_encoder is None or gen_decoder is None:
+        encoder, decoder = neural_network.make_generator_model(len_final_aa_padding, vocab_size, embedding_dim, enc_units, batch_size)
+    else:
+        encoder = gen_encoder
+        decoder = gen_decoder
 
     # divide into pretrain and train
     if to_pretrain is False:

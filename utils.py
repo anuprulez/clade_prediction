@@ -13,8 +13,6 @@ import tensorflow as tf
 from Levenshtein import distance as lev_dist
 
 
-PATH_KMER_F_DICT = "data/ncov_global/kmer_f_word_dictionaries.json"
-PATH_KMER_R_DICT = "data/ncov_global/kmer_r_word_dictionaries.json"
 teacher_forcing_ratio = 0.5
 
 cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False, reduction='none')
@@ -160,6 +158,58 @@ def reconstruct_seq(kmers):
          else:
              reconstructed_seq.append(km)
     return "".join(reconstructed_seq)
+
+
+def encode_sequences_kmers(f_dict, kmer_r_dict, x_seq, y_seq, s_kmer):
+    in_seq = list()
+    out_seq = list()
+    for index, (x, y) in enumerate(zip(x_seq, y_seq)):
+        x = x.split(",")[1:]
+        x_chars = [str(f_dict[i]) for i in x]
+        x_seq = ",".join(x_chars)
+
+        y = y.split(",")[1:]
+        y_chars = [str(f_dict[i]) for i in y]
+        y_seq = ",".join(y_chars)
+
+        x_kmers = make_kmers(x_chars, s_kmer)
+        y_kmers = make_kmers(y_chars, s_kmer)
+        encoded_x = [str(kmer_r_dict[str(i)]) for i in x_kmers]
+        encoded_x = "0," + ",".join(encoded_x)
+        in_seq.append(encoded_x)
+        encoded_y = [str(kmer_r_dict[str(i)]) for i in y_kmers]
+        encoded_y = "0," + ",".join(encoded_y)
+        out_seq.append(encoded_y)
+
+        '''print(x_seq, x_kmers, encoded_x)
+        print()
+        print(y_seq, y_kmers, encoded_y)
+        print("-----------")'''
+    return in_seq, out_seq
+
+
+def get_all_kmers(x_seq, y_seq, f_dict, s_kmer):
+    all_kmers = list()
+    for index, (x, y) in enumerate(zip(x_seq, y_seq)):
+        x = x.split(",")[1:]
+        x_chars = [str(f_dict[i]) for i in x]
+        x_seq = ",".join(x_chars)
+
+        y = y.split(",")[1:]
+        y_chars = [str(f_dict[i]) for i in y]
+        y_seq = ",".join(y_chars)
+
+        x_kmers = make_kmers(x_chars, s_kmer)
+        y_kmers = make_kmers(y_chars, s_kmer)
+        '''print(x_seq, x_kmers)
+        print()
+        print(y_seq, y_kmers)
+        print("---")'''
+        u_x_mers = list(set(x_kmers))
+        u_y_mers = list(set(x_kmers))
+        all_kmers.extend(x_kmers)
+        all_kmers.extend(y_kmers)
+    return list(set(all_kmers))
 
 
 def ordinal_to_kmer(seq_df, f_dict, r_dict, kmer_f_dict, kmer_r_dict, kmer_s=3):
