@@ -163,7 +163,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           #enc_state_c = tf.math.add(enc_state_c, noise)
           dec_state_h, dec_state_c = enc_state_h, enc_state_c
           print
-          gen_logits, gen_decoder, gen_loss = utils.generator_step(seq_len, batch_size, vocab_size, gen_decoder, enc_out, dec_state_h, dec_state_c, unrolled_y, True)
+          gen_logits, gen_decoder, gen_loss = utils.generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state_h, dec_state_c, unrolled_y, True)
           print("Training: true seq:")
           print(unrolled_y)
           # compute generated sequence variation
