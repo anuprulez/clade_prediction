@@ -15,7 +15,7 @@ from Levenshtein import distance as lev_dist
 
 PATH_KMER_F_DICT = "data/ncov_global/kmer_f_word_dictionaries.json"
 PATH_KMER_R_DICT = "data/ncov_global/kmer_r_word_dictionaries.json"
-teacher_forcing_ratio = 0.3
+teacher_forcing_ratio = 0.5
 
 cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False, reduction='none')
 
@@ -259,18 +259,19 @@ def sample_unrelated_x_y(unrelated_X, unrelated_y, batch_size):
 def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, loaded_encoder, loaded_generator):
     avg_test_loss = []
     avg_test_seq_var = []
+    train_mode = False
     for step in range(n_te_batches):
         batch_x_test, batch_y_test = sample_unrelated_x_y(test_dataset_in, test_dataset_out, te_batch_size)
         # generated noise for variation in predicted sequences
         noise = tf.random.normal((te_batch_size, 2 * enc_units))
-        enc_output, enc_state_h, enc_state_c = loaded_encoder(batch_x_test, training=False)
-        #enc_state_h = tf.math.add(enc_state_h, noise)
-        #enc_state_c = tf.math.add(enc_state_c, noise)
+        enc_output, enc_state_h, enc_state_c = loaded_encoder(batch_x_test, training=train_mode)
+        enc_state_h = tf.math.add(enc_state_h, noise)
+        enc_state_c = tf.math.add(enc_state_c, noise)
         dec_state_h, dec_state_c = enc_state_h, enc_state_c
         print("Test: true seq:")
         print(batch_y_test)
         # generate seqs stepwise - teacher forcing
-        generated_logits, _, loss = generated_output_seqs(seq_len, te_batch_size, vocab_size, loaded_generator, dec_state_h, dec_state_c, batch_y_test, False)        
+        generated_logits, _, loss = generated_output_seqs(seq_len, te_batch_size, vocab_size, loaded_generator, dec_state_h, dec_state_c, batch_y_test, train_mode)  
         variation_score = get_sequence_variation_percentage(generated_logits)
         print("Test batch {} variation score: {}".format(str(step+1), str(variation_score)))
         print("Test batch {} true loss: {}".format(str(step+1), str(loss.numpy())))
@@ -289,15 +290,16 @@ def generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state_h, de
         new_tokens = real_o[:, t:t+2]
         #i_token, o_token = new_tokens[:, 0:1], new_tokens[:, 1:2]
         dec_result, dec_state_h, dec_state_c = gen_decoder([i_token, dec_state_h, dec_state_c], training=train_gen)
-        #dec_result = dec_result[:, :, 1:]
         if len(real_o) > 0:
             o_token = new_tokens[:, 1:2]
             loss = cross_entropy_loss(o_token, dec_result)
             step_loss += tf.reduce_mean(loss)
         # randomly select either true output or feed generated output from previous step for forced learning
         if random.random() <= teacher_forcing_ratio:
+            #print("True")
             i_token = o_token
         else:
+            #print("Generated")
             i_token = tf.argmax(dec_result, axis=-1)
         gen_logits.append(dec_result)
     step_loss = step_loss / float(seq_len)

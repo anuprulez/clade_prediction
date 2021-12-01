@@ -14,7 +14,7 @@ import bahdanauAttention
 
 
 GEN_ENC_WEIGHTS = "data/generated_files/generator_encoder_weights.h5"
-DROPOUT = 0.5
+DROPOUT = 0.25
 LEAKY_ALPHA = 0.1
 
 
