@@ -95,7 +95,7 @@ def transform_noise(noise):
 
 
 def get_all_possible_words(vocab, kmer_size=3):
-    all_com = [''.join(c) for c in product(vocab, repeat=3)]
+    all_com = [''.join(c) for c in product(vocab, repeat=kmer_size)]
     kmer_f_dict = {i + 1: all_com[i] for i in range(0, len(all_com))}
     kmer_r_dict = {all_com[i]: i + 1  for i in range(0, len(all_com))}
     save_as_json(PATH_KMER_F_DICT, kmer_f_dict)

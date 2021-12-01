@@ -48,9 +48,9 @@ SAVE_TRUE_PRED_SEQ = "data/generated_files/true_predicted_df.csv"
 TR_MUT_INDICES = "data/generated_files/tr_mut_indices.json"
 PRETR_MUT_INDICES = "data/generated_files/pretr_mut_indices.json"
 
-s_kmer = 3
+s_kmer = 5
 LEN_AA = 1274
-len_aa_subseq = 300
+len_aa_subseq = 50
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 2
 # Neural network parameters
@@ -64,7 +64,7 @@ epochs = 2
 max_l_dist = 10
 test_train_size = 0.85
 pretrain_train_size = 0.5
-random_clade_size = 100
+random_clade_size = 200
 to_pretrain = True
 pretrained_model = False
 gan_train = False
@@ -88,7 +88,7 @@ def read_files():
     rev_dict = utils.read_json(PATH_R_DICT)
     encoder = None
     decoder = None
-    kmer_f_dict, kmer_r_dict = utils.get_all_possible_words(amino_acid_codes)
+    kmer_f_dict, kmer_r_dict = utils.get_all_possible_words(amino_acid_codes, s_kmer)
 
     if pretrained_model is False:
         print("Cleaning up stale folders...")
