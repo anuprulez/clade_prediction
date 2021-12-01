@@ -263,8 +263,8 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
         # generated noise for variation in predicted sequences
         noise = tf.random.normal((te_batch_size, 2 * enc_units))
         enc_output, enc_state_h, enc_state_c = loaded_encoder(batch_x_test, training=False)
-        enc_state_h = tf.math.add(enc_state_h, noise)
-        enc_state_c = tf.math.add(enc_state_c, noise)
+        #enc_state_h = tf.math.add(enc_state_h, noise)
+        #enc_state_c = tf.math.add(enc_state_c, noise)
         dec_state_h, dec_state_c = enc_state_h, enc_state_c
         print("Test: true seq:")
         print(batch_y_test)
@@ -288,13 +288,18 @@ def generator_step(seq_len, batch_size, vocab_size, gen_decoder, enc_out, dec_st
         new_tokens = real_o[:, t:t+2]
         #i_token, o_token = new_tokens[:, 0:1], new_tokens[:, 1:2]
         dec_result, dec_state_h, dec_state_c, a_weights = gen_decoder([i_token, enc_out, dec_state_h, dec_state_c], training=train_gen)
-        
         if len(real_o) > 0:
             o_token = new_tokens[:, 1:2]
             loss = cross_entropy_loss(o_token, dec_result)
             step_loss += tf.reduce_mean(loss)
         gen_logits.append(dec_result)
-        i_token = tf.argmax(dec_result, axis=-1)
+        '''if t % 5 == 0:
+            #print(t, "i_token reference")
+            i_token = o_token #new_tokens[:, 0:1]
+        else:
+            #print(t, "i_token predicted")
+            i_token = tf.argmax(dec_result, axis=-1)'''
+        i_token = o_token
     step_loss = step_loss / float(seq_len)
     pred_logits = tf.concat(gen_logits, axis=-2)
     return pred_logits, gen_decoder, step_loss
