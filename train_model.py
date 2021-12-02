@@ -36,7 +36,7 @@ cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 n_disc_step = 2
 n_gen_step = 1
 unrolled_steps = 1
-test_log_step = 5
+test_log_step = 10
 
 
 def wasserstein_loss(y_true, y_pred):

@@ -14,7 +14,7 @@ import bahdanauAttention
 
 
 GEN_ENC_WEIGHTS = "data/generated_files/generator_encoder_weights.h5"
-DROPOUT = 0.25
+DROPOUT = 0.5
 LEAKY_ALPHA = 0.1
 
 
@@ -29,7 +29,8 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
                     recurrent_initializer='glorot_uniform',
     				return_sequences=True,
     				return_state=True))
-    inputs = tf.keras.Input(shape=(seq_len,))
+    gau_noise = tf.keras.layers.GaussianNoise(1.0)
+
     # create model
     embed = gen_embedding(gen_inputs)
     embed = tf.keras.layers.Dropout(DROPOUT)(embed)
@@ -37,6 +38,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
 
     state_h = tf.keras.layers.Concatenate()([f_h, b_h])
     state_c = tf.keras.layers.Concatenate()([f_c, b_c])
+
     encoder_model = tf.keras.Model([gen_inputs], [enc_output, state_h, state_c])
 
 
@@ -55,20 +57,22 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     #dec_attention = bahdanauAttention.BahdanauAttention(2 * enc_units)
     dec_wc = tf.keras.layers.Dense(2 * enc_units, activation=tf.math.tanh, use_bias=False)
     dec_fc = tf.keras.layers.Dense(vocab_size, activation='softmax')
+    dec_gau_noise = tf.keras.layers.GaussianNoise(1.0)
 
     vectors = dec_embedding(new_tokens)
     vectors = tf.keras.layers.Dropout(DROPOUT)(vectors)
 
     rnn_output, dec_state_h, dec_state_c = dec_gru(vectors, initial_state=[i_dec_h, i_dec_c])
     rnn_output = tf.keras.layers.Dropout(DROPOUT)(rnn_output)
-
+    rnn_output = tf.keras.layers.BatchNormalization()(rnn_output)
     # apply attention
+    # attention_weights = []
     #context_vector, attention_weights = dec_attention(query=rnn_output, value=enc_output, mask=[])
     #context_and_rnn_output = tf.concat([context_vector, rnn_output], axis=-1)
     #attention_vector = dec_wc(context_and_rnn_output)
     #logits = dec_fc(attention_vector)
     # decoder_model = tf.keras.Model([new_tokens, enc_output, i_dec_h, i_dec_c], [logits, dec_state_h, dec_state_c, attention_weights])
-    attention_weights = []
+    
     logits = dec_fc(rnn_output)
     decoder_model = tf.keras.Model([new_tokens, i_dec_h, i_dec_c], [logits, dec_state_h, dec_state_c])
     encoder_model.save_weights(GEN_ENC_WEIGHTS)

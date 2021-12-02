@@ -13,7 +13,7 @@ import tensorflow as tf
 from Levenshtein import distance as lev_dist
 
 
-teacher_forcing_ratio = 0.5
+teacher_forcing_ratio = 0.25
 
 cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False, reduction='none')
 

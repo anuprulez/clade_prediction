@@ -50,9 +50,27 @@ SAVE_TRUE_PRED_SEQ = "data/generated_files/true_predicted_df.csv"
 TR_MUT_INDICES = "data/generated_files/tr_mut_indices.json"
 PRETR_MUT_INDICES = "data/generated_files/pretr_mut_indices.json"
 
+
+'''
+Best run
+
 s_kmer = 3
 LEN_AA = 1274
 len_aa_subseq = 50
+#len_final_aa_padding = len_aa_subseq + 1
+len_final_aa_padding = len_aa_subseq - s_kmer + 2
+# Neural network parameters
+embedding_dim = 32
+batch_size = 4
+te_batch_size = batch_size
+n_te_batches = 2
+enc_units = 128
+
+'''
+
+s_kmer = 3
+LEN_AA = 1274
+len_aa_subseq = 25
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 2
 # Neural network parameters
