@@ -15,7 +15,7 @@ import bahdanauAttention
 
 GEN_ENC_WEIGHTS = "data/generated_files/generator_encoder_weights.h5"
 ENC_DROPOUT = 0.05
-DEC_DROPOUT = 0.1
+DEC_DROPOUT = 0.2
 LEAKY_ALPHA = 0.1
 
 
@@ -30,7 +30,6 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
                     recurrent_initializer='glorot_uniform',
     				return_sequences=True,
     				return_state=True))
-    gau_noise = tf.keras.layers.GaussianNoise(1.0)
 
     # create model
     embed = gen_embedding(gen_inputs)
