@@ -70,7 +70,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     rnn_output = tf.keras.layers.Dropout(DEC_DROPOUT)(rnn_output)
     #dec_state_h = tf.keras.layers.Dropout(DEC_DROPOUT)(dec_state_h)
     #dec_state_c = tf.keras.layers.Dropout(DEC_DROPOUT)(dec_state_c)
-  
+    rnn_output = tf.keras.layers.LayerNormalization()(rnn_output)
     #rnn_output = tf.keras.layers.BatchNormalization()(rnn_output)
     #rnn_output = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(rnn_output)
 
