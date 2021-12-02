@@ -14,7 +14,7 @@ import bahdanauAttention
 
 
 GEN_ENC_WEIGHTS = "data/generated_files/generator_encoder_weights.h5"
-ENC_DROPOUT = 0.05
+ENC_DROPOUT = 0.1
 DEC_DROPOUT = 0.2
 LEAKY_ALPHA = 0.1
 
@@ -35,12 +35,13 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     embed = gen_embedding(gen_inputs)
     embed = tf.keras.layers.Dropout(ENC_DROPOUT)(embed)
     embed = tf.keras.layers.BatchNormalization()(embed)
-    embed = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(embed)
+    #embed = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(embed)
 
     enc_output, f_h, f_c, b_h, b_c = gen_gru(embed)
     state_h = tf.keras.layers.Concatenate()([f_h, b_h])
+    state_h = tf.keras.layers.Dropout(ENC_DROPOUT)(state_h)
     state_c = tf.keras.layers.Concatenate()([f_c, b_c])
-
+    state_c = tf.keras.layers.Dropout(ENC_DROPOUT)(state_c)
     encoder_model = tf.keras.Model([gen_inputs], [enc_output, state_h, state_c])
 
 
@@ -62,13 +63,16 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
 
     vectors = dec_embedding(new_tokens)
     vectors = tf.keras.layers.Dropout(DEC_DROPOUT)(vectors)
-    vectors = tf.keras.layers.BatchNormalization()(vectors)
-    vectors = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(vectors)
+    #vectors = tf.keras.layers.BatchNormalization()(vectors)
+    #vectors = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(vectors)
 
     rnn_output, dec_state_h, dec_state_c = dec_gru(vectors, initial_state=[i_dec_h, i_dec_c])
     rnn_output = tf.keras.layers.Dropout(DEC_DROPOUT)(rnn_output)
-    rnn_output = tf.keras.layers.BatchNormalization()(rnn_output)
-    rnn_output = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(rnn_output)
+    #dec_state_h = tf.keras.layers.Dropout(DEC_DROPOUT)(dec_state_h)
+    #dec_state_c = tf.keras.layers.Dropout(DEC_DROPOUT)(dec_state_c)
+  
+    #rnn_output = tf.keras.layers.BatchNormalization()(rnn_output)
+    #rnn_output = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(rnn_output)
 
     # apply attention
     # attention_weights = []
