@@ -164,19 +164,23 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           enc_state_c = tf.math.add(enc_state_c, noise)
           dec_state_h, dec_state_c = enc_state_h, enc_state_c
           gen_logits, gen_decoder, gen_loss = utils.generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state_h, dec_state_c, unrolled_y, True)
-          print("Training: true seq:")
-          print(unrolled_y)
+          '''print("Training: true output seq")
+          #print(unrolled_x)
+          #print()
+          print(unrolled_y)'''
           # compute generated sequence variation
           variation_score = utils.get_sequence_variation_percentage(gen_logits)
           print("Pretr: generation variation score: {}".format(str(variation_score)))
           epo_tr_seq_var.append(variation_score)
           print("Pretrain epoch {}/{}, batch {}/{}, gen true loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches), str(gen_loss.numpy())))
-          if step % test_log_step == 0 and step > 0:
-              print("Pretr: Prediction on test data...")
+          if (step + 1) % test_log_step == 0 and step > 0:
+              print("-------")
+              print("Pretr: Prediction on test data at epoch {}/{}, batch {}/{}...".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches)))
               #with tf.device('/device:cpu:0'):
               gen_te_loss, gen_te_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, gen_encoder, gen_decoder)
               epo_te_gen_loss.append(gen_te_loss)
               epo_te_seq_var.append(gen_te_seq_var)
+              print("-------")
           print()
           epo_avg_tr_gen_loss.append(gen_loss)
       gen_trainable_vars = gen_encoder.trainable_variables + gen_decoder.trainable_variables

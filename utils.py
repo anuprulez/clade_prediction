@@ -173,18 +173,15 @@ def encode_sequences_kmers(f_dict, kmer_r_dict, x_seq, y_seq, s_kmer):
         y_seq = ",".join(y_chars)
 
         x_kmers = make_kmers(x_chars, s_kmer)
-        y_kmers = make_kmers(y_chars, s_kmer)
         encoded_x = [str(kmer_r_dict[str(i)]) for i in x_kmers]
         encoded_x = "0," + ",".join(encoded_x)
         in_seq.append(encoded_x)
+   
+        y_kmers = make_kmers(y_chars, s_kmer)
         encoded_y = [str(kmer_r_dict[str(i)]) for i in y_kmers]
         encoded_y = "0," + ",".join(encoded_y)
         out_seq.append(encoded_y)
 
-        '''print(x_seq, x_kmers, encoded_x)
-        print()
-        print(y_seq, y_kmers, encoded_y)
-        print("-----------")'''
     return in_seq, out_seq
 
 
@@ -201,18 +198,17 @@ def get_all_kmers(x_seq, y_seq, f_dict, s_kmer):
 
         x_kmers = make_kmers(x_chars, s_kmer)
         y_kmers = make_kmers(y_chars, s_kmer)
-        '''print(x_seq, x_kmers)
-        print()
-        print(y_seq, y_kmers)
-        print("---")'''
+
         u_x_mers = list(set(x_kmers))
-        u_y_mers = list(set(x_kmers))
-        all_kmers.extend(x_kmers)
-        all_kmers.extend(y_kmers)
+        u_y_mers = list(set(y_kmers))
+
+        all_kmers.extend(u_x_mers)
+        all_kmers.extend(u_y_mers)
+
     return list(set(all_kmers))
 
 
-def ordinal_to_kmer(seq_df, f_dict, r_dict, kmer_f_dict, kmer_r_dict, kmer_s=3):
+'''def ordinal_to_kmer(seq_df, f_dict, r_dict, kmer_f_dict, kmer_r_dict, kmer_s=3):
     in_seq = list()
     out_seq = list()
     for index, (x, y) in seq_df.iterrows():
@@ -234,7 +230,6 @@ def ordinal_to_kmer(seq_df, f_dict, r_dict, kmer_f_dict, kmer_r_dict, kmer_s=3):
         encoded_y = "0," + ",".join(encoded_y)
         out_seq.append(encoded_y)
 
-        '''
         # reconstruct seq from predicted kmers
         enc_x = encoded_x.split(",")[1:]
         print(enc_x)
@@ -244,9 +239,9 @@ def ordinal_to_kmer(seq_df, f_dict, r_dict, kmer_f_dict, kmer_r_dict, kmer_s=3):
         orig_x = reconstruct_seq(enc_x)
         print()
         print(orig_x, len(orig_x))
-        '''
+        
     enc_df = pd.DataFrame(list(zip(in_seq, out_seq)), columns=seq_df.columns)
-    return enc_df
+    return enc_df'''
         
 
 def read_wuhan_seq(wu_path, rev_dict):
@@ -318,8 +313,10 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
         enc_state_h = tf.math.add(enc_state_h, noise)
         enc_state_c = tf.math.add(enc_state_c, noise)
         dec_state_h, dec_state_c = enc_state_h, enc_state_c
-        print("Test: true seq:")
-        print(batch_y_test)
+        '''print("Test: true output seq:")
+        print(batch_x_test)'''
+        #print()
+        #print(batch_y_test)
         # generate seqs stepwise - teacher forcing
         generated_logits, _, loss = generated_output_seqs(seq_len, te_batch_size, vocab_size, loaded_generator, dec_state_h, dec_state_c, batch_y_test, train_mode)  
         variation_score = get_sequence_variation_percentage(generated_logits)

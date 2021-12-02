@@ -14,7 +14,8 @@ import bahdanauAttention
 
 
 GEN_ENC_WEIGHTS = "data/generated_files/generator_encoder_weights.h5"
-DROPOUT = 0.5
+ENC_DROPOUT = 0.1
+DEC_DROPOUT = 0.2
 LEAKY_ALPHA = 0.1
 
 
@@ -25,7 +26,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     gen_inputs = tf.keras.Input(shape=(seq_len,))
     gen_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
     gen_gru = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(enc_units,
-                    recurrent_dropout=DROPOUT,
+                    recurrent_dropout=ENC_DROPOUT,
                     recurrent_initializer='glorot_uniform',
     				return_sequences=True,
     				return_state=True))
@@ -33,7 +34,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
 
     # create model
     embed = gen_embedding(gen_inputs)
-    embed = tf.keras.layers.Dropout(DROPOUT)(embed)
+    embed = tf.keras.layers.Dropout(ENC_DROPOUT)(embed)
     enc_output, f_h, f_c, b_h, b_c = gen_gru(embed)
 
     state_h = tf.keras.layers.Concatenate()([f_h, b_h])
@@ -50,19 +51,19 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     # define layers
     dec_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
     dec_gru = tf.keras.layers.LSTM(2 * enc_units,
-                                   recurrent_dropout=DROPOUT,
+                                   recurrent_dropout=DEC_DROPOUT,
                                    recurrent_initializer='glorot_uniform',
                                    return_sequences=True,
                                    return_state=True)
     #dec_attention = bahdanauAttention.BahdanauAttention(2 * enc_units)
-    dec_wc = tf.keras.layers.Dense(2 * enc_units, activation=tf.math.tanh, use_bias=False)
+    #dec_wc = tf.keras.layers.Dense(2 * enc_units, activation=tf.math.tanh, use_bias=False)
     dec_fc = tf.keras.layers.Dense(vocab_size, activation='relu')
 
     vectors = dec_embedding(new_tokens)
-    vectors = tf.keras.layers.Dropout(DROPOUT)(vectors)
+    vectors = tf.keras.layers.Dropout(DEC_DROPOUT)(vectors)
 
     rnn_output, dec_state_h, dec_state_c = dec_gru(vectors, initial_state=[i_dec_h, i_dec_c])
-    rnn_output = tf.keras.layers.Dropout(DROPOUT)(rnn_output)
+    rnn_output = tf.keras.layers.Dropout(DEC_DROPOUT)(rnn_output)
     #rnn_output = tf.keras.layers.BatchNormalization()(rnn_output)
 
     # apply attention
