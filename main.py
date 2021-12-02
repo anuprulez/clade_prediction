@@ -52,21 +52,21 @@ PRETR_MUT_INDICES = "data/generated_files/pretr_mut_indices.json"
 
 s_kmer = 3
 LEN_AA = 1274
-len_aa_subseq = 25
+len_aa_subseq = 300
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 2
 # Neural network parameters
-embedding_dim = 32
+embedding_dim = 128
 batch_size = 4
 te_batch_size = batch_size
 n_te_batches = 2
-enc_units = 32
+enc_units = 128
 pretrain_epochs = 10
 epochs = 2
 max_l_dist = 10
 test_train_size = 0.85
 pretrain_train_size = 0.5
-random_clade_size = 100
+random_clade_size = 200
 to_pretrain = True
 pretrained_model = False
 gan_train = False
@@ -112,7 +112,7 @@ def read_files():
 
 
 def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
-    
+    start_time = time.time()
     print("Loading datasets...")
     tr_clade_files = glob.glob('data/train/*.csv')
     te_clade_files = glob.glob('data/test/*.csv')
@@ -166,11 +166,9 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     #print(forward_dict)
     train_kmers = utils.get_all_kmers(combined_X, combined_y, forward_dict, s_kmer)
     kmers_global.extend(train_kmers)
-    #print(train_kmers, len(train_kmers), len(kmers_global))
 
     test_kmers = utils.get_all_kmers(combined_te_X, combined_te_y, forward_dict, s_kmer)
     kmers_global.extend(test_kmers)
-    #print(test_kmers, len(test_kmers), len(kmers_global))
 
     kmers_global = list(set(kmers_global))
 
@@ -181,7 +179,8 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     utils.save_as_json(PATH_KMER_F_DICT, kmer_f_dict)
     utils.save_as_json(PATH_KMER_R_DICT, kmer_r_dict)
 
-    print(kmer_f_dict, kmer_r_dict)
+    print("Number of kmers: {}".format(str(len(kmer_f_dict))))
+    #sys.exit()
 
     combined_X, combined_y = utils.encode_sequences_kmers(forward_dict, kmer_r_dict, combined_X, combined_y, s_kmer)
     combined_te_X, combined_te_y = utils.encode_sequences_kmers(forward_dict, kmer_r_dict, combined_te_X, combined_te_y, s_kmer)
@@ -232,6 +231,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
         pretrain_gen_test_loss = list()
 
         pretrain_gen_test_seq_var = list()
+        pretrain_gen_train_seq_var = list()
         pretrain_gen_batch_test_loss = list()
         pretrain_gen_batch_test_seq_var = list()
 
@@ -244,11 +244,12 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
         print("Num of pretrain batches: {}".format(str(n_pretrain_batches)))
         for i in range(pretrain_epochs):
             print("Pre training epoch {}/{}...".format(str(i+1), str(pretrain_epochs)))
-            pretrain_gen_tr_loss, bat_te_gen_loss, bat_te_seq_var, encoder, decoder = train_model.pretrain_generator([X_pretrain, y_pretrain, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches], i, encoder, decoder, enc_units, vocab_size, n_pretrain_batches, batch_size, pretr_parent_child_mut_indices, pretrain_epochs)
+            pretrain_gen_tr_loss, bat_te_gen_loss, bat_te_seq_var, bat_tr_seq_var, encoder, decoder = train_model.pretrain_generator([X_pretrain, y_pretrain, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches], i, encoder, decoder, enc_units, vocab_size, n_pretrain_batches, batch_size, pretr_parent_child_mut_indices, pretrain_epochs)
             print("Pre training loss at epoch {}/{}: Generator loss: {}".format(str(i+1), str(pretrain_epochs), str(pretrain_gen_tr_loss)))
             pretrain_gen_train_loss.append(pretrain_gen_tr_loss)
             pretrain_gen_batch_test_loss.append(bat_te_gen_loss)
             pretrain_gen_batch_test_seq_var.append(bat_te_seq_var)
+            pretrain_gen_train_seq_var.append(bat_tr_seq_var)
             print()
             print("Pretrain: predicting on test datasets...")
             with tf.device('/device:cpu:0'):
@@ -262,10 +263,13 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
         np.savetxt("data/generated_files/pretrain_gen_test_seq_var.txt", pretrain_gen_test_seq_var)
         np.savetxt("data/generated_files/pretrain_gen_batch_test_loss.txt", pretrain_gen_batch_test_loss)
         np.savetxt("data/generated_files/pretrain_gen_batch_test_seq_var.txt", pretrain_gen_batch_test_seq_var)
+        np.savetxt("data/generated_files/pretrain_gen_batch_train_seq_var.txt", pretrain_gen_train_seq_var)
         print("Pre-training finished")
         print()
 
-    
+        end_time = time.time()
+        print("Pretraining finished in {} seconds".format(str(np.round(end_time - start_time, 2))))
+
     if gan_train is False:
         sys.exit()
     # GAN training
@@ -330,10 +334,9 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     np.savetxt("data/generated_files/train_gen_batch_test_loss.txt", train_gen_batch_test_loss)
     np.savetxt("data/generated_files/train_gen_batch_test_seq_var.txt", train_gen_batch_test_seq_var)
     np.savetxt("data/generated_files/train_gen_test_seq_var.txt", train_gen_test_seq_var)
+    end_time = time.time()
+    print("Program finished in {} seconds".format(str(np.round(end_time - start_time, 2))))
 
 
 if __name__ == "__main__":
-    start_time = time.time()
     read_files()
-    end_time = time.time()
-    print("Program finished in {} seconds".format(str(np.round(end_time - start_time, 2))))

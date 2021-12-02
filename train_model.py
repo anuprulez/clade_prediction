@@ -29,7 +29,7 @@ TRAIN_GEN_ENC_MODEL = "data/generated_files/gen_enc_model"
 TRAIN_GEN_DEC_MODEL = "data/generated_files/gen_dec_model"
 
 
-pretrain_generator_optimizer = tf.keras.optimizers.Adamax() #tf.keras.optimizers.Adam() # learning_rate=1e-3, beta_1=0.5
+pretrain_generator_optimizer = tf.keras.optimizers.Adamax(0.01) #tf.keras.optimizers.Adam() # learning_rate=1e-3, beta_1=0.5
 generator_optimizer = tf.keras.optimizers.Adam() # learning_rate=1e-3, beta_1=0.5
 discriminator_optimizer = tf.keras.optimizers.Adam() # learning_rate=3e-5, beta_1=0.5
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
@@ -151,6 +151,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
   X_train, y_train, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches = inputs
   epo_avg_tr_gen_loss = list()
   epo_te_gen_loss = list()
+  epo_tr_seq_var = list()
   epo_te_seq_var = list()
   batch_mut_distribution = dict()
   for step in range(n_batches):
@@ -168,6 +169,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           # compute generated sequence variation
           variation_score = utils.get_sequence_variation_percentage(gen_logits)
           print("Pretr: generation variation score: {}".format(str(variation_score)))
+          epo_tr_seq_var.append(variation_score)
           print("Pretrain epoch {}/{}, batch {}/{}, gen true loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches), str(gen_loss.numpy())))
           if step % test_log_step == 0 and step > 0:
               print("Pretr: Prediction on test data...")
@@ -187,7 +189,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
   gen_encoder.save_weights(PRE_TR_GEN_ENC_WEIGHTS)
   gen_decoder.save_weights(PRE_TR_GEN_DEC_WEIGHTS)
   utils.save_as_json("data/generated_files/pretr_ave_batch_x_y_mut_epo_{}.json".format(str(epo_step)), batch_mut_distribution)
-  return np.mean(epo_avg_tr_gen_loss), np.mean(epo_te_gen_loss), np.mean(epo_te_seq_var), gen_encoder, gen_decoder
+  return np.mean(epo_avg_tr_gen_loss), np.mean(epo_te_gen_loss), np.mean(epo_te_seq_var), np.mean(epo_tr_seq_var), gen_encoder, gen_decoder
 
 
 def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, enc_units, vocab_size, n_train_batches, batch_size, parent_child_mut_indices, epochs):
