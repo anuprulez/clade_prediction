@@ -285,8 +285,8 @@ def convert_to_string_list(l):
 
 def get_sequence_variation_percentage(logits):
     seq_tokens = tf.math.argmax(logits, axis=-1)
-    print("Gen seqs:")
-    print(seq_tokens)
+    #print("Gen seqs:")
+    #print(seq_tokens)
     l_seq_tokens = convert_to_string_list(seq_tokens)
     df_seqs = pd.DataFrame(l_seq_tokens, columns=["Sequences"])
     u_df_seqs = df_seqs.drop_duplicates()
