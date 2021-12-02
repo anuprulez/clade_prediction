@@ -126,7 +126,7 @@ def g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, u
 
 
 def sample_true_x_y(mut_indices, batch_size, X_train, y_train, batch_mut_distribution):
-    mut_keys = list(mut_indices.keys())
+    '''mut_keys = list(mut_indices.keys())
     rand_mut_keys = np.array(choices(mut_keys, k=batch_size))
     x_batch_train = list()
     y_batch_train = list()
@@ -134,9 +134,9 @@ def sample_true_x_y(mut_indices, batch_size, X_train, y_train, batch_mut_distrib
     for key in rand_mut_keys:
         list_mut_rows = mut_indices[key]
         rand_row_index = np.random.randint(0, len(list_mut_rows), 1)[0]
-        rand_batch_indices.append(list_mut_rows[rand_row_index])
+        rand_batch_indices.append(list_mut_rows[rand_row_index])'''
 
-    #rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)
+    rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)
     x_batch_train = X_train[rand_batch_indices]
     y_batch_train = y_train[rand_batch_indices]
 

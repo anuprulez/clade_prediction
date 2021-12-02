@@ -74,8 +74,8 @@ len_aa_subseq = 30
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 2
 # Neural network parameters
-embedding_dim = 4
-batch_size = 4
+embedding_dim = 64
+batch_size = 16
 te_batch_size = batch_size
 n_te_batches = 2
 enc_units = 64
