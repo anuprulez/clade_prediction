@@ -70,11 +70,11 @@ enc_units = 128
 
 s_kmer = 3
 LEN_AA = 1274
-len_aa_subseq = 25
+len_aa_subseq = 30
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 2
 # Neural network parameters
-embedding_dim = 64
+embedding_dim = 4
 batch_size = 4
 te_batch_size = batch_size
 n_te_batches = 2
