@@ -252,10 +252,10 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
             pretrain_gen_train_seq_var.append(bat_tr_seq_var)
             print()
             print("Pretrain: predicting on test datasets...")
-            with tf.device('/device:cpu:0'):
-                pretrain_gen_te_loss, pretrain_gen_te_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, len_final_aa_padding, vocab_size, enc_units, encoder, decoder)
-                pretrain_gen_test_loss.append(pretrain_gen_te_loss)
-                pretrain_gen_test_seq_var.append(pretrain_gen_te_seq_var)
+            #with tf.device('/device:cpu:0'):
+            pretrain_gen_te_loss, pretrain_gen_te_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, len_final_aa_padding, vocab_size, enc_units, encoder, decoder)
+            pretrain_gen_test_loss.append(pretrain_gen_te_loss)
+            pretrain_gen_test_seq_var.append(pretrain_gen_te_seq_var)
             print("Pre-training epoch {} finished".format(str(i+1)))
             print()
         np.savetxt(PRETRAIN_GEN_LOSS, pretrain_gen_train_loss)
