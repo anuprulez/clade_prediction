@@ -15,7 +15,7 @@ from Levenshtein import distance as lev_dist
 
 teacher_forcing_ratio = 0.5
 
-cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False, reduction='none')
+cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 
 
 def make_kmers(seq, size):
@@ -430,17 +430,20 @@ def save_batch(batch_x, batch_y, batch_mut_distribution):
 
 
 def get_mutation_tr_indices(train_in, train_out, f_dict, r_dict):
+    print(f_dict)
+    print()
+    print(r_dict)
     parent_child_mut_indices = dict()
     for index, (x, y) in enumerate(zip(train_in, train_out)):
-        true_x = x.split(",")
-        true_y = y.split(",")
+        true_x = x.split(",")[1:]
+        true_y = y.split(",")[1:]
 
         for i in range(len(true_x)):
             first = true_x[i:i+1]
             sec = true_y[i:i+1]
 
-            first_aa = [f_dict[j] for j in first]
-            sec_aa = [f_dict[j] for j in sec]
+            first_aa = [f_dict[int(j)] for j in first]
+            sec_aa = [f_dict[int(j)] for j in sec]
         
             first_mut = first_aa[0]
             second_mut = sec_aa[0]

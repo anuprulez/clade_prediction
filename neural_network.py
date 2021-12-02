@@ -14,7 +14,7 @@ import bahdanauAttention
 
 
 GEN_ENC_WEIGHTS = "data/generated_files/generator_encoder_weights.h5"
-DROPOUT = 0.25
+DROPOUT = 0.5
 LEAKY_ALPHA = 0.1
 
 
@@ -56,15 +56,15 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
                                    return_state=True)
     #dec_attention = bahdanauAttention.BahdanauAttention(2 * enc_units)
     dec_wc = tf.keras.layers.Dense(2 * enc_units, activation=tf.math.tanh, use_bias=False)
-    dec_fc = tf.keras.layers.Dense(vocab_size, activation='softmax')
-    dec_gau_noise = tf.keras.layers.GaussianNoise(1.0)
+    dec_fc = tf.keras.layers.Dense(vocab_size, activation='relu')
 
     vectors = dec_embedding(new_tokens)
     vectors = tf.keras.layers.Dropout(DROPOUT)(vectors)
 
     rnn_output, dec_state_h, dec_state_c = dec_gru(vectors, initial_state=[i_dec_h, i_dec_c])
     rnn_output = tf.keras.layers.Dropout(DROPOUT)(rnn_output)
-    rnn_output = tf.keras.layers.BatchNormalization()(rnn_output)
+    #rnn_output = tf.keras.layers.BatchNormalization()(rnn_output)
+
     # apply attention
     # attention_weights = []
     #context_vector, attention_weights = dec_attention(query=rnn_output, value=enc_output, mask=[])
