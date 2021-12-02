@@ -324,6 +324,7 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
         print("Test batch {} true loss: {}".format(str(step+1), str(loss.numpy())))
         avg_test_loss.append(loss)
         avg_test_seq_var.append(variation_score)
+    print()
     print("Total test seq variation in {} batches: {}".format(str(n_te_batches), str(np.mean(avg_test_seq_var))))
     print("Total test loss in {} batches: {}".format(str(n_te_batches), str(np.mean(avg_test_loss))))
     return np.mean(avg_test_loss), np.mean(avg_test_seq_var)
@@ -427,9 +428,6 @@ def save_batch(batch_x, batch_y, batch_mut_distribution):
 
 
 def get_mutation_tr_indices(train_in, train_out, f_dict, r_dict):
-    print(f_dict)
-    print()
-    print(r_dict)
     parent_child_mut_indices = dict()
     for index, (x, y) in enumerate(zip(train_in, train_out)):
         true_x = x.split(",")[1:]

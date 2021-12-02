@@ -74,14 +74,14 @@ len_aa_subseq = 25
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 2
 # Neural network parameters
-embedding_dim = 32
+embedding_dim = 64
 batch_size = 4
 te_batch_size = batch_size
 n_te_batches = 2
-enc_units = 32
+enc_units = 64
 pretrain_epochs = 10
 epochs = 2
-max_l_dist = 3
+max_l_dist = 10
 test_train_size = 0.85
 pretrain_train_size = 0.5
 random_clade_size = 200
