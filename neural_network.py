@@ -50,13 +50,14 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     #enc_output = tf.keras.Input(shape=(seq_len, 2 * enc_units))
     i_dec_h = tf.keras.Input(shape=(2 * enc_units,))
     i_dec_c = tf.keras.Input(shape=(2 * enc_units,))
-    new_tokens = tf.keras.Input(shape=(seq_len,))
+    new_tokens = tf.keras.Input(batch_shape=(batch_size, 1))
     # define layers
     dec_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
     dec_gru = tf.keras.layers.LSTM(2 * enc_units,
                                    recurrent_dropout=DEC_DROPOUT,
                                    recurrent_initializer='glorot_uniform',
                                    return_sequences=True,
+                                   stateful=True,
                                    return_state=True)
     #dec_attention = bahdanauAttention.BahdanauAttention(2 * enc_units)
     #dec_wc = tf.keras.layers.Dense(2 * enc_units, activation=tf.math.tanh, use_bias=False)

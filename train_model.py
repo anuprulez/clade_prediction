@@ -36,7 +36,7 @@ cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 n_disc_step = 2
 n_gen_step = 1
 unrolled_steps = 1
-test_log_step = 10
+test_log_step = 5
 
 
 
@@ -171,6 +171,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           enc_state_c = tf.math.add(enc_state_c, noise)
           dec_state_h, dec_state_c = enc_state_h, enc_state_c
           gen_logits, gen_decoder, gen_loss = utils.generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state_h, dec_state_c, unrolled_y, True)
+          gen_decoder.reset_states()
           '''print("Training: true output seq")
           #print(unrolled_x)
           #print()
@@ -194,6 +195,8 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
       gen_trainable_vars = gen_encoder.trainable_variables + gen_decoder.trainable_variables
       gradients_of_generator = gen_tape.gradient(gen_loss, gen_trainable_vars)
       pretrain_generator_optimizer.apply_gradients(zip(gradients_of_generator, gen_trainable_vars))
+      #gen_encoder.reset_states()
+      #gen_decoder.reset_states()
   # save model
   gen_encoder.save_weights(GEN_ENC_WEIGHTS)
   tf.keras.models.save_model(gen_encoder, PRETRAIN_GEN_ENC_MODEL)

@@ -283,7 +283,7 @@ def convert_to_string_list(l):
     return l
 
 
-def stateful_encoding(size_stateful, inputs, enc, training=True):
+def stateful_encoding(size_stateful, inputs, enc, training=False):
     stateful_batches = list()
     n_stateful_batches = int(inputs.shape[1]/float(size_stateful))
     for i in range(n_stateful_batches):
@@ -319,7 +319,7 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
         # generated noise for variation in predicted sequences
         noise = tf.random.normal((te_batch_size, 2 * enc_units))
         #enc_output, enc_state_h, enc_state_c = loaded_encoder(batch_x_test, training=train_mode)
-        enc_out, enc_state_h, enc_state_c = stateful_encoding(s_stateful, batch_x_test, loaded_encoder, train_mode)
+        enc_out, enc_state_h, enc_state_c = stateful_encoding(s_stateful, batch_x_test, loaded_encoder, False)
         loaded_encoder.reset_states()
         enc_state_h = tf.math.add(enc_state_h, noise)
         enc_state_c = tf.math.add(enc_state_c, noise)
@@ -382,6 +382,7 @@ def generated_output_seqs(seq_len, batch_size, vocab_size, gen_decoder, dec_stat
         i_token = tf.argmax(dec_result, axis=-1)
     step_loss = step_loss / float(seq_len)
     pred_logits = tf.concat(gen_logits, axis=-2)
+    gen_decoder.reset_states()
     return pred_logits, gen_decoder, step_loss
 
 
