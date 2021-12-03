@@ -19,16 +19,17 @@ DEC_DROPOUT = 0.4
 LEAKY_ALPHA = 0.1
 
 
+
 def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_size):
     # Create encoder model for Generator
     # define layers
-
-    gen_inputs = tf.keras.Input(shape=(seq_len,))
+    gen_inputs = tf.keras.Input(batch_shape=(batch_size, int(seq_len / 3)))
     gen_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
     gen_gru = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(enc_units,
                     recurrent_dropout=ENC_DROPOUT,
                     recurrent_initializer='glorot_uniform',
     				return_sequences=True,
+                    stateful=True,
     				return_state=True))
 
     # create model

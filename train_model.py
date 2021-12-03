@@ -39,6 +39,7 @@ unrolled_steps = 1
 test_log_step = 10
 
 
+
 def wasserstein_loss(y_true, y_pred):
     return tf.math.reduce_mean(tf.math.multiply(y_true, y_pred))
 
@@ -147,7 +148,9 @@ def sample_true_x_y(mut_indices, batch_size, X_train, y_train, batch_mut_distrib
     return unrolled_x, unrolled_y, batch_mut_distribution
 
 
-def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vocab_size, n_batches, batch_size, pretr_parent_child_mut_indices, epochs):
+
+
+def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vocab_size, n_batches, batch_size, pretr_parent_child_mut_indices, epochs, size_stateful):
   X_train, y_train, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches = inputs
   epo_avg_tr_gen_loss = list()
   epo_te_gen_loss = list()
@@ -159,7 +162,11 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
       seq_len = unrolled_x.shape[1]
       with tf.GradientTape() as gen_tape:
           noise = tf.random.normal((batch_size, 2 * enc_units))
-          enc_out, enc_state_h, enc_state_c = gen_encoder(unrolled_x, training=True)
+          #enc_out, enc_state_h, enc_state_c = gen_encoder(unrolled_x, training=True)
+
+          # stateful encoding
+          enc_out, enc_state_h, enc_state_c = utils.stateful_encoding(size_stateful, unrolled_x, gen_encoder, True)
+          gen_encoder.reset_states()
           enc_state_h = tf.math.add(enc_state_h, noise)
           enc_state_c = tf.math.add(enc_state_c, noise)
           dec_state_h, dec_state_c = enc_state_h, enc_state_c
@@ -176,8 +183,9 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           if (step + 1) % test_log_step == 0 and step > 0:
               print("-------")
               print("Pretr: Prediction on test data at epoch {}/{}, batch {}/{}...".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches)))
+              print()
               #with tf.device('/device:cpu:0'):
-              gen_te_loss, gen_te_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, gen_encoder, gen_decoder)
+              gen_te_loss, gen_te_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, gen_encoder, gen_decoder, size_stateful)
               epo_te_gen_loss.append(gen_te_loss)
               epo_te_seq_var.append(gen_te_seq_var)
               print("-------")

@@ -70,9 +70,10 @@ enc_units = 128
 
 s_kmer = 3
 LEN_AA = 1274
-len_aa_subseq = 30
+len_aa_subseq = 31
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 2
+size_stateful = 10
 # Neural network parameters
 embedding_dim = 32
 batch_size = 32
@@ -262,7 +263,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
         print("Num of pretrain batches: {}".format(str(n_pretrain_batches)))
         for i in range(pretrain_epochs):
             print("Pre training epoch {}/{}...".format(str(i+1), str(pretrain_epochs)))
-            pretrain_gen_tr_loss, bat_te_gen_loss, bat_te_seq_var, bat_tr_seq_var, encoder, decoder = train_model.pretrain_generator([X_pretrain, y_pretrain, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches], i, encoder, decoder, enc_units, vocab_size, n_pretrain_batches, batch_size, pretr_parent_child_mut_indices, pretrain_epochs)
+            pretrain_gen_tr_loss, bat_te_gen_loss, bat_te_seq_var, bat_tr_seq_var, encoder, decoder = train_model.pretrain_generator([X_pretrain, y_pretrain, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches], i, encoder, decoder, enc_units, vocab_size, n_pretrain_batches, batch_size, pretr_parent_child_mut_indices, pretrain_epochs, size_stateful)
             print("Pre training loss at epoch {}/{}: Generator loss: {}".format(str(i+1), str(pretrain_epochs), str(pretrain_gen_tr_loss)))
             pretrain_gen_train_loss.append(pretrain_gen_tr_loss)
             pretrain_gen_batch_test_loss.append(bat_te_gen_loss)
@@ -271,7 +272,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
             print()
             print("Pretrain: predicting on test datasets...")
             #with tf.device('/device:cpu:0'):
-            pretrain_gen_te_loss, pretrain_gen_te_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, len_final_aa_padding, vocab_size, enc_units, encoder, decoder)
+            pretrain_gen_te_loss, pretrain_gen_te_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, len_final_aa_padding, vocab_size, enc_units, encoder, decoder, size_stateful)
             pretrain_gen_test_loss.append(pretrain_gen_te_loss)
             pretrain_gen_test_seq_var.append(pretrain_gen_te_seq_var)
             print("Pre-training epoch {} finished".format(str(i+1)))

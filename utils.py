@@ -283,6 +283,15 @@ def convert_to_string_list(l):
     return l
 
 
+def stateful_encoding(size_stateful, inputs, enc, training=True):
+    stateful_batches = list()
+    n_stateful_batches = int(inputs.shape[1]/float(size_stateful))
+    for i in range(n_stateful_batches):
+        s_batch = inputs[:, i*size_stateful: (i+1)*size_stateful]
+        enc_out, enc_state_h, enc_state_c = enc(s_batch, training=training)
+    return enc_out, enc_state_h, enc_state_c
+
+
 def get_sequence_variation_percentage(logits):
     seq_tokens = tf.math.argmax(logits, axis=-1)
     #print("Gen seqs:")
@@ -301,7 +310,7 @@ def sample_unrelated_x_y(unrelated_X, unrelated_y, batch_size):
     return convert_to_array(un_X), convert_to_array(un_y)
 
 
-def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, loaded_encoder, loaded_generator):
+def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, loaded_encoder, loaded_generator, s_stateful):
     avg_test_loss = []
     avg_test_seq_var = []
     train_mode = False
@@ -309,7 +318,8 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
         batch_x_test, batch_y_test = sample_unrelated_x_y(test_dataset_in, test_dataset_out, te_batch_size)
         # generated noise for variation in predicted sequences
         noise = tf.random.normal((te_batch_size, 2 * enc_units))
-        enc_output, enc_state_h, enc_state_c = loaded_encoder(batch_x_test, training=train_mode)
+        #enc_output, enc_state_h, enc_state_c = loaded_encoder(batch_x_test, training=train_mode)
+        enc_out, enc_state_h, enc_state_c = stateful_encoding(s_stateful, batch_x_test, loaded_encoder, train_mode)
         enc_state_h = tf.math.add(enc_state_h, noise)
         enc_state_c = tf.math.add(enc_state_c, noise)
         dec_state_h, dec_state_c = enc_state_h, enc_state_c
