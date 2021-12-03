@@ -320,6 +320,7 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
         noise = tf.random.normal((te_batch_size, 2 * enc_units))
         #enc_output, enc_state_h, enc_state_c = loaded_encoder(batch_x_test, training=train_mode)
         enc_out, enc_state_h, enc_state_c = stateful_encoding(s_stateful, batch_x_test, loaded_encoder, train_mode)
+        loaded_encoder.reset_states()
         enc_state_h = tf.math.add(enc_state_h, noise)
         enc_state_c = tf.math.add(enc_state_c, noise)
         dec_state_h, dec_state_c = enc_state_h, enc_state_c

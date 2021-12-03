@@ -20,10 +20,10 @@ LEAKY_ALPHA = 0.1
 
 
 
-def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_size):
+def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_size, s_stateful):
     # Create encoder model for Generator
     # define layers
-    gen_inputs = tf.keras.Input(batch_shape=(batch_size, int(seq_len / 3)))
+    gen_inputs = tf.keras.Input(batch_shape=(batch_size, s_stateful))
     gen_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
     gen_gru = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(enc_units,
                     recurrent_dropout=ENC_DROPOUT,

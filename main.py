@@ -85,7 +85,7 @@ epochs = 2
 max_l_dist = 11
 test_train_size = 0.85
 pretrain_train_size = 0.5
-random_clade_size = 400
+random_clade_size = 200
 to_pretrain = True
 pretrained_model = False
 gan_train = False
@@ -218,7 +218,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     test_dataset_out = np.array(combined_te_y)
 
     if gen_encoder is None or gen_decoder is None:
-        encoder, decoder = neural_network.make_generator_model(len_final_aa_padding, vocab_size, embedding_dim, enc_units, batch_size)
+        encoder, decoder = neural_network.make_generator_model(len_final_aa_padding, vocab_size, embedding_dim, enc_units, batch_size, size_stateful)
     else:
         encoder = gen_encoder
         decoder = gen_decoder
