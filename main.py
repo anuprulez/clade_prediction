@@ -15,6 +15,7 @@ import utils
 import neural_network
 import train_model
 import encoder_decoder
+import encoder_decoder_attention
 
 
 PATH_PRE = "data/ncov_global/"
@@ -73,15 +74,15 @@ s_kmer = 3
 LEN_AA = 1274
 len_aa_subseq = 31
 #len_final_aa_padding = len_aa_subseq + 1
-len_final_aa_padding = len_aa_subseq - s_kmer + 3
+len_final_aa_padding = len_aa_subseq - s_kmer + 2
 size_stateful = 5
 # Neural network parameters
 embedding_dim = 32
-batch_size = 4
+batch_size = 32
 te_batch_size = batch_size
 n_te_batches = 5
 enc_units = 32
-pretrain_epochs = 5
+pretrain_epochs = 20
 epochs = 2
 max_l_dist = 11
 test_train_size = 0.85
@@ -198,9 +199,9 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     utils.save_as_json(PATH_KMER_R_DICT, kmer_r_dict)
 
     kmer_f_dict[0] = "<start>"
-    kmer_f_dict[len(kmers_global)+1] = "<end>"
+    #kmer_f_dict[len(kmers_global)+1] = "<end>"
     kmer_r_dict["<start>"] = 0
-    kmer_r_dict["<end>"] = len(kmers_global)+1
+    #kmer_r_dict["<end>"] = len(kmers_global)+1
 
     print(kmer_f_dict, len(kmer_f_dict))
     print()
@@ -209,7 +210,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     #sys.exit()
     vocab_size = len(kmer_f_dict) + 1
 
-    print("Number of kmers: {}".format(str(len(kmer_f_dict) - 2)))
+    print("Number of kmers: {}".format(str(len(kmer_f_dict) - 1)))
     print("Vocab size: {}".format(str(len(kmer_f_dict) + 1)))
 
     combined_X, combined_y = utils.encode_sequences_kmers(forward_dict, kmer_r_dict, combined_X, combined_y, s_kmer)
@@ -223,9 +224,11 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     if gen_encoder is None or gen_decoder is None:
         #encoder, decoder = neural_network.make_generator_model(len_final_aa_padding, vocab_size, embedding_dim, enc_units, batch_size, size_stateful)
 
-        encoder = encoder_decoder.Encoder(vocab_size, embedding_dim, enc_units, batch_size)
-        decoder = encoder_decoder.Decoder(vocab_size, embedding_dim, enc_units, batch_size, 'luong')
+        #encoder = encoder_decoder.Encoder(vocab_size, embedding_dim, enc_units, batch_size)
+        #decoder = encoder_decoder.Decoder(vocab_size, embedding_dim, enc_units, batch_size, 'luong')
 
+        encoder = encoder_decoder_attention.Encoder(vocab_size, embedding_dim, enc_units)
+        decoder = encoder_decoder_attention.Decoder(vocab_size, embedding_dim, enc_units)
         print(encoder, decoder)
 
     else:
@@ -275,7 +278,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
         for i in range(pretrain_epochs):
             print("Pre training epoch {}/{}...".format(str(i+1), str(pretrain_epochs)))
             pretrain_gen_tr_loss, bat_te_gen_loss, bat_te_seq_var, bat_tr_seq_var, encoder, decoder = train_model.pretrain_generator([X_pretrain, y_pretrain, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches], i, encoder, decoder, enc_units, vocab_size, n_pretrain_batches, batch_size, pretr_parent_child_mut_indices, pretrain_epochs, size_stateful)
-            print("Pre training loss at epoch {}/{}: Generator loss: {}".format(str(i+1), str(pretrain_epochs), str(pretrain_gen_tr_loss)))
+            print("Pre training loss at epoch {}/{}: Generator loss: {}, variation score: {}".format(str(i+1), str(pretrain_epochs), str(pretrain_gen_tr_loss), str(np.mean(bat_tr_seq_var))))
             pretrain_gen_train_loss.append(pretrain_gen_tr_loss)
             pretrain_gen_batch_test_loss.append(bat_te_gen_loss)
             pretrain_gen_batch_test_seq_var.append(bat_te_seq_var)

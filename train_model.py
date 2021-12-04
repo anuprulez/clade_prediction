@@ -11,6 +11,8 @@ import tensorflow as tf
 import h5py
 import copy
 
+import encoder_decoder_attention
+
 import utils
 
 
@@ -38,7 +40,7 @@ n_gen_step = 1
 unrolled_steps = 1
 test_log_step = 5
 
-
+m_loss = encoder_decoder_attention.MaskedLoss()
 
 def wasserstein_loss(y_true, y_pred):
     return tf.math.reduce_mean(tf.math.multiply(y_true, y_pred))
@@ -148,6 +150,27 @@ def sample_true_x_y(mut_indices, batch_size, X_train, y_train, batch_mut_distrib
     return unrolled_x, unrolled_y, batch_mut_distribution
 
 
+def _loop_step(new_tokens, input_mask, enc_output, dec_state, gen_decoder):
+  input_token, target_token = new_tokens[:, 0:1], new_tokens[:, 1:2]
+
+  # Run the decoder one step.
+  decoder_input = encoder_decoder_attention.DecoderInput(new_tokens=input_token,
+                               enc_output=enc_output,
+                               mask=input_mask)
+
+  dec_result, dec_state = gen_decoder(decoder_input, state=dec_state)
+  #self.shape_checker(dec_result.logits, ('batch', 't1', 'logits'))
+  #self.shape_checker(dec_result.attention_weights, ('batch', 't1', 's'))
+  #self.shape_checker(dec_state, ('batch', 'dec_units'))
+
+  # `self.loss` returns the total for non-padded tokens
+  y = target_token
+  y_pred = dec_result.logits
+  
+  step_loss = m_loss(y, y_pred)
+
+  return step_loss, dec_state, y_pred
+
 
 
 def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vocab_size, n_batches, batch_size, pretr_parent_child_mut_indices, epochs, size_stateful):
@@ -158,25 +181,47 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
   epo_te_seq_var = list()
   batch_mut_distribution = dict()
   for step in range(n_batches):
+      loss = tf.constant(0.0)
       unrolled_x, unrolled_y, batch_mut_distribution = sample_true_x_y(pretr_parent_child_mut_indices, batch_size, X_train, y_train, batch_mut_distribution)
       seq_len = unrolled_x.shape[1]
       with tf.GradientTape() as gen_tape:
-          noise = tf.random.normal((batch_size, enc_units))
+
+          enc_output, enc_state = gen_encoder(unrolled_x)
+          dec_state = enc_state
+          input_mask = unrolled_x != 0
+          target_mask = unrolled_y != 0
+          gen_logits = list()
+          for t in tf.range(seq_len-1):
+              # Pass in two tokens from the target sequence:
+              # 1. The current input to the decoder.
+              # 2. The target for the decoder's next prediction.
+              new_tokens = unrolled_y[:, t:t+2]
+              step_loss, dec_state, dec_logits = _loop_step(new_tokens, input_mask, enc_output, dec_state, gen_decoder)
+              gen_logits.append(dec_logits)
+              loss = loss + step_loss
+          pred_logits = tf.concat(gen_logits, axis=-2)
+          gen_loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
+          #noise = tf.random.normal((batch_size, enc_units))
  
-          enc_hidden = gen_encoder.initialize_hidden_state()
+          '''enc_hidden = gen_encoder.initialize_hidden_state()
           enc_output, enc_h, enc_c = gen_encoder(unrolled_x, enc_hidden)
+
+          enc_h = tf.math.add(enc_h, tf.random.normal((batch_size, enc_units)))
+          enc_c = tf.math.add(enc_c, tf.random.normal((batch_size, enc_units)))
 
           gen_decoder.attention_mechanism.setup_memory(enc_output)
           decoder_initial_state = gen_decoder.build_initial_state(batch_size, [enc_h, enc_c], tf.float32)
           pred = gen_decoder(unrolled_y, decoder_initial_state)
           
           gen_logits = pred.rnn_output
-          gen_loss = utils.loss_function(unrolled_y, gen_logits)
+          gen_loss = utils.loss_function(unrolled_y, gen_logits)'''
 
-          print("Training: true output seq")
+ 
+
+          '''print("Training: true output seq")
           print(unrolled_y)
           print()
-          print(tf.argmax(gen_logits, axis=-1))
+          print(tf.argmax(gen_logits, axis=-1))'''
 
           #enc_out, enc_state_h, enc_state_c = gen_encoder(unrolled_x, training=True)
 
@@ -193,7 +238,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           #print()
           print(unrolled_y)'''
           # compute generated sequence variation
-          variation_score = utils.get_sequence_variation_percentage(gen_logits)
+          variation_score = utils.get_sequence_variation_percentage(pred_logits)
           print("Pretr: generation variation score: {}".format(str(variation_score)))
           #gen_loss = gen_loss / float(variation_score)
           epo_tr_seq_var.append(variation_score)
@@ -203,7 +248,8 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
               print("Pretr: Prediction on test data at epoch {}/{}, batch {}/{}...".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches)))
               print()
               #with tf.device('/device:cpu:0'):
-              gen_te_loss, gen_te_seq_var = utils.evaluate_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, gen_encoder, gen_decoder)
+              gen_te_loss, gen_te_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, gen_encoder, gen_decoder, size_stateful)
+              #utils.evaluate_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, gen_encoder, gen_decoder)
               #utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, gen_encoder, gen_decoder, size_stateful)
               epo_te_gen_loss.append(gen_te_loss)
               epo_te_seq_var.append(gen_te_seq_var)
@@ -214,11 +260,11 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
       gradients_of_generator = gen_tape.gradient(gen_loss, gen_trainable_vars)
       pretrain_generator_optimizer.apply_gradients(zip(gradients_of_generator, gen_trainable_vars))
   # save model
-  gen_encoder.save_weights(GEN_ENC_WEIGHTS)
-  tf.keras.models.save_model(gen_encoder, PRETRAIN_GEN_ENC_MODEL)
-  tf.keras.models.save_model(gen_decoder, PRETRAIN_GEN_DEC_MODEL)
-  gen_encoder.save_weights(PRE_TR_GEN_ENC_WEIGHTS)
-  gen_decoder.save_weights(PRE_TR_GEN_DEC_WEIGHTS)
+  #gen_encoder.save_weights(GEN_ENC_WEIGHTS)
+  #tf.keras.models.save_model(gen_encoder, PRETRAIN_GEN_ENC_MODEL)
+  #tf.keras.models.save_model(gen_decoder, PRETRAIN_GEN_DEC_MODEL)
+  #gen_encoder.save_weights(PRE_TR_GEN_ENC_WEIGHTS)
+  #gen_decoder.save_weights(PRE_TR_GEN_DEC_WEIGHTS)
   utils.save_as_json("data/generated_files/pretr_ave_batch_x_y_mut_epo_{}.json".format(str(epo_step)), batch_mut_distribution)
   return np.mean(epo_avg_tr_gen_loss), np.mean(epo_te_gen_loss), np.mean(epo_te_seq_var), np.mean(epo_tr_seq_var), gen_encoder, gen_decoder
 
