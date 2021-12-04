@@ -5,6 +5,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import pandas as pd
 import numpy as np
+import random
 from random import choices
 import logging
 import tensorflow as tf
@@ -39,6 +40,7 @@ n_disc_step = 2
 n_gen_step = 1
 unrolled_steps = 1
 test_log_step = 10
+teacher_forcing_ratio = 0.5
 
 m_loss = encoder_decoder_attention.MaskedLoss()
 
@@ -150,8 +152,8 @@ def sample_true_x_y(mut_indices, batch_size, X_train, y_train, batch_mut_distrib
     return unrolled_x, unrolled_y, batch_mut_distribution
 
 
-def _loop_step(new_tokens, input_mask, enc_output, dec_state, gen_decoder):
-  input_token, target_token = new_tokens[:, 0:1], new_tokens[:, 1:2]
+def _loop_step(input_token, target_token, input_mask, enc_output, dec_state, gen_decoder):
+  #input_token, target_token = new_tokens[:, 0:1], new_tokens[:, 1:2]
 
   # Run the decoder one step.
   decoder_input = encoder_decoder_attention.DecoderInput(new_tokens=input_token,
@@ -192,16 +194,20 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           input_mask = unrolled_x != 0
           target_mask = unrolled_y != 0
           gen_logits = list()
+          i_tokens = tf.fill([batch_size, 1], 0)
           for t in tf.range(seq_len-1):
-              # Pass in two tokens from the target sequence:
-              # 1. The current input to the decoder.
-              # 2. The target for the decoder's next prediction.
-              new_tokens = unrolled_y[:, t:t+2]
-              step_loss, dec_state, dec_logits = _loop_step(new_tokens, input_mask, enc_output, dec_state, gen_decoder)
+              o_tokens = unrolled_y[:, t+1:t+2]
+              step_loss, dec_state, dec_logits = _loop_step(i_tokens, o_tokens, input_mask, enc_output, dec_state, gen_decoder)
+              if random.random() <= teacher_forcing_ratio:
+                  i_tokens = o_tokens
+              else:
+                  i_tokens = tf.argmax(dec_logits, axis=-1)
               gen_logits.append(dec_logits)
               loss = loss + step_loss
+
           pred_logits = tf.concat(gen_logits, axis=-2)
           gen_loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
+
           #noise = tf.random.normal((batch_size, enc_units))
  
           '''enc_hidden = gen_encoder.initialize_hidden_state()
