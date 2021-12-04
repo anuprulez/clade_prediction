@@ -13,8 +13,8 @@ import tensorflow_addons as tfa
 import preprocess_sequences
 import bahdanauAttention
 
-max_length_input = 30
-max_length_output = 30
+max_length_input = 31
+max_length_output = 31
 
 GEN_ENC_WEIGHTS = "data/generated_files/generator_encoder_weights.h5"
 

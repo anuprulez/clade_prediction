@@ -174,9 +174,9 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           gen_loss = utils.loss_function(unrolled_y, gen_logits)
 
           print("Training: true output seq")
-          #print(unrolled_x)
-          #print()
           print(unrolled_y)
+          print()
+          print(tf.argmax(gen_logits, axis=-1))
 
           #enc_out, enc_state_h, enc_state_c = gen_encoder(unrolled_x, training=True)
 

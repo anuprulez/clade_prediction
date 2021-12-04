@@ -187,14 +187,18 @@ def encode_sequences_kmers(f_dict, kmer_r_dict, x_seq, y_seq, s_kmer):
 
         x_kmers = make_kmers(x_chars, s_kmer)
         encoded_x = [str(kmer_r_dict[str(i)]) for i in x_kmers]
-        encoded_x = "0," + ",".join(encoded_x) #+ "," + str(len(kmer_r_dict) + 1)
+        encoded_x = "0," + ",".join(encoded_x) + "," + str(len(kmer_r_dict) - 1)
         in_seq.append(encoded_x)
    
         y_kmers = make_kmers(y_chars, s_kmer)
         encoded_y = [str(kmer_r_dict[str(i)]) for i in y_kmers]
-        encoded_y = "0," + ",".join(encoded_y) #+ "," + str(len(kmer_r_dict) + 1)
+        encoded_y = "0," + ",".join(encoded_y) + "," + str(len(kmer_r_dict) - 1)
         out_seq.append(encoded_y)
 
+        #print(encoded_x)
+        #print(encoded_y)
+        #import sys
+        #sys.exit()
     return in_seq, out_seq
 
 
@@ -342,22 +346,27 @@ def evaluate_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_bat
 
         greedy_sampler = tfa.seq2seq.GreedyEmbeddingSampler()
 
+        print(greedy_sampler)
+
         # Instantiate BasicDecoder object
         decoder_instance = tfa.seq2seq.BasicDecoder(cell=loaded_decoder.rnn_cell, sampler=greedy_sampler, output_layer=loaded_decoder.fc)
+
+        print(decoder_instance)
         # Setup Memory in decoder stack
         loaded_decoder.attention_mechanism.setup_memory(enc_out)
 
         # set decoder_initial_state
         decoder_initial_state = loaded_decoder.build_initial_state(te_batch_size, [enc_h, enc_c], tf.float32)
 
-
+        print(decoder_initial_state)
         ### Since the BasicDecoder wraps around Decoder's rnn cell only, you have to ensure that the inputs to BasicDecoder 
         ### decoding step is output of embedding layer. tfa.seq2seq.GreedyEmbeddingSampler() takes care of this. 
         ### You only need to get the weights of embedding layer, which can be done by decoder.embedding.variables[0] and pass this callabble to BasicDecoder's call() function
 
         decoder_embedding_matrix = loaded_decoder.embedding.variables[0]
+        print(decoder_embedding_matrix.shape)
 
-        outputs, _, _ = decoder_instance(decoder_embedding_matrix, start_tokens = start_tokens, end_token=vocab_size+1, initial_state=decoder_initial_state)
+        outputs, _, _ = decoder_instance(decoder_embedding_matrix, start_tokens = start_tokens, end_token=vocab_size-2, initial_state=decoder_initial_state)
         print(outputs, dir(outputs))
 
         '''loaded_decoder.attention_mechanism.setup_memory(enc_out)

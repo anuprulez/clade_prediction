@@ -73,7 +73,7 @@ s_kmer = 3
 LEN_AA = 1274
 len_aa_subseq = 31
 #len_final_aa_padding = len_aa_subseq + 1
-len_final_aa_padding = len_aa_subseq - s_kmer + 2
+len_final_aa_padding = len_aa_subseq - s_kmer + 3
 size_stateful = 5
 # Neural network parameters
 embedding_dim = 32
@@ -192,14 +192,25 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
 
     kmers_global = list(set(kmers_global))
 
-    vocab_size = len(kmers_global) + 1
-
     kmer_f_dict = {i + 1: kmers_global[i] for i in range(0, len(kmers_global))}
     kmer_r_dict = {kmers_global[i]: i + 1  for i in range(0, len(kmers_global))}
     utils.save_as_json(PATH_KMER_F_DICT, kmer_f_dict)
     utils.save_as_json(PATH_KMER_R_DICT, kmer_r_dict)
 
-    print("Number of kmers: {}".format(str(len(kmer_f_dict))))
+    kmer_f_dict[0] = "<start>"
+    kmer_f_dict[len(kmers_global)+1] = "<end>"
+    kmer_r_dict["<start>"] = 0
+    kmer_r_dict["<end>"] = len(kmers_global)+1
+
+    print(kmer_f_dict, len(kmer_f_dict))
+    print()
+    print(print(kmer_r_dict, len(kmer_r_dict)))
+
+    #sys.exit()
+    vocab_size = len(kmer_f_dict) + 1
+
+    print("Number of kmers: {}".format(str(len(kmer_f_dict) - 2)))
+    print("Vocab size: {}".format(str(len(kmer_f_dict) + 1)))
 
     combined_X, combined_y = utils.encode_sequences_kmers(forward_dict, kmer_r_dict, combined_X, combined_y, s_kmer)
     combined_te_X, combined_te_y = utils.encode_sequences_kmers(forward_dict, kmer_r_dict, combined_te_X, combined_te_y, s_kmer)
