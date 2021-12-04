@@ -187,6 +187,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
       with tf.GradientTape() as gen_tape:
 
           enc_output, enc_state = gen_encoder(unrolled_x)
+          enc_state = tf.math.add(enc_state, tf.random.normal((batch_size, enc_units)))
           dec_state = enc_state
           input_mask = unrolled_x != 0
           target_mask = unrolled_y != 0
@@ -240,7 +241,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           # compute generated sequence variation
           variation_score = utils.get_sequence_variation_percentage(pred_logits)
           print("Pretr: generation variation score: {}".format(str(variation_score)))
-          #gen_loss = gen_loss / float(variation_score)
+          gen_loss = gen_loss / float(variation_score)
           epo_tr_seq_var.append(variation_score)
           print("Pretrain epoch {}/{}, batch {}/{}, gen true loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches), str(gen_loss.numpy())))
           if (step + 1) % test_log_step == 0 and step > 0:

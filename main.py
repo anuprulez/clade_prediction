@@ -81,13 +81,13 @@ embedding_dim = 32
 batch_size = 32
 te_batch_size = batch_size
 n_te_batches = 5
-enc_units = 32
+enc_units = 128
 pretrain_epochs = 20
 epochs = 2
 max_l_dist = 11
 test_train_size = 0.85
 pretrain_train_size = 0.01
-random_clade_size = 200
+random_clade_size = 1000
 to_pretrain = True
 pretrained_model = False
 gan_train = False
@@ -284,13 +284,13 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
             pretrain_gen_batch_test_seq_var.append(bat_te_seq_var)
             pretrain_gen_train_seq_var.append(bat_tr_seq_var)
             print()
-            '''print("Pretrain: predicting on test datasets...")
+            print("Pretrain: predicting on test datasets...")
             #with tf.device('/device:cpu:0'):
             pretrain_gen_te_loss, pretrain_gen_te_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, len_final_aa_padding, vocab_size, enc_units, encoder, decoder, size_stateful)
             pretrain_gen_test_loss.append(pretrain_gen_te_loss)
             pretrain_gen_test_seq_var.append(pretrain_gen_te_seq_var)
             print("Pre-training epoch {} finished".format(str(i+1)))
-            print()'''
+            print()
         np.savetxt(PRETRAIN_GEN_LOSS, pretrain_gen_train_loss)
         np.savetxt(PRETRAIN_GEN_TEST_LOSS, pretrain_gen_test_loss)
         np.savetxt("data/generated_files/pretrain_gen_test_seq_var.txt", pretrain_gen_test_seq_var)
