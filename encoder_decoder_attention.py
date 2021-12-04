@@ -16,8 +16,8 @@ import preprocess_sequences
 import bahdanauAttention
 
 
-ENC_DROPOUT = 0.2
-DEC_DROPOUT = 0.2
+ENC_DROPOUT = 0.4
+DEC_DROPOUT = 0.4
 
 
 class MaskedLoss(tf.keras.losses.Loss):
@@ -190,7 +190,7 @@ def call(self,
   # Step 4. Eqn. (3): Join the context_vector and rnn_output
   #     [ct; ht] shape: (batch t, value_units + query_units)
   context_and_rnn_output = tf.concat([context_vector, rnn_output], axis=-1)
-  context_and_rnn_output = tf.keras.layers.Dropout(context_and_rnn_output)(context_vector)
+  context_and_rnn_output = tf.keras.layers.Dropout(ENC_DROPOUT)(context_and_rnn_output)
   # Step 4. Eqn. (3): `at = tanh(Wc@[ct; ht])`
   attention_vector = self.Wc(context_and_rnn_output)
   #shape_checker(attention_vector, ('batch', 't', 'dec_units'))
