@@ -15,8 +15,9 @@ import bahdanauAttention
 
 GEN_ENC_WEIGHTS = "data/generated_files/generator_encoder_weights.h5"
 ENC_DROPOUT = 0.2
-DEC_DROPOUT = 0.4
-LEAKY_ALPHA = 0.1
+DEC_DROPOUT = 0.2
+RECURR_DROPOUT = 0.25
+LEAKY_ALPHA = 0.3
 
 
 
@@ -26,8 +27,9 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     gen_inputs = tf.keras.Input(batch_shape=(batch_size, s_stateful))
     gen_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
     gen_gru = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(enc_units,
-                    recurrent_dropout=ENC_DROPOUT,
-                    recurrent_initializer='glorot_uniform',
+                    #recurrent_dropout=RECURR_DROPOUT,
+                    #activation="relu",
+                    #recurrent_initializer='glorot_uniform',
     				return_sequences=True,
                     stateful=True,
     				return_state=True))
@@ -39,30 +41,31 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     #embed = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(embed)
 
     enc_output, f_h, f_c, b_h, b_c = gen_gru(embed)
-    state_h = tf.keras.layers.Concatenate()([f_h, b_h])
+    state_h = tf.keras.layers.Add()([f_h, b_h])
     state_h = tf.keras.layers.Dropout(ENC_DROPOUT)(state_h)
-    
-    state_c = tf.keras.layers.Concatenate()([f_c, b_c])
-    state_c = tf.keras.layers.Dropout(ENC_DROPOUT)(state_c)
-    encoder_model = tf.keras.Model([gen_inputs], [enc_output, state_h, state_c])
 
+    state_c = tf.keras.layers.Add()([f_c, b_c])
+    state_c = tf.keras.layers.Dropout(ENC_DROPOUT)(state_c)
+
+    encoder_model = tf.keras.Model([gen_inputs], [enc_output, state_h, state_c])
 
     # Create decoder for Generator
     #enc_output = tf.keras.Input(shape=(seq_len, 2 * enc_units))
-    i_dec_h = tf.keras.Input(shape=(2 * enc_units,))
-    i_dec_c = tf.keras.Input(shape=(2 * enc_units,))
+    i_dec_h = tf.keras.Input(shape=(enc_units,))
+    i_dec_c = tf.keras.Input(shape=(enc_units,))
     new_tokens = tf.keras.Input(batch_shape=(batch_size, 1))
     # define layers
     dec_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
-    dec_gru = tf.keras.layers.LSTM(2 * enc_units,
-                                   recurrent_dropout=DEC_DROPOUT,
-                                   recurrent_initializer='glorot_uniform',
+    dec_gru = tf.keras.layers.LSTM(enc_units,
+                                   #recurrent_dropout=RECURR_DROPOUT,
+                                   #activation="relu",
+                                   #recurrent_initializer='glorot_uniform',
                                    return_sequences=True,
                                    stateful=True,
                                    return_state=True)
     #dec_attention = bahdanauAttention.BahdanauAttention(2 * enc_units)
     #dec_wc = tf.keras.layers.Dense(2 * enc_units, activation=tf.math.tanh, use_bias=False)
-    dec_fc = tf.keras.layers.Dense(vocab_size, activation='relu')
+    dec_fc = tf.keras.layers.Dense(vocab_size, activation='softmax')
 
     vectors = dec_embedding(new_tokens)
     vectors = tf.keras.layers.Dropout(DEC_DROPOUT)(vectors)
@@ -74,7 +77,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     dec_state_h = tf.keras.layers.Dropout(DEC_DROPOUT)(dec_state_h)
     dec_state_c = tf.keras.layers.Dropout(DEC_DROPOUT)(dec_state_c)
     rnn_output = tf.keras.layers.BatchNormalization()(rnn_output)
-    
+
     #rnn_output = tf.keras.layers.LayerNormalization()(rnn_output)
     #rnn_output = tf.keras.layers.BatchNormalization()(rnn_output)
     #rnn_output = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(rnn_output)
@@ -86,7 +89,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     #attention_vector = dec_wc(context_and_rnn_output)
     #logits = dec_fc(attention_vector)
     # decoder_model = tf.keras.Model([new_tokens, enc_output, i_dec_h, i_dec_c], [logits, dec_state_h, dec_state_c, attention_weights])
-    
+
     logits = dec_fc(rnn_output)
     decoder_model = tf.keras.Model([new_tokens, i_dec_h, i_dec_c], [logits, dec_state_h, dec_state_c])
     encoder_model.save_weights(GEN_ENC_WEIGHTS)

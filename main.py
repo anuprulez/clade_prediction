@@ -14,6 +14,7 @@ import preprocess_sequences
 import utils
 import neural_network
 import train_model
+import encoder_decoder
 
 
 PATH_PRE = "data/ncov_global/"
@@ -73,19 +74,19 @@ LEN_AA = 1274
 len_aa_subseq = 31
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 2
-size_stateful = 10
+size_stateful = 5
 # Neural network parameters
 embedding_dim = 32
-batch_size = 32
+batch_size = 4
 te_batch_size = batch_size
 n_te_batches = 5
 enc_units = 32
-pretrain_epochs = 30
+pretrain_epochs = 5
 epochs = 2
 max_l_dist = 11
 test_train_size = 0.85
 pretrain_train_size = 0.01
-random_clade_size = 400
+random_clade_size = 200
 to_pretrain = True
 pretrained_model = False
 gan_train = False
@@ -199,26 +200,23 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     utils.save_as_json(PATH_KMER_R_DICT, kmer_r_dict)
 
     print("Number of kmers: {}".format(str(len(kmer_f_dict))))
-    #sys.exit()
 
     combined_X, combined_y = utils.encode_sequences_kmers(forward_dict, kmer_r_dict, combined_X, combined_y, s_kmer)
     combined_te_X, combined_te_y = utils.encode_sequences_kmers(forward_dict, kmer_r_dict, combined_te_X, combined_te_y, s_kmer)
 
-    '''print(combined_X)
-    print(combined_y)
-    print()
-    print(combined_te_X)
-    print(print(combined_te_y)'''
-    
-    #sys.exit()
-    
     combined_X = np.array(combined_X)
     combined_y = np.array(combined_y)
     test_dataset_in = np.array(combined_te_X)
     test_dataset_out = np.array(combined_te_y)
 
     if gen_encoder is None or gen_decoder is None:
-        encoder, decoder = neural_network.make_generator_model(len_final_aa_padding, vocab_size, embedding_dim, enc_units, batch_size, size_stateful)
+        #encoder, decoder = neural_network.make_generator_model(len_final_aa_padding, vocab_size, embedding_dim, enc_units, batch_size, size_stateful)
+
+        encoder = encoder_decoder.Encoder(vocab_size, embedding_dim, enc_units, batch_size)
+        decoder = encoder_decoder.Decoder(vocab_size, embedding_dim, enc_units, batch_size, 'luong')
+
+        print(encoder, decoder)
+
     else:
         encoder = gen_encoder
         decoder = gen_decoder
@@ -244,6 +242,8 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     X_train = np.array(X_train)
     y_train = np.array(y_train)
 
+    #sys.exit()
+
     # pretrain generator
     if to_pretrain is True:
         pretrain_gen_train_loss = list()
@@ -256,7 +256,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
 
         print("Pretraining generator...")
         # balance tr data by mutations
-        pretr_parent_child_mut_indices = utils.get_mutation_tr_indices(X_pretrain, y_pretrain, kmer_f_dict, kmer_r_dict)
+        pretr_parent_child_mut_indices = dict() #utils.get_mutation_tr_indices(X_pretrain, y_pretrain, kmer_f_dict, kmer_r_dict)
         utils.save_as_json(PRETR_MUT_INDICES, pretr_parent_child_mut_indices)
         # get pretraining dataset as sliced tensors
         n_pretrain_batches = int(X_pretrain.shape[0]/float(batch_size))
@@ -270,13 +270,13 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
             pretrain_gen_batch_test_seq_var.append(bat_te_seq_var)
             pretrain_gen_train_seq_var.append(bat_tr_seq_var)
             print()
-            print("Pretrain: predicting on test datasets...")
+            '''print("Pretrain: predicting on test datasets...")
             #with tf.device('/device:cpu:0'):
             pretrain_gen_te_loss, pretrain_gen_te_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, len_final_aa_padding, vocab_size, enc_units, encoder, decoder, size_stateful)
             pretrain_gen_test_loss.append(pretrain_gen_te_loss)
             pretrain_gen_test_seq_var.append(pretrain_gen_te_seq_var)
             print("Pre-training epoch {} finished".format(str(i+1)))
-            print()
+            print()'''
         np.savetxt(PRETRAIN_GEN_LOSS, pretrain_gen_train_loss)
         np.savetxt(PRETRAIN_GEN_TEST_LOSS, pretrain_gen_test_loss)
         np.savetxt("data/generated_files/pretrain_gen_test_seq_var.txt", pretrain_gen_test_seq_var)

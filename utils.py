@@ -10,12 +10,25 @@ import random
 from random import choices
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
+import tensorflow_addons as tfa
 from Levenshtein import distance as lev_dist
 
 
 teacher_forcing_ratio = 0.5
 
 cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
+
+
+def loss_function(real, pred):
+  # real shape = (BATCH_SIZE, max_length_output)
+  # pred shape = (BATCH_SIZE, max_length_output, tar_vocab_size )
+  cross_entropy = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
+  loss = cross_entropy(y_true=real, y_pred=pred)
+  mask = tf.logical_not(tf.math.equal(real, 0))   #output 0 for y=0 else output 1
+  mask = tf.cast(mask, dtype=loss.dtype)  
+  loss = mask* loss
+  loss = tf.reduce_mean(loss)
+  return loss 
 
 
 def make_kmers(seq, size):
@@ -174,12 +187,12 @@ def encode_sequences_kmers(f_dict, kmer_r_dict, x_seq, y_seq, s_kmer):
 
         x_kmers = make_kmers(x_chars, s_kmer)
         encoded_x = [str(kmer_r_dict[str(i)]) for i in x_kmers]
-        encoded_x = "0," + ",".join(encoded_x)
+        encoded_x = "0," + ",".join(encoded_x) #+ "," + str(len(kmer_r_dict) + 1)
         in_seq.append(encoded_x)
    
         y_kmers = make_kmers(y_chars, s_kmer)
         encoded_y = [str(kmer_r_dict[str(i)]) for i in y_kmers]
-        encoded_y = "0," + ",".join(encoded_y)
+        encoded_y = "0," + ",".join(encoded_y) #+ "," + str(len(kmer_r_dict) + 1)
         out_seq.append(encoded_y)
 
     return in_seq, out_seq
@@ -310,6 +323,60 @@ def sample_unrelated_x_y(unrelated_X, unrelated_y, batch_size):
     return convert_to_array(un_X), convert_to_array(un_y)
 
 
+def evaluate_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, loaded_encoder, loaded_decoder):
+  
+  for step in range(n_te_batches):
+        batch_x_test, batch_y_test = sample_unrelated_x_y(test_dataset_in, test_dataset_out, te_batch_size)
+        enc_start_state = [tf.zeros((te_batch_size, enc_units)), tf.zeros((te_batch_size, enc_units))]
+
+        print(batch_x_test.shape)
+
+        enc_out, enc_h, enc_c = loaded_encoder(batch_x_test, enc_start_state)
+
+        print(enc_out.shape)
+
+        dec_h = enc_h
+        dec_c = enc_c
+
+        start_tokens = tf.fill([te_batch_size], 0)
+
+        greedy_sampler = tfa.seq2seq.GreedyEmbeddingSampler()
+
+        # Instantiate BasicDecoder object
+        decoder_instance = tfa.seq2seq.BasicDecoder(cell=loaded_decoder.rnn_cell, sampler=greedy_sampler, output_layer=loaded_decoder.fc)
+        # Setup Memory in decoder stack
+        loaded_decoder.attention_mechanism.setup_memory(enc_out)
+
+        # set decoder_initial_state
+        decoder_initial_state = loaded_decoder.build_initial_state(te_batch_size, [enc_h, enc_c], tf.float32)
+
+
+        ### Since the BasicDecoder wraps around Decoder's rnn cell only, you have to ensure that the inputs to BasicDecoder 
+        ### decoding step is output of embedding layer. tfa.seq2seq.GreedyEmbeddingSampler() takes care of this. 
+        ### You only need to get the weights of embedding layer, which can be done by decoder.embedding.variables[0] and pass this callabble to BasicDecoder's call() function
+
+        decoder_embedding_matrix = loaded_decoder.embedding.variables[0]
+
+        outputs, _, _ = decoder_instance(decoder_embedding_matrix, start_tokens = start_tokens, end_token=vocab_size+1, initial_state=decoder_initial_state)
+        print(outputs, dir(outputs))
+
+        '''loaded_decoder.attention_mechanism.setup_memory(enc_out)
+        decoder_initial_state = gen_decoder.build_initial_state(batch_size, [enc_h, enc_c], tf.float32)
+        
+        pred = gen_decoder(, decoder_initial_state)
+        gen_logits = pred.rnn_output
+        gen_loss = loss_function(unrolled_y, gen_logits)'''
+
+        #return outputs.sample_id.numpy()
+
+'''def translate(sentence):
+  result = evaluate_sentence(sentence)
+  print(result)
+  result = targ_lang.sequences_to_texts(result)
+  print('Input: %s' % (sentence))
+  print('Predicted translation: {}'.format(result))'''
+
+
 def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, loaded_encoder, loaded_generator, s_stateful):
     avg_test_loss = []
     avg_test_seq_var = []
@@ -317,7 +384,7 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
     for step in range(n_te_batches):
         batch_x_test, batch_y_test = sample_unrelated_x_y(test_dataset_in, test_dataset_out, te_batch_size)
         # generated noise for variation in predicted sequences
-        noise = tf.random.normal((te_batch_size, 2 * enc_units))
+        noise = tf.random.normal((te_batch_size, enc_units))
         #enc_output, enc_state_h, enc_state_c = loaded_encoder(batch_x_test, training=train_mode)
         enc_out, enc_state_h, enc_state_c = stateful_encoding(s_stateful, batch_x_test, loaded_encoder, False)
         loaded_encoder.reset_states()
@@ -329,7 +396,7 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
         #print()
         #print(batch_y_test)
         # generate seqs stepwise - teacher forcing
-        generated_logits, _, loss = generated_output_seqs(seq_len, te_batch_size, vocab_size, loaded_generator, dec_state_h, dec_state_c, batch_y_test, train_mode)  
+        generated_logits, _, loss = generated_output_seqs(seq_len, te_batch_size, vocab_size, loaded_generator, dec_state_h, dec_state_c, batch_x_test, batch_y_test, False)  
         variation_score = get_sequence_variation_percentage(generated_logits)
         print("Test batch {} variation score: {}".format(str(step+1), str(variation_score)))
         print("Test batch {} true loss: {}".format(str(step+1), str(loss.numpy())))
@@ -341,7 +408,7 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
     return np.mean(avg_test_loss), np.mean(avg_test_seq_var)
 
 
-def generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state_h, dec_state_c, real_o, train_gen):
+def generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state_h, dec_state_c, real_i, real_o, train_gen):
     gen_logits = list()
     step_loss = tf.constant(0.0)
     i_token = real_o[:, 0:1]
@@ -351,6 +418,7 @@ def generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state_h, de
         dec_result, dec_state_h, dec_state_c = gen_decoder([i_token, dec_state_h, dec_state_c], training=train_gen)
         if len(real_o) > 0:
             o_token = new_tokens[:, 1:2]
+            #loss = loss_function(o_token, dec_result)
             loss = cross_entropy_loss(o_token, dec_result)
             step_loss += tf.reduce_mean(loss)
         # randomly select either true output or feed generated output from previous step for forced learning
@@ -366,7 +434,7 @@ def generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state_h, de
     return pred_logits, gen_decoder, step_loss
 
 
-def generated_output_seqs(seq_len, batch_size, vocab_size, gen_decoder, dec_state_h, dec_state_c, real_o, train_gen):
+def generated_output_seqs(seq_len, batch_size, vocab_size, gen_decoder, dec_state_h, dec_state_c, real_i, real_o, train_gen):
     gen_logits = list()
     step_loss = tf.constant(0.0)
     i_token = tf.fill([batch_size, 1], 0)
@@ -376,6 +444,7 @@ def generated_output_seqs(seq_len, batch_size, vocab_size, gen_decoder, dec_stat
         gen_logits.append(dec_result)
         if len(real_o) > 0:
             o_token = real_o[:, t+1:t+2]
+            #loss = loss_function(o_token, dec_result)
             loss = cross_entropy_loss(o_token, dec_result)
             step_loss += tf.reduce_mean(loss)
         #self feeding
