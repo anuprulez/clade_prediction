@@ -38,7 +38,7 @@ cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 n_disc_step = 2
 n_gen_step = 1
 unrolled_steps = 1
-test_log_step = 5
+test_log_step = 10
 
 m_loss = encoder_decoder_attention.MaskedLoss()
 
@@ -186,7 +186,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
       seq_len = unrolled_x.shape[1]
       with tf.GradientTape() as gen_tape:
 
-          enc_output, enc_state = gen_encoder(unrolled_x)
+          enc_output, enc_state = gen_encoder(unrolled_x, training=True)
           enc_state = tf.math.add(enc_state, tf.random.normal((batch_size, enc_units)))
           dec_state = enc_state
           input_mask = unrolled_x != 0

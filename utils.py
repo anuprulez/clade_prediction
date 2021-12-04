@@ -392,7 +392,7 @@ def evaluate_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_bat
 def _loop_pred_step(seq_len, batch_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units):
 
   #input_tokens = self.input_text_processor(input_text)
-  enc_output, enc_state = gen_encoder(input_tokens)
+  enc_output, enc_state = gen_encoder(input_tokens, training=False)
 
   dec_state = enc_state
   dec_state = tf.math.add(dec_state, tf.random.normal((batch_size, enc_units)))
@@ -411,7 +411,7 @@ def _loop_pred_step(seq_len, batch_size, input_tokens, output_tokens, gen_encode
                              enc_output=enc_output,
                              mask=(input_tokens!=0))
 
-    dec_result, dec_state = gen_decoder(dec_input, state=dec_state)
+    dec_result, dec_state = gen_decoder(dec_input, state=dec_state, training=False)
 
     gen_logits.append(dec_result.logits)
 
