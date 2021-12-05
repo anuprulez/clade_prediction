@@ -32,7 +32,7 @@ TRAIN_GEN_ENC_MODEL = "data/generated_files/gen_enc_model"
 TRAIN_GEN_DEC_MODEL = "data/generated_files/gen_dec_model"
 
 
-pretrain_generator_optimizer = tf.keras.optimizers.Adam() #tf.keras.optimizers.Adam() # learning_rate=1e-3, beta_1=0.5
+pretrain_generator_optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4) #tf.keras.optimizers.Adam() # learning_rate=1e-3, beta_1=0.5
 generator_optimizer = tf.keras.optimizers.Adam() # learning_rate=1e-3, beta_1=0.5
 discriminator_optimizer = tf.keras.optimizers.Adam() # learning_rate=3e-5, beta_1=0.5
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
@@ -43,6 +43,8 @@ test_log_step = 10
 teacher_forcing_ratio = 0.5
 
 m_loss = encoder_decoder_attention.MaskedLoss()
+mae = tf.keras.losses.MeanAbsoluteError()
+
 
 def wasserstein_loss(y_true, y_pred):
     return tf.math.reduce_mean(tf.math.multiply(y_true, y_pred))
@@ -160,7 +162,7 @@ def _loop_step(input_token, target_token, input_mask, enc_output, dec_state, gen
                                enc_output=enc_output,
                                mask=input_mask)
 
-  dec_result, dec_state = gen_decoder(decoder_input, state=dec_state)
+  dec_result, dec_state = gen_decoder(decoder_input, state=dec_state, training=True)
   #self.shape_checker(dec_result.logits, ('batch', 't1', 'logits'))
   #self.shape_checker(dec_result.attention_weights, ('batch', 't1', 's'))
   #self.shape_checker(dec_state, ('batch', 'dec_units'))
@@ -247,7 +249,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           # compute generated sequence variation
           variation_score = utils.get_sequence_variation_percentage(pred_logits)
           print("Pretr: generation variation score: {}".format(str(variation_score)))
-          gen_loss = gen_loss / float(variation_score)
+          gen_loss = gen_loss / variation_score #+ mae([1.0], [variation_score])
           epo_tr_seq_var.append(variation_score)
           print("Pretrain epoch {}/{}, batch {}/{}, gen true loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches), str(gen_loss.numpy())))
           if (step + 1) % test_log_step == 0 and step > 0:

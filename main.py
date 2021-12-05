@@ -72,7 +72,7 @@ enc_units = 128
 
 s_kmer = 3
 LEN_AA = 1274
-len_aa_subseq = 31
+len_aa_subseq = 101
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 2
 size_stateful = 5

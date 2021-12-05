@@ -77,8 +77,8 @@ class Encoder(tf.keras.layers.Layer):
 
     # 2. The embedding layer looks up the embedding for each token.
     vectors = self.embedding(tokens)
-    vectors = tf.keras.layers.Dropout(ENC_DROPOUT)(vectors)
-    vectors = tf.keras.layers.BatchNormalization()(vectors)
+    #vectors = tf.keras.layers.Dropout(ENC_DROPOUT)(vectors)
+    #vectors = tf.keras.layers.BatchNormalization()(vectors)
     #shape_checker(vectors, ('batch', 's', 'embed_dim'))
 
     # 3. The GRU processes the embedding sequence.
@@ -109,14 +109,14 @@ class BahdanauAttention(tf.keras.layers.Layer):
 
     # From Eqn. (4), `W1@ht`.
     w1_query = self.W1(query)
-    w1_query = tf.keras.layers.Dropout(ENC_DROPOUT)(w1_query)
-    w1_query = tf.keras.layers.BatchNormalization()(w1_query)
+    #w1_query = tf.keras.layers.Dropout(ENC_DROPOUT)(w1_query)
+    #w1_query = tf.keras.layers.BatchNormalization()(w1_query)
     #shape_checker(w1_query, ('batch', 't', 'attn_units'))
 
     # From Eqn. (4), `W2@hs`.
     w2_key = self.W2(value)
-    w2_key = tf.keras.layers.Dropout(ENC_DROPOUT)(w2_key)
-    w2_key = tf.keras.layers.BatchNormalization()(w2_key)
+    #w2_key = tf.keras.layers.Dropout(ENC_DROPOUT)(w2_key)
+    #w2_key = tf.keras.layers.BatchNormalization()(w2_key)
     #shape_checker(w2_key, ('batch', 's', 'attn_units'))
 
     query_mask = tf.ones(tf.shape(query)[:-1], dtype=bool)
@@ -163,7 +163,7 @@ class Decoder(tf.keras.layers.Layer):
 
 def call(self,
          inputs: DecoderInput,
-         state=None) -> Tuple[DecoderOutput, tf.Tensor]:
+         state=None, training=True) -> Tuple[DecoderOutput, tf.Tensor]:
   #shape_checker = ShapeChecker()
   #shape_checker(inputs.new_tokens, ('batch', 't'))
   #shape_checker(inputs.enc_output, ('batch', 's', 'enc_units'))
@@ -174,36 +174,37 @@ def call(self,
 
   # Step 1. Lookup the embeddings
   vectors = self.embedding(inputs.new_tokens)
-  vectors = tf.keras.layers.Dropout(ENC_DROPOUT)(vectors)
-  vectors = tf.keras.layers.BatchNormalization()(vectors)
+  #vectors = tf.keras.layers.Dropout(ENC_DROPOUT)(vectors)
+  #vectors = tf.keras.layers.BatchNormalization()(vectors)
   #shape_checker(vectors, ('batch', 't', 'embedding_dim'))
 
   # Step 2. Process one step with the RNN
   rnn_output, state = self.gru(vectors, initial_state=state)
-  rnn_output = tf.keras.layers.Dropout(ENC_DROPOUT)(rnn_output)
-  rnn_output = tf.keras.layers.BatchNormalization()(rnn_output)
+  #rnn_output = tf.keras.layers.Dropout(ENC_DROPOUT)(rnn_output)
+  #rnn_output = tf.keras.layers.BatchNormalization()(rnn_output)
   #shape_checker(rnn_output, ('batch', 't', 'dec_units'))
   #shape_checker(state, ('batch', 'dec_units'))
 
   # Step 3. Use the RNN output as the query for the attention over the
   # encoder output.
-  context_vector, attention_weights = self.attention(
-      query=rnn_output, value=inputs.enc_output, mask=inputs.mask)
+  #context_vector, attention_weights = self.attention(
+  #    query=rnn_output, value=inputs.enc_output, mask=inputs.mask)
   #shape_checker(context_vector, ('batch', 't', 'dec_units'))
   #shape_checker(attention_weights, ('batch', 't', 's'))
-  context_vector = tf.keras.layers.Dropout(ENC_DROPOUT)(context_vector)
+  #context_vector = tf.keras.layers.Dropout(ENC_DROPOUT)(context_vector)
   # Step 4. Eqn. (3): Join the context_vector and rnn_output
   #     [ct; ht] shape: (batch t, value_units + query_units)
-  context_and_rnn_output = tf.concat([context_vector, rnn_output], axis=-1)
-  context_and_rnn_output = tf.keras.layers.Dropout(ENC_DROPOUT)(context_and_rnn_output)
-  context_and_rnn_output = tf.keras.layers.BatchNormalization()(context_and_rnn_output)
+  #context_and_rnn_output = tf.concat([context_vector, rnn_output], axis=-1)
+  #context_and_rnn_output = tf.keras.layers.Dropout(ENC_DROPOUT)(context_and_rnn_output)
+  #context_and_rnn_output = tf.keras.layers.BatchNormalization()(context_and_rnn_output)
   # Step 4. Eqn. (3): `at = tanh(Wc@[ct; ht])`
-  attention_vector = self.Wc(context_and_rnn_output)
+  #attention_vector = self.Wc(context_and_rnn_output)
   #shape_checker(attention_vector, ('batch', 't', 'dec_units'))
-  attention_vector = tf.keras.layers.Dropout(ENC_DROPOUT)(attention_vector)
-  attention_vector = tf.keras.layers.BatchNormalization()(attention_vector)
+  #attention_vector = tf.keras.layers.Dropout(ENC_DROPOUT)(attention_vector)
+  #attention_vector = tf.keras.layers.BatchNormalization()(attention_vector)
   # Step 5. Generate logit predictions:
-  logits = self.fc(attention_vector)
+  attention_weights = []
+  logits = self.fc(rnn_output)
   #shape_checker(logits, ('batch', 't', 'output_vocab_size'))
 
   return DecoderOutput(logits, attention_weights), state

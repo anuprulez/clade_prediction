@@ -20,6 +20,7 @@ m_loss = encoder_decoder_attention.MaskedLoss()
 teacher_forcing_ratio = 0.5
 
 cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
+mae = tf.keras.losses.MeanAbsoluteError()
 
 
 def loss_function(real, pred):
@@ -452,7 +453,7 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
         generated_logits, loss = _loop_pred_step(seq_len, te_batch_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units)
          #generated_output_seqs(seq_len, te_batch_size, vocab_size, loaded_generator, dec_state_h, dec_state_c, batch_x_test, batch_y_test, False)  
         variation_score = get_sequence_variation_percentage(generated_logits)
-        loss = loss / variation_score
+        loss = loss / variation_score #+ mae([1.0], [variation_score]) #variation_score
         print("Test batch {} variation score: {}".format(str(step+1), str(variation_score)))
         print("Test batch {} true loss: {}".format(str(step+1), str(loss.numpy())))
         avg_test_loss.append(loss)
