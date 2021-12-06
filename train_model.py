@@ -16,7 +16,7 @@ import encoder_decoder_attention
 
 import utils
 
-
+PATH_KMER_F_DICT = "data/ncov_global/kmer_f_word_dictionaries.json"
 PRE_TR_GEN_ENC_WEIGHTS = "data/generated_files/pretr_generator_encoder_weights.h5"
 PRE_TR_GEN_DEC_WEIGHTS = "data/generated_files/pretr_generator_decoder_weights.h5"
 PRETRAIN_GEN_ENC_MODEL = "data/generated_files/pretrain_gen_encoder"
@@ -32,7 +32,7 @@ TRAIN_GEN_ENC_MODEL = "data/generated_files/gen_enc_model"
 TRAIN_GEN_DEC_MODEL = "data/generated_files/gen_dec_model"
 
 
-pretrain_generator_optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4) #tf.keras.optimizers.Adam() # learning_rate=1e-3, beta_1=0.5
+pretrain_generator_optimizer = tf.keras.optimizers.Adam() #tf.keras.optimizers.Adam() # learning_rate=1e-3, beta_1=0.5
 generator_optimizer = tf.keras.optimizers.Adam() # learning_rate=1e-3, beta_1=0.5
 discriminator_optimizer = tf.keras.optimizers.Adam() # learning_rate=3e-5, beta_1=0.5
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
@@ -194,12 +194,28 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
   epo_tr_seq_var = list()
   epo_te_seq_var = list()
   batch_mut_distribution = dict()
+
+  #kmer_f_dict = utils.read_json(PATH_KMER_F_DICT)
+  #print(kmer_f_dict)
+
   for step in range(n_batches):
       loss = tf.constant(0.0)
       unrolled_x, unrolled_y, batch_mut_distribution = sample_true_x_y(pretr_parent_child_mut_indices, batch_size, X_train, y_train, batch_mut_distribution)
       seq_len = unrolled_x.shape[1]
+      '''
+      # verify levenshtein distance
+      for i in range(len(unrolled_x)):
+          re_x = utils.reconstruct_seq([kmer_f_dict[str(pos)] for pos in unrolled_x[i][1:]])
+          re_y = utils.reconstruct_seq([kmer_f_dict[str(pos)] for pos in unrolled_y[i][1:]])
+          l_dist = utils.compute_Levenshtein_dist(re_x, re_y)
+          print(re_x)
+          print(re_y)
+          print(l_dist)
+          print("---")
+      import sys
+      sys.exit()
 
-      check_batch_ldist(unrolled_x, unrolled_y, seq_len)
+      check_batch_ldist(unrolled_x, unrolled_y, seq_len)'''
       
       with tf.GradientTape() as gen_tape:
 

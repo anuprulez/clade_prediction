@@ -68,78 +68,35 @@ def get_u_kmers(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict):
     x_list = list()
     y_list = list()
     s_kmer = 3
-
     for i, x_i in enumerate(x_seq):
         for j, y_j in enumerate(y_seq):
             # cut sequences of specific length
             sub_x_i = x_i.split(",")[:len_aa_subseq]
             sub_x_i = ",".join(sub_x_i)
-
             sub_y_j = y_j.split(",")[:len_aa_subseq]
             sub_y_j = ",".join(sub_y_j)
-
             x_list.append(sub_x_i)
-
             y_list.append(sub_y_j)
-    
     global_kmers = get_all_kmers(x_list, y_list, forward_dict, s_kmer)
-
     global_kmers = list(set(global_kmers))
-
     kmer_f_dict = {i + 1: global_kmers[i] for i in range(0, len(global_kmers))}
     kmer_r_dict = {global_kmers[i]: i + 1  for i in range(0, len(global_kmers))}
-
     save_as_json(PATH_KMER_F_DICT, kmer_f_dict)
     save_as_json(PATH_KMER_R_DICT, kmer_r_dict)
-
-    #print(forward_dict)
-    #print(kmer_f_dict)
-    #print(kmer_r_dict)
-
-    #print(len(x_list), len(y_list))
-
-    '''ld_f = list()
-    for index, (x, y) in enumerate(zip(x_list, y_list)):
-        ld = compute_Levenshtein_dist(x, y)
-        if ld > 0:
-            ld_f.append(index)
-    print(ld_f)'''
-    #import sys
-    #sys.exit()
-    #print(x_list[0], len(x_list[0].split(",")))
-    #print(y_list[0], len(y_list[0].split(",")))
-
     enc_x, enc_y = encode_sequences_kmers(forward_dict, kmer_r_dict, x_list, y_list, s_kmer)
-
-    '''print(len(enc_x), len(enc_y))
-
-    print(enc_x[ld_f[0]])
-    print(enc_y[ld_f[0]])
-    print()
-    print(enc_x[ld_f[1]])
-    print(enc_y[ld_f[1]])'''
-    #print(enc_x[0])
-    #print(enc_y[0])
-    #mport sys
-    #sys.exit()
-
     fil_x = list()
     fil_y = list()
-
     l_distance = list()
     filtered_l_distance = list()
     for i, (enc_i, enc_j) in enumerate(zip(enc_x, enc_y)):
-        l_dist = compute_Levenshtein_dist(enc_i, enc_j)
+        re_x = reconstruct_seq([kmer_f_dict[int(pos)] for pos in enc_i.split(",")])
+        re_y = reconstruct_seq([kmer_f_dict[int(pos)] for pos in enc_j.split(",")])
+        l_dist = compute_Levenshtein_dist(re_x, re_y)
         l_distance.append(l_dist)
-        #print(i, l_dist)
         if l_dist > 0 and l_dist < max_l_dist:
             filtered_l_distance.append(l_dist)
             fil_x.append(add_padding_to_seq(enc_i))
             fil_y.append(add_padding_to_seq(enc_j))
-
-    #print(fil_x[0])
-    #print(fil_y[0])
-    #print(np.mean(filtered_l_distance))
     return fil_x, fil_y, kmer_f_dict, kmer_r_dict
 
     '''train_kmers = get_all_kmers(combined_X, combined_y, forward_dict, s_kmer)
@@ -155,6 +112,13 @@ def get_u_kmers(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict):
     kmer_f_dict[0] = "<start>"
     #kmer_f_dict[len(kmers_global)+1] = "<end>"
     kmer_r_dict["<start>"] = 0'''
+
+
+def split_test_train(x, y, split_size):
+    size = int(len(x) * split_size)
+    x_1, y_1 = x[0:size], y[0:size]
+    x_2, y_2 = x[size:], y[size:]
+    return x_1, x_2, y_1, y_2 
 
 
 def generate_cross_product(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict, cols=["X", "Y"], unrelated=False, unrelated_threshold=15):

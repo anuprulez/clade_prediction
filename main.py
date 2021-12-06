@@ -72,7 +72,7 @@ enc_units = 128
 
 s_kmer = 3
 LEN_AA = 1274
-len_aa_subseq = 31
+len_aa_subseq = 21
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 2
 size_stateful = 5
@@ -87,7 +87,7 @@ epochs = 2
 max_l_dist = 11
 test_train_size = 0.85
 pretrain_train_size = 0.01
-random_clade_size = 100
+random_clade_size = 1000
 to_pretrain = True
 pretrained_model = False
 gan_train = False
@@ -162,7 +162,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
         combined_y.extend(y)
         
 
-    verify_ldist(combined_X, combined_y)
+    #verify_ldist(combined_X, combined_y)
 
     #print(combined_X[0])
 
@@ -180,7 +180,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
         print(len(te_X), len(te_y))
     print()
 
-    verify_ldist(combined_te_X, combined_te_y)
+    #verify_ldist(combined_te_X, combined_te_y)
 
     '''
     tr_unrelated_files = glob.glob("data/tr_unrelated/*.csv")
@@ -239,6 +239,14 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
 
     print(combined_X[0])
     print(combined_y[0])'''
+ 
+    kmer_f_dict = utils.read_json(PATH_KMER_F_DICT)
+    kmer_r_dict = utils.read_json(PATH_KMER_R_DICT)
+
+    vocab_size = len(kmer_f_dict) + 1
+
+    print("Number of kmers: {}".format(str(len(kmer_f_dict) - 1)))
+    print("Vocab size: {}".format(str(len(kmer_f_dict) + 1)))
 
     combined_X = np.array(combined_X)
     combined_y = np.array(combined_y)
@@ -246,7 +254,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     test_dataset_in = np.array(combined_te_X)
     test_dataset_out = np.array(combined_te_y)
 
-    sys.exit()
+    #sys.exit()
 
     if gen_encoder is None or gen_decoder is None:
         #encoder, decoder = neural_network.make_generator_model(len_final_aa_padding, vocab_size, embedding_dim, enc_units, batch_size, size_stateful)
@@ -256,7 +264,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
 
         encoder = encoder_decoder_attention.Encoder(vocab_size, embedding_dim, enc_units)
         decoder = encoder_decoder_attention.Decoder(vocab_size, embedding_dim, enc_units)
-        print(encoder, decoder)
+        #print(encoder, decoder)
 
     else:
         encoder = gen_encoder
@@ -268,6 +276,8 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
         y_train = combined_y
     else:
         X_pretrain, X_train, y_pretrain, y_train  = train_test_split(combined_X, combined_y, test_size=pretrain_train_size)
+        #utils.split_test_train(combined_X, combined_y, pretrain_train_size) 
+        #train_test_split(combined_X, combined_y, test_size=pretrain_train_size)
         X_pretrain = np.array(X_pretrain)
         y_pretrain = np.array(y_pretrain)
         df_pretrain = pd.DataFrame(list(zip(X_pretrain, y_pretrain)), columns=["X", "Y"])
@@ -282,6 +292,9 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     print(X_train.shape, y_train.shape)
     X_train = np.array(X_train)
     y_train = np.array(y_train)
+
+    #print(X_train[0])
+    #print(y_train[0])
 
     #sys.exit()
 
