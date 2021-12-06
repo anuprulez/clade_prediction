@@ -77,7 +77,7 @@ class Encoder(tf.keras.layers.Layer):
 
     # 2. The embedding layer looks up the embedding for each token.
     vectors = self.embedding(tokens)
-    #vectors = tf.keras.layers.Dropout(ENC_DROPOUT)(vectors)
+    vectors = tf.keras.layers.Dropout(ENC_DROPOUT)(vectors)
     #vectors = tf.keras.layers.BatchNormalization()(vectors)
     #shape_checker(vectors, ('batch', 's', 'embed_dim'))
 
@@ -174,13 +174,13 @@ def call(self,
 
   # Step 1. Lookup the embeddings
   vectors = self.embedding(inputs.new_tokens)
-  #vectors = tf.keras.layers.Dropout(ENC_DROPOUT)(vectors)
+  vectors = tf.keras.layers.Dropout(ENC_DROPOUT)(vectors)
   #vectors = tf.keras.layers.BatchNormalization()(vectors)
   #shape_checker(vectors, ('batch', 't', 'embedding_dim'))
 
   # Step 2. Process one step with the RNN
   rnn_output, state = self.gru(vectors, initial_state=state)
-  #rnn_output = tf.keras.layers.Dropout(ENC_DROPOUT)(rnn_output)
+  rnn_output = tf.keras.layers.Dropout(ENC_DROPOUT)(rnn_output)
   #rnn_output = tf.keras.layers.BatchNormalization()(rnn_output)
   #shape_checker(rnn_output, ('batch', 't', 'dec_units'))
   #shape_checker(state, ('batch', 'dec_units'))

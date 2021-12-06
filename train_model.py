@@ -175,7 +175,17 @@ def _loop_step(input_token, target_token, input_mask, enc_output, dec_state, gen
 
   return step_loss, dec_state, y_pred
 
+def check_batch_ldist(u_x, u_y, seq_len):
+    x_s = ",".join([str(j) for j in u_x[:, 1:]])
+    y_s = ",".join([str(k) for k in u_y[:, 1:]])
 
+    l_list = list()
+    for i in range(seq_len - 1):
+        l_dist = utils.compute_Levenshtein_dist(x_s[i], y_s[i])
+        l_list.append(l_dist)
+    print(l_list, np.mean(l_dist))
+
+    print("--")
 
 def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vocab_size, n_batches, batch_size, pretr_parent_child_mut_indices, epochs, size_stateful):
   X_train, y_train, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches = inputs
@@ -188,6 +198,9 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
       loss = tf.constant(0.0)
       unrolled_x, unrolled_y, batch_mut_distribution = sample_true_x_y(pretr_parent_child_mut_indices, batch_size, X_train, y_train, batch_mut_distribution)
       seq_len = unrolled_x.shape[1]
+
+      check_batch_ldist(unrolled_x, unrolled_y, seq_len)
+      
       with tf.GradientTape() as gen_tape:
 
           enc_output, enc_state = gen_encoder(unrolled_x, training=True)

@@ -72,7 +72,7 @@ enc_units = 128
 
 s_kmer = 3
 LEN_AA = 1274
-len_aa_subseq = 101
+len_aa_subseq = 31
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 2
 size_stateful = 5
@@ -87,7 +87,7 @@ epochs = 2
 max_l_dist = 11
 test_train_size = 0.85
 pretrain_train_size = 0.01
-random_clade_size = 1000
+random_clade_size = 100
 to_pretrain = True
 pretrained_model = False
 gan_train = False
@@ -123,21 +123,32 @@ def read_files():
         print(clades_in_clades_out)
         unrelated_clades = utils.read_json(PATH_UNRELATED_CLADES)
         print("Generating cross product of real parent child...")
-        preprocess_sequences.make_cross_product(clades_in_clades_out, filtered_dataf, len_aa_subseq, train_size=test_train_size, edit_threshold=max_l_dist, random_size=random_clade_size)
-        print("Generating cross product of real sequences but not parent-child...")
-        preprocess_sequences.make_cross_product(unrelated_clades, filtered_dataf, len_aa_subseq, train_size=1.0, edit_threshold=max_l_dist, random_size=random_clade_size, unrelated=True)
+        preprocess_sequences.make_cross_product(clades_in_clades_out, filtered_dataf, len_aa_subseq, train_size=test_train_size, edit_threshold=max_l_dist, random_size=random_clade_size, unrelated=False)
+        #print("Generating cross product of real sequences but not parent-child...")
+        #preprocess_sequences.make_cross_product(unrelated_clades, filtered_dataf, len_aa_subseq, train_size=1.0, edit_threshold=max_l_dist, random_size=random_clade_size, unrelated=True)
     else:
         encoder = tf.keras.models.load_model(PRETRAIN_GEN_ENC_MODEL)
         decoder = tf.keras.models.load_model(PRETRAIN_GEN_DEC_MODEL)
     start_training(forward_dict, rev_dict, encoder, decoder)
 
 
+def verify_ldist(X, Y):
+    lev_list = list()
+    for index, (x, y) in enumerate(zip(X, Y)):
+        seq_x = x
+        seq_y = y
+        #print(seq_x, seq_y)
+        lev = utils.compute_Levenshtein_dist(x, y)
+        lev_list.append(lev)
+    print(lev_list)
+    print(np.mean(lev_list))
+
 def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     start_time = time.time()
     print("Loading datasets...")
     tr_clade_files = glob.glob('data/train/*.csv')
     te_clade_files = glob.glob('data/test/*.csv')
-    tr_unrelated_files = glob.glob("data/tr_unrelated/*.csv")
+    
 
     combined_X = list()
     combined_y = list()
@@ -149,8 +160,13 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
         y = tr_clade_df["Y"].tolist()
         combined_X.extend(X)
         combined_y.extend(y)
-        print(len(X), len(y))
+        
 
+    verify_ldist(combined_X, combined_y)
+
+    #print(combined_X[0])
+
+    #sys.exit()
     combined_te_X = list()
     combined_te_y = list()
     # load test data
@@ -163,6 +179,11 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
         combined_te_y.extend(te_y)
         print(len(te_X), len(te_y))
     print()
+
+    verify_ldist(combined_te_X, combined_te_y)
+
+    '''
+    tr_unrelated_files = glob.glob("data/tr_unrelated/*.csv")
     print("Loading unrelated datasets...")
     unrelated_X = list()
     unrelated_y = list()
@@ -177,13 +198,13 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     unrelated_X = np.array(unrelated_X)
     unrelated_y = np.array(unrelated_y)
     print("Unrelated data sizes")
-    print(len(unrelated_X), len(unrelated_y))
+    print(len(unrelated_X), len(unrelated_y))'''
 
     print("train and test data sizes")
     print(len(combined_X), len(combined_y), len(combined_te_X), len(combined_te_y))
 
     # convert test and train datasets to kmers
-    kmers_global = list()
+    '''kmers_global = list()
     #print(forward_dict)
     train_kmers = utils.get_all_kmers(combined_X, combined_y, forward_dict, s_kmer)
     kmers_global.extend(train_kmers)
@@ -216,10 +237,16 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     combined_X, combined_y = utils.encode_sequences_kmers(forward_dict, kmer_r_dict, combined_X, combined_y, s_kmer)
     combined_te_X, combined_te_y = utils.encode_sequences_kmers(forward_dict, kmer_r_dict, combined_te_X, combined_te_y, s_kmer)
 
+    print(combined_X[0])
+    print(combined_y[0])'''
+
     combined_X = np.array(combined_X)
     combined_y = np.array(combined_y)
+
     test_dataset_in = np.array(combined_te_X)
     test_dataset_out = np.array(combined_te_y)
+
+    sys.exit()
 
     if gen_encoder is None or gen_decoder is None:
         #encoder, decoder = neural_network.make_generator_model(len_final_aa_padding, vocab_size, embedding_dim, enc_units, batch_size, size_stateful)

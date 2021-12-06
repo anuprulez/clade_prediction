@@ -98,7 +98,7 @@ def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, train_size=
             out_clade_seq = out_clade_df["Sequence"]
             u_out_clade = out_clade_seq.drop_duplicates()
             u_out_clade = u_out_clade.tolist()
-            u_filtered_x_y = utils.generate_cross_product(u_in_clade, u_out_clade, edit_threshold, len_aa_subseq, unrelated=unrelated)
+            u_filtered_x_y, kmer_f_dict, kmer_r_dict = utils.generate_cross_product(u_in_clade, u_out_clade, edit_threshold, len_aa_subseq, forward_dict, unrelated=unrelated)
             print("Unique size of clade combination {}_{}: {}".format(in_clade, out_clade, str(len(u_filtered_x_y.index))))
             total_samples += len(u_filtered_x_y.index)
 
