@@ -17,7 +17,7 @@ import bahdanauAttention
 
 
 ENC_DROPOUT = 0.5
-DEC_DROPOUT = 0.1
+DEC_DROPOUT = 0.2
 
 
 class MaskedLoss(tf.keras.losses.Loss):
@@ -65,11 +65,11 @@ class Encoder(tf.keras.layers.Layer):
                                                embedding_dim)
 
     # The GRU RNN layer processes those vectors sequentially.
-    self.gru_1 = tf.keras.layers.GRU(self.enc_units,
+    self.gru_1 = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(self.enc_units,
                                    # Return the sequence and state
                                    return_sequences=True,
                                    return_state=True,
-                                   recurrent_initializer='glorot_uniform')
+                                   recurrent_initializer='glorot_uniform'))
 
     self.gru_2 = tf.keras.layers.GRU(self.enc_units,
                                    # Return the sequence and state
@@ -90,19 +90,23 @@ class Encoder(tf.keras.layers.Layer):
     # 3. The GRU processes the embedding sequence.
     #    output shape: (batch, s, enc_units)
     #    state shape: (batch, enc_units)
-    output_1, state_1 = self.gru_1(vectors, initial_state=state)
+    output_1, state_f, state_b = self.gru_1(vectors, initial_state=state)
     output_1 = tf.keras.layers.Dropout(ENC_DROPOUT)(output_1)
-    state_1 = tf.keras.layers.Dropout(ENC_DROPOUT)(state_1)
+    #state_f = tf.keras.layers.Dropout(ENC_DROPOUT)(state_f)
+    #state_b = tf.keras.layers.Dropout(ENC_DROPOUT)(state_b)
 
-    output_2, state_2 = self.gru_2(output_1, initial_state=state_1)
+    #state = tf.keras.layers.Concatenate()([state_f, state_b])
+    #state = tf.keras.layers.Dropout(ENC_DROPOUT)(state)
+
+    '''output_2, state_2 = self.gru_2(output_1, initial_state=state_1)
     output_2 = tf.keras.layers.Dropout(ENC_DROPOUT)(output_2)
-    state_2 = tf.keras.layers.Dropout(ENC_DROPOUT)(state_2)
+    state_2 = tf.keras.layers.Dropout(ENC_DROPOUT)(state_2)'''
     
     #shape_checker(output, ('batch', 's', 'enc_units'))
     #shape_checker(state, ('batch', 'enc_units'))
 
     # 4. Returns the new sequence and its state.
-    return output_2, state_2
+    return output_1, state_f, state_b
 
 
 class BahdanauAttention(tf.keras.layers.Layer):
@@ -158,10 +162,10 @@ class Decoder(tf.keras.layers.Layer):
                                                embedding_dim)
 
     # For Step 2. The RNN keeps track of what's been generated so far.
-    self.gru = tf.keras.layers.GRU(self.dec_units,
+    self.gru = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(self.dec_units,
                                    return_sequences=True,
                                    return_state=True,
-                                   recurrent_initializer='glorot_uniform')
+                                   recurrent_initializer='glorot_uniform'))
 
     # For step 3. The RNN output will be the query for the attention layer.
     self.attention = BahdanauAttention(self.dec_units)
@@ -172,7 +176,7 @@ class Decoder(tf.keras.layers.Layer):
 
     # For step 5. This fully connected layer produces the logits for each
     # output token.
-    self.fc = tf.keras.layers.Dense(self.output_vocab_size)
+    self.fc = tf.keras.layers.Dense(self.output_vocab_size) #, activation="softmax"
 
 def call(self,
          inputs: DecoderInput,
@@ -192,15 +196,20 @@ def call(self,
   #shape_checker(vectors, ('batch', 't', 'embedding_dim'))
 
   # Step 2. Process one step with the RNN
-  rnn_output, state = self.gru(vectors, initial_state=state)
+  rnn_output, state_f, state_b = self.gru(vectors, initial_state=state)
   rnn_output = tf.keras.layers.Dropout(ENC_DROPOUT)(rnn_output)
-  state = tf.keras.layers.Dropout(ENC_DROPOUT)(state)
+  #state_f = tf.keras.layers.Dropout(ENC_DROPOUT)(state_f)
+  #state_b = tf.keras.layers.Dropout(ENC_DROPOUT)(state_b)
+
+  #state = tf.keras.layers.Concatenate()([state_f, state_b])
+  #state = tf.keras.layers.Dropout(ENC_DROPOUT)(state)
   #rnn_output = tf.keras.layers.BatchNormalization()(rnn_output)
   #shape_checker(rnn_output, ('batch', 't', 'dec_units'))
   #shape_checker(state, ('batch', 'dec_units'))
 
   # Step 3. Use the RNN output as the query for the attention over the
   # encoder output.
+  #print(rnn_output.shape, inputs.enc_output.shape)
   #context_vector, attention_weights = self.attention(
   #    query=rnn_output, value=inputs.enc_output, mask=inputs.mask)
   #shape_checker(context_vector, ('batch', 't', 'dec_units'))
@@ -221,6 +230,6 @@ def call(self,
   logits = self.fc(rnn_output)
   #shape_checker(logits, ('batch', 't', 'output_vocab_size'))
 
-  return DecoderOutput(logits, attention_weights), state
+  return DecoderOutput(logits, attention_weights), state_f, state_b
 
 Decoder.call = call

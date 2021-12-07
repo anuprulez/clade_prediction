@@ -39,7 +39,7 @@ cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 n_disc_step = 2
 n_gen_step = 1
 unrolled_steps = 1
-test_log_step = 10
+test_log_step = 20
 teacher_forcing_ratio = 0.0
 
 m_loss = encoder_decoder_attention.MaskedLoss()
@@ -251,7 +251,9 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           # compute generated sequence variation
           variation_score = utils.get_sequence_variation_percentage(pred_logits)
           print("Pretr: generation variation score: {}".format(str(variation_score)))
-          gen_loss = gen_loss + mae([1.0], [variation_score]) #/ variation_score #+ mae([1.0], [variation_score])
+          #/ variation_score #+ mae([1.0], [variation_score])
+          #var_score = mae([1.0], [variation_score])
+          gen_loss = gen_loss / variation_score
           epo_tr_seq_var.append(variation_score)
           print("Pretrain epoch {}/{}, batch {}/{}, gen true loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches), str(gen_loss.numpy())))
           if (step + 1) % test_log_step == 0 and step > 0:

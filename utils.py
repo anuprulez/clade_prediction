@@ -19,11 +19,10 @@ PATH_KMER_F_DICT = "data/ncov_global/kmer_f_word_dictionaries.json"
 PATH_KMER_R_DICT = "data/ncov_global/kmer_r_word_dictionaries.json"
 
 m_loss = encoder_decoder_attention.MaskedLoss()
-teacher_forcing_ratio = 0.5
 
-cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
+cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False, reduction='none')
 mae = tf.keras.losses.MeanAbsoluteError()
-
+test_tf_ratio = 0.0
 
 def loss_function(real, pred):
   # real shape = (BATCH_SIZE, max_length_output)
@@ -466,9 +465,13 @@ def evaluate_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_bat
 
 
 def loop_encode_decode(seq_len, batch_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test):
-    enc_output, enc_state = gen_encoder(input_tokens, training=train_test)
-    dec_state = enc_state
-    dec_state = tf.math.add(dec_state, tf.random.normal((batch_size, enc_units)))
+    enc_output, enc_f, enc_b = gen_encoder(input_tokens, training=train_test)
+    dec_f, dec_b = enc_f, enc_b
+    #noise = tf.random.normal((batch_size, enc_units))
+    
+    dec_f = tf.math.add(dec_f, tf.random.normal((batch_size, enc_units)))
+    dec_b = tf.math.add(dec_b, tf.random.normal((batch_size, enc_units)))
+
     gen_logits = list()
     loss = tf.constant(0.0)
     target_mask = output_tokens != 0
@@ -480,11 +483,13 @@ def loop_encode_decode(seq_len, batch_size, input_tokens, output_tokens, gen_enc
                              enc_output=enc_output,
                              mask=(input_tokens!=0))
 
-        dec_result, dec_state = gen_decoder(dec_input, state=dec_state, training=train_test)
+        dec_result, dec_f, dec_b = gen_decoder(dec_input, state=[dec_f, dec_b], training=train_test)
+        dec_f = tf.math.add(dec_f, tf.random.normal((batch_size, enc_units)))
+        dec_b = tf.math.add(dec_b, tf.random.normal((batch_size, enc_units)))
 
         gen_logits.append(dec_result.logits)
 
-        if random.random() <= teacher_forcing_ratio:
+        if random.random() <= tf_ratio:
             i_tokens = o_tokens
         else:
             i_tokens = tf.argmax(dec_result.logits, axis=-1)
@@ -501,7 +506,6 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
     avg_test_loss = []
     avg_test_seq_var = []
     train_mode = False
-    test_tf_ratio = 0.0
     for step in range(n_te_batches):
         batch_x_test, batch_y_test = sample_unrelated_x_y(test_dataset_in, test_dataset_out, te_batch_size)
         # generated noise for variation in predicted sequences
@@ -522,7 +526,7 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
         print(tf.argmax(generated_logits, axis=-1)[:5, :])
         #generated_output_seqs(seq_len, te_batch_size, vocab_size, loaded_generator, dec_state_h, dec_state_c, batch_x_test, batch_y_test, False)  
         variation_score = get_sequence_variation_percentage(generated_logits)
-        loss = loss + mae([1.0], [variation_score]) #/ variation_score #+ mae([1.0], [variation_score]) #variation_score
+        loss = loss / variation_score #+ mae([1.0], [variation_score]) #/ variation_score #+ mae([1.0], [variation_score]) #variation_score
         print("Test batch {} variation score: {}".format(str(step+1), str(variation_score)))
         print("Test batch {} true loss: {}".format(str(step+1), str(loss.numpy())))
         avg_test_loss.append(loss)
