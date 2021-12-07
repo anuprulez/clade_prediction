@@ -82,7 +82,7 @@ batch_size = 32
 te_batch_size = batch_size
 n_te_batches = 10
 enc_units = 32
-pretrain_epochs = 20
+pretrain_epochs = 10
 epochs = 2
 max_l_dist = 11
 test_train_size = 0.85
@@ -261,7 +261,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
 
         #encoder = encoder_decoder.Encoder(vocab_size, embedding_dim, enc_units, batch_size)
         #decoder = encoder_decoder.Decoder(vocab_size, embedding_dim, enc_units, batch_size, 'luong')
-
+        out_vocab_size = 1
         encoder = encoder_decoder_attention.Encoder(vocab_size, embedding_dim, enc_units)
         decoder = encoder_decoder_attention.Decoder(vocab_size, embedding_dim, enc_units)
         #print(encoder, decoder)

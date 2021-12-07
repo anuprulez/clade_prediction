@@ -465,51 +465,43 @@ def evaluate_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_bat
   print('Predicted translation: {}'.format(result))'''
 
 
-def _loop_pred_step(seq_len, batch_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units):
-
-  #input_tokens = self.input_text_processor(input_text)
-  enc_output, enc_state = gen_encoder(input_tokens, training=False)
-
-  dec_state = enc_state
-  dec_state = tf.math.add(dec_state, tf.random.normal((batch_size, enc_units)))
-  new_tokens = tf.fill([batch_size, 1], 0)
-  gen_logits = list()
-  #result_tokens = []
-  attention = []
-  #done = tf.zeros([batch_size, 1], dtype=tf.bool)
-  loss = tf.constant(0.0)
-  target_mask = output_tokens != 0
-
-  for t in range(seq_len - 1):
+def loop_encode_decode(seq_len, batch_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test):
+    enc_output, enc_state = gen_encoder(input_tokens, training=train_test)
+    dec_state = enc_state
+    dec_state = tf.math.add(dec_state, tf.random.normal((batch_size, enc_units)))
+    gen_logits = list()
+    loss = tf.constant(0.0)
+    target_mask = output_tokens != 0
+    i_tokens = tf.fill([batch_size, 1], 0)
+    for t in range(seq_len - 1):
    
-    o_tokens = output_tokens[:, t+1:t+2]
-    dec_input = encoder_decoder_attention.DecoderInput(new_tokens=new_tokens,
+        o_tokens = output_tokens[:, t+1:t+2]
+        dec_input = encoder_decoder_attention.DecoderInput(new_tokens=i_tokens,
                              enc_output=enc_output,
                              mask=(input_tokens!=0))
 
-    dec_result, dec_state = gen_decoder(dec_input, state=dec_state, training=False)
+        dec_result, dec_state = gen_decoder(dec_input, state=dec_state, training=train_test)
 
-    gen_logits.append(dec_result.logits)
+        gen_logits.append(dec_result.logits)
 
-    #print(output_tokens.shape, o_tokens.shape, dec_result.logits.shape, dec_state.shape)
+        if random.random() <= teacher_forcing_ratio:
+            i_tokens = o_tokens
+        else:
+            i_tokens = tf.argmax(dec_result.logits, axis=-1)
 
-    new_tokens = tf.argmax(dec_result.logits, axis=-1)
+        step_loss = m_loss(o_tokens, dec_result.logits)
+        loss += step_loss
 
-    step_loss = m_loss(o_tokens, dec_result.logits)
-    loss += step_loss
-
-    #result_tokens.append(dec_result)
-
-  t_loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
-  #result_tokens = tf.concat(result_tokens, axis=-1)
-  gen_logits = tf.concat(gen_logits, axis=-2)
-  return gen_logits, t_loss
-
+    t_loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
+    gen_logits = tf.concat(gen_logits, axis=-2)
+    return gen_logits, gen_encoder, gen_decoder, t_loss
+    
 
 def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, loaded_encoder, loaded_generator, s_stateful):
     avg_test_loss = []
     avg_test_seq_var = []
     train_mode = False
+    test_tf_ratio = 0.0
     for step in range(n_te_batches):
         batch_x_test, batch_y_test = sample_unrelated_x_y(test_dataset_in, test_dataset_out, te_batch_size)
         # generated noise for variation in predicted sequences
@@ -520,15 +512,17 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
         #enc_state_h = tf.math.add(enc_state_h, noise)
         #enc_state_c = tf.math.add(enc_state_c, noise)
         #dec_state_h, dec_state_c = enc_state_h, enc_state_c
-        '''print("Test: true output seq:")
-        print(batch_x_test)'''
+        print("Test: true output seq:")
+        #print(batch_x_test)
         #print()
-        #print(batch_y_test)
+        print(batch_y_test[:5, :])
         # generate seqs stepwise - teacher forcing
-        generated_logits, loss = _loop_pred_step(seq_len, te_batch_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units)
-         #generated_output_seqs(seq_len, te_batch_size, vocab_size, loaded_generator, dec_state_h, dec_state_c, batch_x_test, batch_y_test, False)  
+        #generated_logits, loss = _loop_pred_step(seq_len, te_batch_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units)
+        generated_logits, _, _, loss = loop_encode_decode(seq_len, te_batch_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units, test_tf_ratio, train_mode)
+        print(tf.argmax(generated_logits, axis=-1)[:5, :])
+        #generated_output_seqs(seq_len, te_batch_size, vocab_size, loaded_generator, dec_state_h, dec_state_c, batch_x_test, batch_y_test, False)  
         variation_score = get_sequence_variation_percentage(generated_logits)
-        loss = loss / variation_score #+ mae([1.0], [variation_score]) #variation_score
+        loss = loss + mae([1.0], [variation_score]) #/ variation_score #+ mae([1.0], [variation_score]) #variation_score
         print("Test batch {} variation score: {}".format(str(step+1), str(variation_score)))
         print("Test batch {} true loss: {}".format(str(step+1), str(loss.numpy())))
         avg_test_loss.append(loss)

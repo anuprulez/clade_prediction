@@ -40,7 +40,7 @@ n_disc_step = 2
 n_gen_step = 1
 unrolled_steps = 1
 test_log_step = 10
-teacher_forcing_ratio = 0.5
+teacher_forcing_ratio = 0.0
 
 m_loss = encoder_decoder_attention.MaskedLoss()
 mae = tf.keras.losses.MeanAbsoluteError()
@@ -154,7 +154,7 @@ def sample_true_x_y(mut_indices, batch_size, X_train, y_train, batch_mut_distrib
     return unrolled_x, unrolled_y, batch_mut_distribution
 
 
-def _loop_step(input_token, target_token, input_mask, enc_output, dec_state, gen_decoder):
+'''def _loop_step(input_token, target_token, input_mask, enc_output, dec_state, gen_decoder):
   #input_token, target_token = new_tokens[:, 0:1], new_tokens[:, 1:2]
 
   # Run the decoder one step.
@@ -170,22 +170,11 @@ def _loop_step(input_token, target_token, input_mask, enc_output, dec_state, gen
   # `self.loss` returns the total for non-padded tokens
   y = target_token
   y_pred = dec_result.logits
-  
+
   step_loss = m_loss(y, y_pred)
 
-  return step_loss, dec_state, y_pred
+  return step_loss, dec_state, y_pred'''
 
-def check_batch_ldist(u_x, u_y, seq_len):
-    x_s = ",".join([str(j) for j in u_x[:, 1:]])
-    y_s = ",".join([str(k) for k in u_y[:, 1:]])
-
-    l_list = list()
-    for i in range(seq_len - 1):
-        l_dist = utils.compute_Levenshtein_dist(x_s[i], y_s[i])
-        l_list.append(l_dist)
-    print(l_list, np.mean(l_dist))
-
-    print("--")
 
 def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vocab_size, n_batches, batch_size, pretr_parent_child_mut_indices, epochs, size_stateful):
   X_train, y_train, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches = inputs
@@ -213,31 +202,16 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           print(l_dist)
           print("---")
       import sys
-      sys.exit()
-
-      check_batch_ldist(unrolled_x, unrolled_y, seq_len)'''
+      sys.exit()'''
       
       with tf.GradientTape() as gen_tape:
 
-          enc_output, enc_state = gen_encoder(unrolled_x, training=True)
-          enc_state = tf.math.add(enc_state, tf.random.normal((batch_size, enc_units)))
-          dec_state = enc_state
-          input_mask = unrolled_x != 0
-          target_mask = unrolled_y != 0
-          gen_logits = list()
-          i_tokens = tf.fill([batch_size, 1], 0)
-          for t in tf.range(seq_len-1):
-              o_tokens = unrolled_y[:, t+1:t+2]
-              step_loss, dec_state, dec_logits = _loop_step(i_tokens, o_tokens, input_mask, enc_output, dec_state, gen_decoder)
-              if random.random() <= teacher_forcing_ratio:
-                  i_tokens = o_tokens
-              else:
-                  i_tokens = tf.argmax(dec_logits, axis=-1)
-              gen_logits.append(dec_logits)
-              loss = loss + step_loss
-
-          pred_logits = tf.concat(gen_logits, axis=-2)
-          gen_loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
+          pred_logits, gen_encoder, gen_decoder, gen_loss = utils.loop_encode_decode(seq_len, batch_size, unrolled_x, unrolled_y, gen_encoder, gen_decoder, enc_units, teacher_forcing_ratio, True)
+    
+          print("Training: true output seq")
+          print(unrolled_y[:5, :])
+          print()
+          print(tf.argmax(pred_logits, axis=-1)[:5, :])
 
           #noise = tf.random.normal((batch_size, enc_units))
  
@@ -253,7 +227,6 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           
           gen_logits = pred.rnn_output
           gen_loss = utils.loss_function(unrolled_y, gen_logits)'''
-
  
 
           '''print("Training: true output seq")
@@ -278,7 +251,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           # compute generated sequence variation
           variation_score = utils.get_sequence_variation_percentage(pred_logits)
           print("Pretr: generation variation score: {}".format(str(variation_score)))
-          gen_loss = gen_loss / variation_score #+ mae([1.0], [variation_score])
+          gen_loss = gen_loss + mae([1.0], [variation_score]) #/ variation_score #+ mae([1.0], [variation_score])
           epo_tr_seq_var.append(variation_score)
           print("Pretrain epoch {}/{}, batch {}/{}, gen true loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches), str(gen_loss.numpy())))
           if (step + 1) % test_log_step == 0 and step > 0:
