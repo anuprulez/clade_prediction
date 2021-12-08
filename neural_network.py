@@ -24,7 +24,7 @@ class MaskedLoss(tf.keras.losses.Loss):
   def __init__(self):
     self.name = 'masked_loss'
     self.loss = tf.keras.losses.SparseCategoricalCrossentropy(
-        from_logits=True, reduction='none')
+        from_logits=False, reduction='none')
 
   def __call__(self, y_true, y_pred):
     #shape_checker = ShapeChecker()
