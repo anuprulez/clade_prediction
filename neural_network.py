@@ -20,6 +20,29 @@ RECURR_DROPOUT = 0.25
 LEAKY_ALPHA = 0.3
 
 
+class MaskedLoss(tf.keras.losses.Loss):
+  def __init__(self):
+    self.name = 'masked_loss'
+    self.loss = tf.keras.losses.SparseCategoricalCrossentropy(
+        from_logits=True, reduction='none')
+
+  def __call__(self, y_true, y_pred):
+    #shape_checker = ShapeChecker()
+    #shape_checker(y_true, ('batch', 't'))
+    #shape_checker(y_pred, ('batch', 't', 'logits'))
+
+    # Calculate the loss for each item in the batch.
+    loss = self.loss(y_true, y_pred)
+    #shape_checker(loss, ('batch', 't'))
+
+    # Mask off the losses on padding.
+    mask = tf.cast(y_true != 0, tf.float32)
+    #shape_checker(mask, ('batch', 't'))
+    loss *= mask
+
+    # Return the total.
+    return tf.reduce_sum(loss)
+
 
 def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_size, s_stateful):
     # Create encoder model for Generator
@@ -36,11 +59,11 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     # create model
     embed = gen_embedding(gen_inputs)
     embed = tf.keras.layers.Dropout(ENC_DROPOUT)(embed)
-    print(embed.shape)
+    '''print(embed.shape)
     conv_embed = conv1d(embed)
     print(conv_embed.shape)
-    conv_embed = tf.keras.layers.Dropout(ENC_DROPOUT)(conv_embed)
-    enc_output, state_f, state_b = gen_gru(conv_embed)
+    conv_embed = tf.keras.layers.Dropout(ENC_DROPOUT)(conv_embed)'''
+    enc_output, state_f, state_b = gen_gru(embed)
     encoder_model = tf.keras.Model([gen_inputs], [enc_output, state_f, state_b])
 
     # Create decoder for Generator

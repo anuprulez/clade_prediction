@@ -12,8 +12,8 @@ import tensorflow as tf
 import h5py
 import copy
 
-import encoder_decoder_attention
 
+import neural_network
 import utils
 
 PATH_KMER_F_DICT = "data/ncov_global/kmer_f_word_dictionaries.json"
@@ -42,7 +42,8 @@ unrolled_steps = 1
 test_log_step = 20
 teacher_forcing_ratio = 0.0
 
-m_loss = encoder_decoder_attention.MaskedLoss()
+
+m_loss = neural_network.MaskedLoss()
 mae = tf.keras.losses.MeanAbsoluteError()
 
 

@@ -10,19 +10,19 @@ import random
 from random import choices
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
-#import tensorflow_addons as tfa
 from Levenshtein import distance as lev_dist
 
-import encoder_decoder_attention
+import neural_network
 
 PATH_KMER_F_DICT = "data/ncov_global/kmer_f_word_dictionaries.json"
 PATH_KMER_R_DICT = "data/ncov_global/kmer_r_word_dictionaries.json"
 
-m_loss = encoder_decoder_attention.MaskedLoss()
+m_loss = neural_network.MaskedLoss()
 
 cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False, reduction='none')
 mae = tf.keras.losses.MeanAbsoluteError()
 test_tf_ratio = 0.0
+
 
 def loss_function(real, pred):
   # real shape = (BATCH_SIZE, max_length_output)

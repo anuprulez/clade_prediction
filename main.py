@@ -14,8 +14,6 @@ import preprocess_sequences
 import utils
 import neural_network
 import train_model
-import encoder_decoder
-import encoder_decoder_attention
 
 
 PATH_PRE = "data/ncov_global/"
@@ -72,17 +70,17 @@ enc_units = 128
 
 s_kmer = 3
 LEN_AA = 1274
-len_aa_subseq = 301
+len_aa_subseq = 31
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 2
-size_stateful = 50
+size_stateful = 10
 # Neural network parameters
 embedding_dim = 32
 batch_size = 32
 te_batch_size = batch_size
 n_te_batches = 10
-enc_units = 128
-pretrain_epochs = 4
+enc_units = 32
+pretrain_epochs = 1
 epochs = 2
 max_l_dist = 11
 test_train_size = 0.85
