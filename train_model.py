@@ -206,7 +206,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
       
       with tf.GradientTape() as gen_tape:
 
-          pred_logits, gen_encoder, gen_decoder, gen_loss = utils.loop_encode_decode(seq_len, batch_size, unrolled_x, unrolled_y, gen_encoder, gen_decoder, enc_units, teacher_forcing_ratio, True)
+          pred_logits, gen_encoder, gen_decoder, gen_loss = utils.loop_encode_decode(seq_len, batch_size, unrolled_x, unrolled_y, gen_encoder, gen_decoder, enc_units, teacher_forcing_ratio, True, size_stateful)
     
           print("Training: true output seq")
           print(unrolled_y[:5, :])
@@ -249,11 +249,11 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           #print()
           print(unrolled_y)'''
           # compute generated sequence variation
-          variation_score = utils.get_sequence_variation_percentage(pred_logits)
+          variation_score = utils.get_sequence_variation_percentage(unrolled_x, pred_logits)
           print("Pretr: generation variation score: {}".format(str(variation_score)))
           #/ variation_score #+ mae([1.0], [variation_score])
           #var_score = mae([1.0], [variation_score])
-          gen_loss = gen_loss / variation_score
+          gen_loss = gen_loss + mae([1.0], [variation_score])
           epo_tr_seq_var.append(variation_score)
           print("Pretrain epoch {}/{}, batch {}/{}, gen true loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches), str(gen_loss.numpy())))
           if (step + 1) % test_log_step == 0 and step > 0:

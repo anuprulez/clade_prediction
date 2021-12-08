@@ -373,7 +373,10 @@ def embedding_info(dict_json):
     return len(dict_json)
     
 def convert_to_string_list(l):
-    l = l.numpy()
+    try:
+        l = l.numpy()
+    except Exception:
+        pass
     l = [",".join([str(i) for i in item]) for item in l]
     return l
 
@@ -387,12 +390,15 @@ def stateful_encoding(size_stateful, inputs, enc, training=False):
     return enc_out, enc_state_h, enc_state_c
 
 
-def get_sequence_variation_percentage(logits):
-    seq_tokens = tf.math.argmax(logits, axis=-1)
+def get_sequence_variation_percentage(true_in, pred_logits):
+    seq_tokens = tf.math.argmax(pred_logits, axis=-1)
     #print("Gen seqs:")
     #print(seq_tokens)
-    l_seq_tokens = convert_to_string_list(seq_tokens)
-    df_seqs = pd.DataFrame(l_seq_tokens, columns=["Sequences"])
+    i_tokens = convert_to_string_list(true_in)
+    o_tokens = convert_to_string_list(seq_tokens)
+    
+    df_seqs = pd.DataFrame(list(zip(i_tokens, o_tokens)), columns=["True output", "Pred output"])
+    #print(df_seqs)
     u_df_seqs = df_seqs.drop_duplicates()
     percent_variation = len(u_df_seqs.index) / float(len(df_seqs.index))
     return percent_variation
@@ -464,13 +470,19 @@ def evaluate_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_bat
   print('Predicted translation: {}'.format(result))'''
 
 
-def loop_encode_decode(seq_len, batch_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test):
-    enc_output, enc_f, enc_b = gen_encoder(input_tokens, training=train_test)
+def loop_encode_decode(seq_len, batch_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful):
+    #enc_output, enc_f, enc_b = gen_encoder(input_tokens, training=train_test)
+    enc_output, enc_f, enc_b = stateful_encoding(s_stateful, input_tokens, gen_encoder, train_test)
     dec_f, dec_b = enc_f, enc_b
     #noise = tf.random.normal((batch_size, enc_units))
-    
-    dec_f = tf.math.add(dec_f, tf.random.normal((batch_size, enc_units)))
-    dec_b = tf.math.add(dec_b, tf.random.normal((batch_size, enc_units)))
+
+    noise_generator = tf.random.Generator.from_non_deterministic_state() #from_seed(32)
+
+    #dec_f = tf.math.add(dec_f, tf.random.normal((batch_size, enc_units)))
+    #dec_b = tf.math.add(dec_b, tf.random.normal((batch_size, enc_units)))
+
+    dec_f = tf.math.add(dec_f, noise_generator.normal(shape=[batch_size, enc_units]))
+    dec_b = tf.math.add(dec_b, noise_generator.normal(shape=[batch_size, enc_units]))
 
     gen_logits = list()
     loss = tf.constant(0.0)
@@ -484,8 +496,12 @@ def loop_encode_decode(seq_len, batch_size, input_tokens, output_tokens, gen_enc
                              mask=(input_tokens!=0))
 
         dec_result, dec_f, dec_b = gen_decoder(dec_input, state=[dec_f, dec_b], training=train_test)
-        dec_f = tf.math.add(dec_f, tf.random.normal((batch_size, enc_units)))
-        dec_b = tf.math.add(dec_b, tf.random.normal((batch_size, enc_units)))
+
+        #dec_f = tf.math.add(dec_f, tf.random.normal((batch_size, enc_units)))
+        #dec_b = tf.math.add(dec_b, tf.random.normal((batch_size, enc_units)))
+
+        dec_f = tf.math.add(dec_f, noise_generator.normal(shape=[batch_size, enc_units]))
+        dec_b = tf.math.add(dec_b, noise_generator.normal(shape=[batch_size, enc_units]))
 
         gen_logits.append(dec_result.logits)
 
@@ -522,18 +538,20 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
         print(batch_y_test[:5, :])
         # generate seqs stepwise - teacher forcing
         #generated_logits, loss = _loop_pred_step(seq_len, te_batch_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units)
-        generated_logits, _, _, loss = loop_encode_decode(seq_len, te_batch_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units, test_tf_ratio, train_mode)
+        generated_logits, _, _, loss = loop_encode_decode(seq_len, te_batch_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units, test_tf_ratio, train_mode, s_stateful)
         print(tf.argmax(generated_logits, axis=-1)[:5, :])
         #generated_output_seqs(seq_len, te_batch_size, vocab_size, loaded_generator, dec_state_h, dec_state_c, batch_x_test, batch_y_test, False)  
-        variation_score = get_sequence_variation_percentage(generated_logits)
-        loss = loss / variation_score #+ mae([1.0], [variation_score]) #/ variation_score #+ mae([1.0], [variation_score]) #variation_score
+        variation_score = get_sequence_variation_percentage(batch_x_test, generated_logits)
+        loss = loss + mae([1.0], [variation_score]) #+ mae([1.0], [variation_score]) #/ variation_score #+ mae([1.0], [variation_score]) #variation_score
         print("Test batch {} variation score: {}".format(str(step+1), str(variation_score)))
         print("Test batch {} true loss: {}".format(str(step+1), str(loss.numpy())))
+        print()
         avg_test_loss.append(loss)
         avg_test_seq_var.append(variation_score)
     print()
     print("Total test seq variation in {} batches: {}".format(str(n_te_batches), str(np.mean(avg_test_seq_var))))
     print("Total test loss in {} batches: {}".format(str(n_te_batches), str(np.mean(avg_test_loss))))
+    print("---")
     return np.mean(avg_test_loss), np.mean(avg_test_seq_var)
 
 

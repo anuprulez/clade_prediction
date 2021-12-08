@@ -72,7 +72,7 @@ enc_units = 128
 
 s_kmer = 3
 LEN_AA = 1274
-len_aa_subseq = 51
+len_aa_subseq = 31
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 2
 size_stateful = 5
@@ -80,7 +80,7 @@ size_stateful = 5
 embedding_dim = 32
 batch_size = 32
 te_batch_size = batch_size
-n_te_batches = 20
+n_te_batches = 10
 enc_units = 64
 pretrain_epochs = 10
 epochs = 2
