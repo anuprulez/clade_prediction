@@ -72,22 +72,22 @@ enc_units = 128
 
 s_kmer = 3
 LEN_AA = 1274
-len_aa_subseq = 31
+len_aa_subseq = 301
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 2
-size_stateful = 10
+size_stateful = 50
 # Neural network parameters
 embedding_dim = 32
 batch_size = 32
 te_batch_size = batch_size
 n_te_batches = 10
-enc_units = 64
+enc_units = 128
 pretrain_epochs = 4
 epochs = 2
 max_l_dist = 11
 test_train_size = 0.85
 pretrain_train_size = 0.01
-random_clade_size = 700
+random_clade_size = 100
 to_pretrain = True
 pretrained_model = False
 gan_train = False

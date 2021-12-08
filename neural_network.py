@@ -26,7 +26,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     # define layers
     gen_inputs = tf.keras.Input(batch_shape=(batch_size, s_stateful))
     gen_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
-    conv1d = tf.keras.layers.Conv1D(filters=16, kernel_size=4, activation='relu')
+    conv1d = tf.keras.layers.Conv1D(filters=16, kernel_size=embedding_dim, strides=3, activation='relu')
     gen_gru = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(enc_units,
                     recurrent_initializer='glorot_uniform',
     				return_sequences=True,
