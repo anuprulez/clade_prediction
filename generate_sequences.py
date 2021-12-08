@@ -18,14 +18,14 @@ import preprocess_sequences
 import utils
 
 
-RESULT_PATH = "test_results/25_11_2/"
+RESULT_PATH = "test_results/08_12_len_31/"
 
 min_diff = 0
 max_diff = 61
 train_size = 1.0
-enc_units = 128
+enc_units = 64
 random_size = 20
-LEN_AA = 1274
+LEN_AA = 29
 FUTURE_GEN_TEST = "test/20A_20B.csv"
 
 clade_parent = "20A" # 20A
@@ -34,7 +34,7 @@ clade_childen = ["20B"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"]
 # ["20G", "21C_Epsilon", "21F_Iota"]
 # {"20B": ["20I (Alpha, V1)", "20F", "20D", "21G (Lambda)", "21H"]}
 
-generating_factor = 5
+generating_factor = 1
 
 PATH_PRE = "data/ncov_global/"
 #PATH_SEQ = PATH_PRE + "spikeprot0815.fasta"
@@ -106,7 +106,7 @@ def load_model_generated_sequences(file_path):
     print("Generating sequences for {}...".format(clade_parent))
     for te_name in te_clade_files:
         te_clade_df = pd.read_csv(te_name, sep="\t")
-        te_X = te_clade_df["X"].drop_duplicates()
+        te_X = te_clade_df["X"] #.drop_duplicates()
         te_y = te_clade_df["Y"] #.drop_duplicates()
         print(te_X)
         with tf.device('/device:cpu:0'):
@@ -114,12 +114,14 @@ def load_model_generated_sequences(file_path):
 
 
 def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq):
-    batch_size = test_x.shape[0]
+    batch_size = 32 #test_x.shape[0]
     test_dataset_in = tf.data.Dataset.from_tensor_slices((test_x)).batch(batch_size)
     test_dataset_out = tf.data.Dataset.from_tensor_slices((test_y)).batch(batch_size)
     true_x = list()
     true_y = list()
     predicted_y = list()
+    test_tf_ratio = 0.0
+    size_stateful = 10
     num_te_batches = int(len(test_x) / float(batch_size))
     print("Num test batches: {}".format(str(num_te_batches)))
     print("Loading trained model from {}...".format(RESULT_PATH))
@@ -129,7 +131,7 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq):
     #loaded_decoder.load_weights(RESULT_PATH + GEN_DEC_WEIGHTS)
     for step, (x, y) in enumerate(zip(test_dataset_in, test_dataset_out)):
         batch_x_test = utils.pred_convert_to_array(x)
-        #batch_y_test = utils.pred_convert_to_array(y)
+        batch_y_test = utils.pred_convert_to_array(y)
         print(batch_x_test.shape)
         print("Generating sequences for the set of test sequence...")
         for i in range(generating_factor):
@@ -138,19 +140,11 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq):
             l_b_wu_score = list()
             l_ld_wuhan = list()
             print("Generating for iter {}/{}".format(str(i+1), str(generating_factor)))
-            #noise = tf.random.normal((batch_size, enc_units))
-            #enc_output, enc_state = loaded_encoder(batch_x_test, training=False)
-            #enc_state = tf.math.add(enc_state, noise)
 
-            noise = tf.random.normal((batch_size, 2 * enc_units))
-            enc_state_h, enc_state_c = loaded_encoder(batch_x_test, training=False)
-            enc_state_h = tf.math.add(enc_state_h, noise)
-            enc_state_c = tf.math.add(enc_state_c, noise)
-            dec_state_h, dec_state_c = enc_state_h, enc_state_c
-
-            generated_logits, _, _ = utils.generated_output_seqs(LEN_AA, batch_size, vocab_size, loaded_decoder, dec_state_h, dec_state_c, [], False)
+            #generated_logits, _, _ = utils.generated_output_seqs(LEN_AA, batch_size, vocab_size, loaded_decoder, dec_state_h, dec_state_c, [], False)
+            generated_logits, _, _, loss = utils.loop_encode_decode(LEN_AA, batch_size, batch_x_test, batch_y_test, loaded_encoder, loaded_decoder, enc_units, test_tf_ratio, False, size_stateful)
             # compute generated sequence variation
-            variation_score = utils.get_sequence_variation_percentage(generated_logits)
+            variation_score = utils.get_sequence_variation_percentage(batch_y_test, generated_logits)
             print("Generated sequence variation score: {}".format(str(variation_score)))
             p_y = tf.math.argmax(generated_logits, axis=-1)
             one_x = utils.convert_to_string_list(batch_x_test)
@@ -174,6 +168,8 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq):
             print("Generation iter {} done".format(str(i+1)))
             print("----------")
         print("Batch {} finished".format(str(step)))
+        if step == num_te_batches - 1:
+            break
         print()
     print(len(true_x), len(predicted_y))
     child_clades = "_".join(clade_childen)
