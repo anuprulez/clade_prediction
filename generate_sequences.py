@@ -18,14 +18,14 @@ import preprocess_sequences
 import utils
 
 
-RESULT_PATH = "test_results/08_12_len_31/"
+RESULT_PATH = "test_results/08_12_high_lr_dropout/"
 
 min_diff = 0
 max_diff = 61
 train_size = 1.0
 enc_units = 64
 random_size = 20
-LEN_AA = 29
+LEN_AA = 30
 FUTURE_GEN_TEST = "test/20A_20B.csv"
 
 clade_parent = "20A" # 20A
