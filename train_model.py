@@ -39,7 +39,7 @@ cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 n_disc_step = 2
 n_gen_step = 1
 unrolled_steps = 1
-test_log_step = 20
+test_log_step = 40
 teacher_forcing_ratio = 0.0
 
 m_loss = encoder_decoder_attention.MaskedLoss()
@@ -133,7 +133,7 @@ def g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, u
 
 
 def sample_true_x_y(mut_indices, batch_size, X_train, y_train, batch_mut_distribution):
-    '''mut_keys = list(mut_indices.keys())
+    mut_keys = list(mut_indices.keys())
     rand_mut_keys = np.array(choices(mut_keys, k=batch_size))
     x_batch_train = list()
     y_batch_train = list()
@@ -141,9 +141,9 @@ def sample_true_x_y(mut_indices, batch_size, X_train, y_train, batch_mut_distrib
     for key in rand_mut_keys:
         list_mut_rows = mut_indices[key]
         rand_row_index = np.random.randint(0, len(list_mut_rows), 1)[0]
-        rand_batch_indices.append(list_mut_rows[rand_row_index])'''
+        rand_batch_indices.append(list_mut_rows[rand_row_index])
 
-    rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)
+    #rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)
     x_batch_train = X_train[rand_batch_indices]
     y_batch_train = y_train[rand_batch_indices]
 
@@ -209,7 +209,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           pred_logits, gen_encoder, gen_decoder, gen_loss = utils.loop_encode_decode(seq_len, batch_size, unrolled_x, unrolled_y, gen_encoder, gen_decoder, enc_units, teacher_forcing_ratio, True, size_stateful)
     
           print("Training: true output seq")
-          print(unrolled_y[:5, :])
+          print(unrolled_y[:5, 1:])
           print()
           print(tf.argmax(pred_logits, axis=-1)[:5, :])
 
@@ -273,11 +273,12 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
       gradients_of_generator = gen_tape.gradient(gen_loss, gen_trainable_vars)
       pretrain_generator_optimizer.apply_gradients(zip(gradients_of_generator, gen_trainable_vars))
   # save model
-  #gen_encoder.save_weights(GEN_ENC_WEIGHTS)
-  #tf.keras.models.save_model(gen_encoder, PRETRAIN_GEN_ENC_MODEL)
-  #tf.keras.models.save_model(gen_decoder, PRETRAIN_GEN_DEC_MODEL)
-  #gen_encoder.save_weights(PRE_TR_GEN_ENC_WEIGHTS)
-  #gen_decoder.save_weights(PRE_TR_GEN_DEC_WEIGHTS)
+
+  gen_encoder.save_weights(GEN_ENC_WEIGHTS)
+  tf.keras.models.save_model(gen_encoder, PRETRAIN_GEN_ENC_MODEL)
+  tf.keras.models.save_model(gen_decoder, PRETRAIN_GEN_DEC_MODEL)
+  gen_encoder.save_weights(PRE_TR_GEN_ENC_WEIGHTS)
+  gen_decoder.save_weights(PRE_TR_GEN_DEC_WEIGHTS)
   utils.save_as_json("data/generated_files/pretr_ave_batch_x_y_mut_epo_{}.json".format(str(epo_step)), batch_mut_distribution)
   return np.mean(epo_avg_tr_gen_loss), np.mean(epo_te_gen_loss), np.mean(epo_te_seq_var), np.mean(epo_tr_seq_var), gen_encoder, gen_decoder
 

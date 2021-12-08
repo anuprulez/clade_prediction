@@ -16,7 +16,7 @@ import preprocess_sequences
 import bahdanauAttention
 
 
-ENC_DROPOUT = 0.5
+ENC_DROPOUT = 0.7
 DEC_DROPOUT = 0.2
 
 
@@ -64,6 +64,8 @@ class Encoder(tf.keras.layers.Layer):
     self.embedding = tf.keras.layers.Embedding(self.input_vocab_size,
                                                embedding_dim)
 
+    self.conv1d = tf.keras.layers.Conv1D(filters=16, kernel_size=4, activation='relu')
+
     # The GRU RNN layer processes those vectors sequentially.
     self.gru_1 = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(self.enc_units,
                                    # Return the sequence and state
@@ -84,6 +86,13 @@ class Encoder(tf.keras.layers.Layer):
     # 2. The embedding layer looks up the embedding for each token.
     vectors = self.embedding(tokens)
     vectors = tf.keras.layers.Dropout(ENC_DROPOUT)(vectors)
+
+    print(vectors.shape)
+
+    conv_vectors = self.conv1d(vectors)
+
+    print(conv_vectors.shape)
+    
     #vectors = tf.keras.layers.BatchNormalization()(vectors)
     #shape_checker(vectors, ('batch', 's', 'embed_dim'))
 
@@ -176,7 +185,7 @@ class Decoder(tf.keras.layers.Layer):
 
     # For step 5. This fully connected layer produces the logits for each
     # output token.
-    self.fc = tf.keras.layers.Dense(self.output_vocab_size) #, activation="softmax"
+    self.fc = tf.keras.layers.Dense(self.output_vocab_size, activation="softmax") #, activation="softmax"
 
 def call(self,
          inputs: DecoderInput,

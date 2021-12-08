@@ -27,7 +27,7 @@ test_tf_ratio = 0.0
 def loss_function(real, pred):
   # real shape = (BATCH_SIZE, max_length_output)
   # pred shape = (BATCH_SIZE, max_length_output, tar_vocab_size )
-  cross_entropy = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
+  cross_entropy = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False, reduction='none')
   loss = cross_entropy(y_true=real, y_pred=pred)
   mask = tf.logical_not(tf.math.equal(real, 0))   #output 0 for y=0 else output 1
   mask = tf.cast(mask, dtype=loss.dtype)  
@@ -471,16 +471,10 @@ def evaluate_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_bat
 
 
 def loop_encode_decode(seq_len, batch_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful):
-    #enc_output, enc_f, enc_b = gen_encoder(input_tokens, training=train_test)
     enc_output, enc_f, enc_b = stateful_encoding(s_stateful, input_tokens, gen_encoder, train_test)
     dec_f, dec_b = enc_f, enc_b
-    #noise = tf.random.normal((batch_size, enc_units))
 
-    noise_generator = tf.random.Generator.from_non_deterministic_state() #from_seed(32)
-
-    #dec_f = tf.math.add(dec_f, tf.random.normal((batch_size, enc_units)))
-    #dec_b = tf.math.add(dec_b, tf.random.normal((batch_size, enc_units)))
-
+    noise_generator = tf.random.Generator.from_non_deterministic_state()
     dec_f = tf.math.add(dec_f, noise_generator.normal(shape=[batch_size, enc_units]))
     dec_b = tf.math.add(dec_b, noise_generator.normal(shape=[batch_size, enc_units]))
 
@@ -491,26 +485,20 @@ def loop_encode_decode(seq_len, batch_size, input_tokens, output_tokens, gen_enc
     for t in range(seq_len - 1):
    
         o_tokens = output_tokens[:, t+1:t+2]
-        dec_input = encoder_decoder_attention.DecoderInput(new_tokens=i_tokens,
-                             enc_output=enc_output,
-                             mask=(input_tokens!=0))
 
-        dec_result, dec_f, dec_b = gen_decoder(dec_input, state=[dec_f, dec_b], training=train_test)
-
-        #dec_f = tf.math.add(dec_f, tf.random.normal((batch_size, enc_units)))
-        #dec_b = tf.math.add(dec_b, tf.random.normal((batch_size, enc_units)))
+        dec_result, dec_f, dec_b = gen_decoder([i_tokens, dec_f, dec_b], training=train_test)
 
         dec_f = tf.math.add(dec_f, noise_generator.normal(shape=[batch_size, enc_units]))
         dec_b = tf.math.add(dec_b, noise_generator.normal(shape=[batch_size, enc_units]))
 
-        gen_logits.append(dec_result.logits)
+        gen_logits.append(dec_result)
 
         if random.random() <= tf_ratio:
             i_tokens = o_tokens
         else:
-            i_tokens = tf.argmax(dec_result.logits, axis=-1)
+            i_tokens = tf.argmax(dec_result, axis=-1)
 
-        step_loss = m_loss(o_tokens, dec_result.logits)
+        step_loss = m_loss(o_tokens, dec_result)
         loss += step_loss
 
     t_loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
@@ -535,7 +523,7 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
         print("Test: true output seq:")
         #print(batch_x_test)
         #print()
-        print(batch_y_test[:5, :])
+        print(batch_y_test[:5, 1:])
         # generate seqs stepwise - teacher forcing
         #generated_logits, loss = _loop_pred_step(seq_len, te_batch_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units)
         generated_logits, _, _, loss = loop_encode_decode(seq_len, te_batch_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units, test_tf_ratio, train_mode, s_stateful)
@@ -665,8 +653,8 @@ def get_mutation_tr_indices(train_in, train_out, f_dict, r_dict):
             first = true_x[i:i+1]
             sec = true_y[i:i+1]
 
-            first_aa = [f_dict[int(j)] for j in first]
-            sec_aa = [f_dict[int(j)] for j in sec]
+            first_aa = [f_dict[str(j)] for j in first]
+            sec_aa = [f_dict[str(j)] for j in sec]
         
             first_mut = first_aa[0]
             second_mut = sec_aa[0]

@@ -75,19 +75,19 @@ LEN_AA = 1274
 len_aa_subseq = 31
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 2
-size_stateful = 5
+size_stateful = 10
 # Neural network parameters
 embedding_dim = 32
 batch_size = 32
 te_batch_size = batch_size
 n_te_batches = 10
 enc_units = 64
-pretrain_epochs = 10
+pretrain_epochs = 5
 epochs = 2
 max_l_dist = 11
 test_train_size = 0.85
 pretrain_train_size = 0.01
-random_clade_size = 1000
+random_clade_size = 700
 to_pretrain = True
 pretrained_model = False
 gan_train = False
@@ -257,13 +257,13 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     #sys.exit()
 
     if gen_encoder is None or gen_decoder is None:
-        #encoder, decoder = neural_network.make_generator_model(len_final_aa_padding, vocab_size, embedding_dim, enc_units, batch_size, size_stateful)
+        encoder, decoder = neural_network.make_generator_model(len_final_aa_padding, vocab_size, embedding_dim, enc_units, batch_size, size_stateful)
 
         #encoder = encoder_decoder.Encoder(vocab_size, embedding_dim, enc_units, batch_size)
         #decoder = encoder_decoder.Decoder(vocab_size, embedding_dim, enc_units, batch_size, 'luong')
         out_vocab_size = 1
-        encoder = encoder_decoder_attention.Encoder(vocab_size, embedding_dim, enc_units)
-        decoder = encoder_decoder_attention.Decoder(vocab_size, embedding_dim, enc_units)
+        #encoder = encoder_decoder_attention.Encoder(vocab_size, embedding_dim, enc_units)
+        #decoder = encoder_decoder_attention.Decoder(vocab_size, embedding_dim, enc_units)
         #print(encoder, decoder)
 
     else:
@@ -310,7 +310,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
 
         print("Pretraining generator...")
         # balance tr data by mutations
-        pretr_parent_child_mut_indices = dict() #utils.get_mutation_tr_indices(X_pretrain, y_pretrain, kmer_f_dict, kmer_r_dict)
+        pretr_parent_child_mut_indices = utils.get_mutation_tr_indices(X_pretrain, y_pretrain, kmer_f_dict, kmer_r_dict)
         utils.save_as_json(PRETR_MUT_INDICES, pretr_parent_child_mut_indices)
         # get pretraining dataset as sliced tensors
         n_pretrain_batches = int(X_pretrain.shape[0]/float(batch_size))
