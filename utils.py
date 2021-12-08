@@ -10,7 +10,7 @@ import random
 from random import choices
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
-import tensorflow_addons as tfa
+#import tensorflow_addons as tfa
 from Levenshtein import distance as lev_dist
 
 import encoder_decoder_attention
