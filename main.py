@@ -85,7 +85,7 @@ epochs = 2
 max_l_dist = 11
 test_train_size = 0.85
 pretrain_train_size = 0.01
-random_clade_size = 100
+random_clade_size = 1000
 to_pretrain = True
 pretrained_model = False
 gan_train = False
@@ -290,9 +290,6 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     print(X_train.shape, y_train.shape)
     X_train = np.array(X_train)
     y_train = np.array(y_train)
-
-    #print(X_train[0])
-    #print(y_train[0])
 
     #sys.exit()
 
