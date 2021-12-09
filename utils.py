@@ -493,10 +493,17 @@ def loop_encode_decode(seq_len, batch_size, input_tokens, output_tokens, gen_enc
 
         gen_logits.append(dec_result)
 
-        if random.random() <= tf_ratio:
+        if tf_ratio > 0.0:
+            #print("Teacher forcing...")
             i_tokens = o_tokens
         else:
+            #print("Free running...")
             i_tokens = tf.argmax(dec_result, axis=-1)
+
+        '''if random.random() <= tf_ratio:
+            i_tokens = o_tokens
+        else:
+            i_tokens = tf.argmax(dec_result, axis=-1)'''
 
         step_loss = m_loss(o_tokens, dec_result)
         loss += step_loss
@@ -530,7 +537,8 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
         print(tf.argmax(generated_logits, axis=-1)[:5, :])
         #generated_output_seqs(seq_len, te_batch_size, vocab_size, loaded_generator, dec_state_h, dec_state_c, batch_x_test, batch_y_test, False)  
         variation_score = get_sequence_variation_percentage(batch_x_test, generated_logits)
-        loss = loss + mae([1.0], [variation_score]) #+ mae([1.0], [variation_score]) #/ variation_score #+ mae([1.0], [variation_score]) #variation_score
+        
+        loss = loss / variation_score #+ mae([1.0], [variation_score]) #/ variation_score #+ mae([1.0], [variation_score]) #variation_score
         print("Test batch {} variation score: {}".format(str(step+1), str(variation_score)))
         print("Test batch {} true loss: {}".format(str(step+1), str(loss.numpy())))
         print()
@@ -654,7 +662,6 @@ def get_mutation_tr_indices(train_in, train_out, kmer_f_dict, kmer_r_dict, f_dic
             first = re_true_x[i:i+1]
             sec = re_true_y[i:i+1]
             if first != sec:
-                print(first, sec)
                 key = "{}>{}".format(first, sec)
                 if key not in parent_child_mut_indices:
                     parent_child_mut_indices[key] = list()

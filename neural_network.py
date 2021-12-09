@@ -48,9 +48,16 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     # Create encoder model for Generator
     # define layers
     gen_inputs = tf.keras.Input(batch_shape=(batch_size, s_stateful))
-    gen_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim, mask_zero=True)
+    gen_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim, mask_zero=True,
+        embeddings_regularizer="l1_l2",
+        #activity_regularizer="l1_l2"
+    )
     conv1d = tf.keras.layers.Conv1D(filters=16, kernel_size=10, strides=3, activation='relu')
     gen_gru = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(enc_units,
+                    kernel_regularizer="l1_l2",
+                    recurrent_regularizer="l1_l2",
+                    #bias_regularizer="l1_l2",
+                    #activity_regularizer="l1_l2",
                     recurrent_initializer='glorot_uniform',
     				return_sequences=True,
                     stateful=True,
@@ -72,14 +79,24 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     i_dec_b = tf.keras.Input(shape=(enc_units,))
     new_tokens = tf.keras.Input(batch_shape=(batch_size, seq_len))
     # define layers
-    dec_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim, mask_zero=True)
+    dec_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim, mask_zero=True, 
+        embeddings_regularizer="l1_l2",
+        #activity_regularizer="l1_l2"
+    )
     #dec_conv1d = tf.keras.layers.Conv1D(filters=16, kernel_size=4, activation='relu')
     dec_gru = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(enc_units,
+                                   kernel_regularizer="l1_l2",
+                                   recurrent_regularizer="l1_l2",
+                                   #bias_regularizer="l1_l2",
+                                   #activity_regularizer="l1_l2",
                                    recurrent_initializer='glorot_uniform',
                                    return_sequences=True,
                                    return_state=True))
 
-    dec_fc = tf.keras.layers.Dense(vocab_size, activation='softmax')
+    dec_fc = tf.keras.layers.Dense(vocab_size, activation='softmax',
+        kernel_regularizer="l1_l2",
+        #activity_regularizer="l1_l2"
+    )
 
     vectors = dec_embedding(new_tokens)
     vectors = tf.keras.layers.Dropout(DEC_DROPOUT)(vectors)

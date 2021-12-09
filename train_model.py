@@ -40,7 +40,7 @@ n_disc_step = 2
 n_gen_step = 1
 unrolled_steps = 1
 test_log_step = 20
-teacher_forcing_ratio = 0.0
+#teacher_forcing_ratio = 0.0
 
 
 m_loss = neural_network.MaskedLoss()
@@ -136,7 +136,6 @@ def g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, u
 def sample_true_x_y(mut_indices, batch_size, X_train, y_train, batch_mut_distribution):
     mut_keys = list(mut_indices.keys())
     rand_mut_keys = np.array(choices(mut_keys, k=batch_size))
-    print(rand_mut_keys)
     x_batch_train = list()
     y_batch_train = list()
     rand_batch_indices = list()
@@ -144,7 +143,6 @@ def sample_true_x_y(mut_indices, batch_size, X_train, y_train, batch_mut_distrib
         list_mut_rows = mut_indices[key]
         rand_row_index = np.random.randint(0, len(list_mut_rows), 1)[0]
         rand_batch_indices.append(list_mut_rows[rand_row_index])
-    print(rand_batch_indices)
     #rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)
     x_batch_train = X_train[rand_batch_indices]
     y_batch_train = y_train[rand_batch_indices]
@@ -185,7 +183,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
   epo_tr_seq_var = list()
   epo_te_seq_var = list()
   batch_mut_distribution = dict()
-
+  teacher_forcing_ratio = 0.0
   #kmer_f_dict = utils.read_json(PATH_KMER_F_DICT)
   #print(kmer_f_dict)
 
@@ -219,9 +217,10 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           print("Pretr: generation variation score: {}".format(str(variation_score)))
           #/ variation_score #+ mae([1.0], [variation_score])
           #var_score = mae([1.0], [variation_score])
-          gen_loss = gen_loss + mae([1.0], [variation_score])
+          gen_loss = gen_loss / variation_score #+ mae([1.0], [variation_score])
+          teacher_forcing_ratio = 1.0 - variation_score
           epo_tr_seq_var.append(variation_score)
-
+          print("Pretr: teacher forcing ratio: {}".format(str(teacher_forcing_ratio)))
           print("Pretrain epoch {}/{}, batch {}/{}, gen true loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches), str(gen_loss.numpy())))
           if (step + 1) % test_log_step == 0 and step > 0:
               print("-------")
