@@ -643,25 +643,41 @@ def save_batch(batch_x, batch_y, batch_mut_distribution):
     return batch_mut_distribution
 
 
-def get_mutation_tr_indices(train_in, train_out, f_dict, r_dict):
+def get_mutation_tr_indices(train_in, train_out, kmer_f_dict, kmer_r_dict, f_dict, r_dict):
     parent_child_mut_indices = dict()
+    print(kmer_f_dict)
+    print(f_dict)
+    print()
     for index, (x, y) in enumerate(zip(train_in, train_out)):
         true_x = x.split(",")[1:]
         true_y = y.split(",")[1:]
+        re_true_x = reconstruct_seq([kmer_f_dict[pos] for pos in true_x])
+        re_true_y = reconstruct_seq([kmer_f_dict[pos] for pos in true_y])
+
+        print(true_x)
+        print(re_true_x)
+        print()
+        print(true_x)
+        print(re_true_y)
 
         for i in range(len(true_x)):
-            first = true_x[i:i+1]
-            sec = true_y[i:i+1]
-
-            first_aa = [f_dict[str(j)] for j in first]
-            sec_aa = [f_dict[str(j)] for j in sec]
+            first = re_true_x[i:i+1]
+            sec = re_true_y[i:i+1]
+            
+            #first_aa = [f_dict[str(j)] for j in first]
+            #sec_aa = [f_dict[str(j)] for j in sec]
         
-            first_mut = first_aa[0]
-            second_mut = sec_aa[0]
+            #first_mut = first_aa[0]
+            #second_mut = sec_aa[0]
 
-            if first_mut != second_mut:
-                key = "{}>{}".format(first_mut, second_mut)
+            if first != sec:
+                print(first, sec)
+                key = "{}>{}".format(first, sec)
                 if key not in parent_child_mut_indices:
                     parent_child_mut_indices[key] = list()
                 parent_child_mut_indices[key].append(index)
+                print(key, index, parent_child_mut_indices[key])
+                #import sys
+                #sys.exit()
+                print("------")
     return parent_child_mut_indices

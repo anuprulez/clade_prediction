@@ -80,12 +80,12 @@ batch_size = 32
 te_batch_size = batch_size
 n_te_batches = 10
 enc_units = 64
-pretrain_epochs = 5
+pretrain_epochs = 20
 epochs = 2
 max_l_dist = 11
 test_train_size = 0.85
 pretrain_train_size = 0.01
-random_clade_size = 500
+random_clade_size = 100
 to_pretrain = True
 pretrained_model = False
 gan_train = False
@@ -308,7 +308,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
 
         print("Pretraining generator...")
         # balance tr data by mutations
-        pretr_parent_child_mut_indices = utils.get_mutation_tr_indices(X_pretrain, y_pretrain, kmer_f_dict, kmer_r_dict)
+        pretr_parent_child_mut_indices = utils.get_mutation_tr_indices(X_pretrain, y_pretrain, kmer_f_dict, kmer_r_dict, forward_dict, rev_dict)
         utils.save_as_json(PRETR_MUT_INDICES, pretr_parent_child_mut_indices)
         # get pretraining dataset as sliced tensors
         n_pretrain_batches = int(X_pretrain.shape[0]/float(batch_size))

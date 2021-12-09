@@ -208,47 +208,11 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
       with tf.GradientTape() as gen_tape:
 
           pred_logits, gen_encoder, gen_decoder, gen_loss = utils.loop_encode_decode(seq_len, batch_size, unrolled_x, unrolled_y, gen_encoder, gen_decoder, enc_units, teacher_forcing_ratio, True, size_stateful)
-    
           print("Training: true output seq")
           print(unrolled_y[:5, 1:])
           print()
           print(tf.argmax(pred_logits, axis=-1)[:5, :])
 
-          #noise = tf.random.normal((batch_size, enc_units))
- 
-          '''enc_hidden = gen_encoder.initialize_hidden_state()
-          enc_output, enc_h, enc_c = gen_encoder(unrolled_x, enc_hidden)
-
-          enc_h = tf.math.add(enc_h, tf.random.normal((batch_size, enc_units)))
-          enc_c = tf.math.add(enc_c, tf.random.normal((batch_size, enc_units)))
-
-          gen_decoder.attention_mechanism.setup_memory(enc_output)
-          decoder_initial_state = gen_decoder.build_initial_state(batch_size, [enc_h, enc_c], tf.float32)
-          pred = gen_decoder(unrolled_y, decoder_initial_state)
-          
-          gen_logits = pred.rnn_output
-          gen_loss = utils.loss_function(unrolled_y, gen_logits)'''
- 
-
-          '''print("Training: true output seq")
-          print(unrolled_y)
-          print()
-          print(tf.argmax(gen_logits, axis=-1))'''
-
-          #enc_out, enc_state_h, enc_state_c = gen_encoder(unrolled_x, training=True)
-
-          # stateful encoding
-          '''enc_out, enc_state_h, enc_state_c = utils.stateful_encoding(size_stateful, unrolled_x, gen_encoder, True)
-          gen_encoder.reset_states()
-          enc_state_h = tf.math.add(enc_state_h, noise)
-          enc_state_c = tf.math.add(enc_state_c, noise)
-          dec_state_h, dec_state_c = enc_state_h, enc_state_c
-          gen_logits, gen_decoder, gen_loss = utils.generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state_h, dec_state_c, unrolled_x, unrolled_y, True)
-          gen_decoder.reset_states()'''
-          '''print("Training: true output seq")
-          #print(unrolled_x)
-          #print()
-          print(unrolled_y)'''
           # compute generated sequence variation
           variation_score = utils.get_sequence_variation_percentage(unrolled_x, pred_logits)
           print("Pretr: generation variation score: {}".format(str(variation_score)))
@@ -256,6 +220,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           #var_score = mae([1.0], [variation_score])
           gen_loss = gen_loss + mae([1.0], [variation_score])
           epo_tr_seq_var.append(variation_score)
+
           print("Pretrain epoch {}/{}, batch {}/{}, gen true loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches), str(gen_loss.numpy())))
           if (step + 1) % test_log_step == 0 and step > 0:
               print("-------")

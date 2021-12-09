@@ -48,8 +48,8 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     # Create encoder model for Generator
     # define layers
     gen_inputs = tf.keras.Input(batch_shape=(batch_size, s_stateful))
-    gen_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
-    conv1d = tf.keras.layers.Conv1D(filters=16, kernel_size=embedding_dim, strides=3, activation='relu')
+    gen_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim, mask_zero=True)
+    conv1d = tf.keras.layers.Conv1D(filters=16, kernel_size=10, strides=3, activation='relu')
     gen_gru = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(enc_units,
                     recurrent_initializer='glorot_uniform',
     				return_sequences=True,
@@ -59,10 +59,10 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     # create model
     embed = gen_embedding(gen_inputs)
     embed = tf.keras.layers.Dropout(ENC_DROPOUT)(embed)
-    '''print(embed.shape)
-    conv_embed = conv1d(embed)
-    print(conv_embed.shape)
-    conv_embed = tf.keras.layers.Dropout(ENC_DROPOUT)(conv_embed)'''
+    #print(embed.shape)
+    #conv_embed = conv1d(embed)
+    #print(conv_embed.shape)
+    #conv_embed = tf.keras.layers.Dropout(ENC_DROPOUT)(conv_embed)
     enc_output, state_f, state_b = gen_gru(embed)
     encoder_model = tf.keras.Model([gen_inputs], [enc_output, state_f, state_b])
 
@@ -72,7 +72,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     i_dec_b = tf.keras.Input(shape=(enc_units,))
     new_tokens = tf.keras.Input(batch_shape=(batch_size, seq_len))
     # define layers
-    dec_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
+    dec_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim, mask_zero=True)
     #dec_conv1d = tf.keras.layers.Conv1D(filters=16, kernel_size=4, activation='relu')
     dec_gru = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(enc_units,
                                    recurrent_initializer='glorot_uniform',
