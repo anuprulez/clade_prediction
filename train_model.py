@@ -36,9 +36,9 @@ pretrain_generator_optimizer = tf.keras.optimizers.Adam() #tf.keras.optimizers.A
 generator_optimizer = tf.keras.optimizers.Adam() # learning_rate=1e-3, beta_1=0.5
 discriminator_optimizer = tf.keras.optimizers.Adam() # learning_rate=3e-5, beta_1=0.5
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
-n_disc_step = 2
-n_gen_step = 1
-unrolled_steps = 1
+n_disc_step = 6
+n_gen_step = 3
+unrolled_steps = 3
 test_log_step = 20
 teacher_forcing_ratio = 0.0
 
@@ -275,8 +275,6 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
       gradients_of_generator = gen_tape.gradient(gen_loss, gen_trainable_vars)
       gradients_of_generator = [tf.clip_by_value(grad, clip_value_min=-1e-6, clip_value_max=1e-6) for grad in gradients_of_generator]
       pretrain_generator_optimizer.apply_gradients(zip(gradients_of_generator, gen_trainable_vars))
-      if step == 2:
-          break
   # save model
 
   gen_encoder.save_weights(GEN_ENC_WEIGHTS)
