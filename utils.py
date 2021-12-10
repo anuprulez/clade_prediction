@@ -10,6 +10,7 @@ import random
 from random import choices
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
+from sklearn.preprocessing import RobustScaler
 from Levenshtein import distance as lev_dist
 
 import neural_network
@@ -94,8 +95,10 @@ def get_u_kmers(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict):
         l_distance.append(l_dist)
         if l_dist > 0 and l_dist < max_l_dist:
             filtered_l_distance.append(l_dist)
-            fil_x.append(add_padding_to_seq(enc_i))
-            fil_y.append(add_padding_to_seq(enc_j))
+            #fil_x.append(add_padding_to_seq(enc_i))
+            #fil_y.append(add_padding_to_seq(enc_j))
+            fil_x.append(enc_i)
+            fil_y.append(enc_j)
     return fil_x, fil_y, kmer_f_dict, kmer_r_dict
 
     '''train_kmers = get_all_kmers(combined_X, combined_y, forward_dict, s_kmer)
@@ -381,15 +384,6 @@ def convert_to_string_list(l):
     return l
 
 
-def stateful_encoding(size_stateful, inputs, enc, training=False):
-    stateful_batches = list()
-    n_stateful_batches = int(inputs.shape[1]/float(size_stateful))
-    for i in range(n_stateful_batches):
-        s_batch = inputs[:, i*size_stateful: (i+1)*size_stateful]
-        enc_out, enc_state_h, enc_state_c = enc(s_batch, training=training)
-    return enc_out, enc_state_h, enc_state_c
-
-
 def get_sequence_variation_percentage(true_in, pred_logits):
     seq_tokens = tf.math.argmax(pred_logits, axis=-1)
     #print("Gen seqs:")
@@ -470,47 +464,62 @@ def evaluate_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_bat
   print('Predicted translation: {}'.format(result))'''
 
 
-def loop_encode_decode(seq_len, batch_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful):
-    enc_output, enc_f, enc_b = stateful_encoding(s_stateful, input_tokens, gen_encoder, train_test)
-    dec_f, dec_b = enc_f, enc_b
+def scale_encodings(encoding):
+    encoding = encoding.numpy()
+    tf_enc = RobustScaler().fit_transform(encoding)
+    return tf.convert_to_tensor(tf_enc, dtype=tf.float32)
 
+
+def stateful_encoding(size_stateful, inputs, enc, training=False):
+    stateful_batches = list()
+    n_stateful_batches = int(inputs.shape[1]/float(size_stateful))
+    for i in range(n_stateful_batches):
+        s_batch = inputs[:, i*size_stateful: (i+1)*size_stateful]
+        enc_out, enc_state_h, enc_state_c = enc(s_batch, training=training)
+    return enc_out, enc_state_h, enc_state_c, enc
+
+
+def loop_encode_decode(seq_len, batch_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful):
+
+    enc_output, enc_f, enc_b, gen_encoder = stateful_encoding(s_stateful, input_tokens, gen_encoder, train_test)
+    dec_f, dec_b = enc_f, enc_b
+    #print()
+    #print(enc_output.shape, enc_f.shape, enc_b.shape)
+    #if train_test is True:
     noise_generator = tf.random.Generator.from_non_deterministic_state()
     dec_f = tf.math.add(dec_f, noise_generator.normal(shape=[batch_size, enc_units]))
     dec_b = tf.math.add(dec_b, noise_generator.normal(shape=[batch_size, enc_units]))
+    
+    #gen_logits = list()
 
-    gen_logits = list()
-    loss = tf.constant(0.0)
+    #loss = tf.constant(0.0)
     target_mask = output_tokens != 0
-    i_tokens = tf.fill([batch_size, 1], 0)
-    for t in range(seq_len - 1):
-   
-        o_tokens = output_tokens[:, t+1:t+2]
+    i_tokens = tf.fill([batch_size, seq_len], 0)
+    gen_logits, _, _ = gen_decoder([i_tokens, dec_f, dec_b], training=train_test)
 
+    '''i_tokens = tf.fill([batch_size, 1], 0)
+    for t in range(seq_len - 1):
+        o_tokens = output_tokens[:, t+1:t+2]
         dec_result, dec_f, dec_b = gen_decoder([i_tokens, dec_f, dec_b], training=train_test)
 
+        #if train_test is True:
         dec_f = tf.math.add(dec_f, noise_generator.normal(shape=[batch_size, enc_units]))
         dec_b = tf.math.add(dec_b, noise_generator.normal(shape=[batch_size, enc_units]))
 
         gen_logits.append(dec_result)
 
         if tf_ratio > 0.0:
-            #print("Teacher forcing...")
             i_tokens = o_tokens
         else:
-            #print("Free running...")
             i_tokens = tf.argmax(dec_result, axis=-1)
 
-        '''if random.random() <= tf_ratio:
-            i_tokens = o_tokens
-        else:
-            i_tokens = tf.argmax(dec_result, axis=-1)'''
-
         step_loss = m_loss(o_tokens, dec_result)
-        loss += step_loss
-
-    t_loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
-    gen_logits = tf.concat(gen_logits, axis=-2)
-    return gen_logits, gen_encoder, gen_decoder, t_loss
+        loss += step_loss'''
+    loss = m_loss(output_tokens, gen_logits)
+    #print(loss)
+    loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
+    #gen_logits = tf.concat(gen_logits, axis=-2)
+    return gen_logits, gen_encoder, gen_decoder, loss
     
 
 def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, loaded_encoder, loaded_generator, s_stateful):
@@ -530,15 +539,14 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
         print("Test: true output seq:")
         #print(batch_x_test)
         #print()
-        print(batch_y_test[:5, 1:])
+        print(batch_y_test[:5, :])
         # generate seqs stepwise - teacher forcing
         #generated_logits, loss = _loop_pred_step(seq_len, te_batch_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units)
         generated_logits, _, _, loss = loop_encode_decode(seq_len, te_batch_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units, test_tf_ratio, train_mode, s_stateful)
         print(tf.argmax(generated_logits, axis=-1)[:5, :])
         #generated_output_seqs(seq_len, te_batch_size, vocab_size, loaded_generator, dec_state_h, dec_state_c, batch_x_test, batch_y_test, False)  
         variation_score = get_sequence_variation_percentage(batch_x_test, generated_logits)
-        
-        loss = loss / variation_score #+ mae([1.0], [variation_score]) #/ variation_score #+ mae([1.0], [variation_score]) #variation_score
+        loss = loss + mae([1.0], [variation_score]) #/ variation_score #+ mae([1.0], [variation_score]) #variation_score
         print("Test batch {} variation score: {}".format(str(step+1), str(variation_score)))
         print("Test batch {} true loss: {}".format(str(step+1), str(loss.numpy())))
         print()
@@ -654,8 +662,8 @@ def save_batch(batch_x, batch_y, batch_mut_distribution):
 def get_mutation_tr_indices(train_in, train_out, kmer_f_dict, kmer_r_dict, f_dict, r_dict):
     parent_child_mut_indices = dict()
     for index, (x, y) in enumerate(zip(train_in, train_out)):
-        true_x = x.split(",")[1:]
-        true_y = y.split(",")[1:]
+        true_x = x.split(",") #[1:]
+        true_y = y.split(",") #[1:]
         re_true_x = reconstruct_seq([kmer_f_dict[pos] for pos in true_x])
         re_true_y = reconstruct_seq([kmer_f_dict[pos] for pos in true_y])
         for i in range(len(true_x)):

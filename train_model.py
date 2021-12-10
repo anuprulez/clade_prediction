@@ -40,7 +40,7 @@ n_disc_step = 2
 n_gen_step = 1
 unrolled_steps = 1
 test_log_step = 20
-#teacher_forcing_ratio = 0.0
+teacher_forcing_ratio = 0.0
 
 
 m_loss = neural_network.MaskedLoss()
@@ -65,51 +65,92 @@ def generator_loss(fake_output):
     #return -tf.math.reduce_mean(fake_output)
 
 
-def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc_model, disc_gen_enc_model):
-    noise = tf.random.normal((batch_size, 2 * enc_units))
+def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc_model, disc_gen_enc_model, size_stateful):
+    #noise = tf.random.normal((batch_size, 2 * enc_units))
     #transformed_noise = utils.transform_noise(noise)
-    _, enc_state = encoder(unrolled_x, training=True)
+    #_, enc_state = encoder(unrolled_x, training=True)
     # add noise to encoded state to have variations while generating sequences
-    transformed_enc_state = tf.math.add(enc_state, noise)
+    #transformed_enc_state = tf.math.add(enc_state, noise)
     # generate sequences
-    generated_logits, decoder, gen_t_loss = utils.generator_step(seq_len, batch_size, vocab_size, decoder, transformed_enc_state, unrolled_y, True)
+    #generated_logits, decoder, gen_t_loss = utils.generator_step(seq_len, batch_size, vocab_size, decoder, transformed_enc_state, unrolled_y, True)
     # compute generated sequence variation
-    variation_score = utils.get_sequence_variation_percentage(generated_logits)
+
+    #generated_logits, encoder, decoder, gen_t_loss = utils.loop_encode_decode(seq_len, batch_size, unrolled_x, unrolled_y, encoder, decoder, enc_units, teacher_forcing_ratio, True, size_stateful)
+
+    stateful_batches = list()
+    n_stateful_batches = int(unrolled_x.shape[1]/float(size_stateful))
+    for i in range(n_stateful_batches):
+        s_batch = unrolled_x[:, i*size_stateful: (i+1)*size_stateful]
+        enc_output, x_enc_f, x_enc_b = encoder(s_batch, training=True)
+
+    #enc_output, x_enc_f, x_enc_b, encoder = utils.stateful_encoding(size_stateful, unrolled_x, encoder, True)
+    #dec_f, dec_b = x_enc_f, x_enc_f
+
+    
+    #print()
+    #print(enc_output.shape, enc_f.shape, enc_b.shape)
+    #if train_test is True:
+    #noise_generator = tf.random.Generator.from_non_deterministic_state()
+    #dec_f = tf.math.add(dec_f, noise_generator.normal(shape=[batch_size, enc_units]))
+    #dec_b = tf.math.add(dec_b, noise_generator.normal(shape=[batch_size, enc_units]))
+
+    target_mask = unrolled_y != 0
+    i_tokens = tf.fill([batch_size, seq_len], 0)
+    generated_logits, _, _ = decoder([i_tokens, x_enc_f, x_enc_b], training=True)
+
+    loss = m_loss(unrolled_y, generated_logits)
+    gen_t_loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
+
+    # loop_encode_decode(seq_len, batch_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful):
+    # return gen_logits, gen_encoder, gen_decoder, loss
+    variation_score = utils.get_sequence_variation_percentage(unrolled_x, generated_logits)
     print("Generation variation score: {}".format(str(variation_score)))
     # encode parent sequences for discriminator
-    real_state_x = disc_par_enc_model(unrolled_x, training=True)
+    #enc_output, enc_f, enc_b = utils.stateful_encoding(size_stateful, unrolled_x, encoder, True)
+    #enc_output, enc_f, enc_b = stateful_encoding(s_stateful, input_tokens, gen_encoder, train_test)
+    #real_state_x = disc_par_enc_model(unrolled_x, training=True)
+
+    _, real_enc_f_x, real_enc_b_x, disc_par_enc_model = utils.stateful_encoding(size_stateful, unrolled_x, disc_par_enc_model, True)
+    real_state_x = real_enc_f_x + real_enc_b_x
+    #print(real_state_x.shape, real_enc_f_x.shape, real_enc_b_x.shape)
     # unrelated real X
-    unrelated_real_state_x = disc_par_enc_model(un_X, training=True)
+    unrelated_real_state_x = [] #disc_par_enc_model(un_X, training=True)
     # encode true child sequences for discriminator
     # reformat real output to one-hot encoding
     one_hot_real_y = tf.one_hot(unrolled_y, depth=generated_logits.shape[-1], axis=-1)
-    real_state_y = disc_gen_enc_model(one_hot_real_y, training=True)
+    #real_state_y = disc_gen_enc_model(one_hot_real_y, training=True)
 
+    _, real_enc_f_y, real_enc_b_y, disc_gen_enc_model = utils.stateful_encoding(size_stateful, one_hot_real_y, disc_gen_enc_model, True)
+    real_state_y = real_enc_f_y + real_enc_b_y
+    #print(real_state_y.shape, real_enc_f_y.shape, real_enc_b_y.shape)
     # unrelated real y
-    one_hot_unrelated_y = tf.one_hot(un_y, depth=generated_logits.shape[-1], axis=-1)
-    unrelated_real_state_y = disc_gen_enc_model(one_hot_unrelated_y, training=True)
+    one_hot_unrelated_y = [] #tf.one_hot(un_y, depth=generated_logits.shape[-1], axis=-1)
+    unrelated_real_state_y = [] #disc_gen_enc_model(one_hot_unrelated_y, training=True)
 
     # encode generated child sequences for discriminator
-    fake_state_y = disc_gen_enc_model(generated_logits, training=True)
+    #fake_state_y = disc_gen_enc_model(generated_logits, training=True)
+    _, fake_enc_f_y, fake_enc_b_y, disc_gen_enc_model = utils.stateful_encoding(size_stateful, generated_logits, disc_gen_enc_model, True)
+    fake_state_y = fake_enc_f_y + fake_enc_b_y
+    #print(fake_state_y.shape, fake_enc_f_y.shape, fake_enc_b_y.shape)
     return real_state_x, real_state_y, fake_state_y, unrelated_real_state_x, unrelated_real_state_y, encoder, decoder, disc_par_enc_model, disc_gen_enc_model, gen_t_loss
 
 
-def d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator):
+def d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, size_stateful):
     print("Applying gradient update on discriminator...")
     with tf.GradientTape() as disc_tape:
-        real_x, real_y, fake_y, unreal_x, unreal_y, _, _, disc_par_enc, disc_gen_enc, _ = get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc)
+        real_x, real_y, fake_y, unreal_x, unreal_y, _, _, disc_par_enc, disc_gen_enc, _ = get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, size_stateful)
         # discriminate pairs of true parent and true child sequences
         real_output = discriminator([real_x, real_y], training=True)
         # discriminate pairs of true parent and generated child sequences
         fake_output = discriminator([real_x, fake_y], training=True)
         # discriminate pairs of true parent and random sequences
-        unreal_output = discriminator([unreal_x, unreal_y], training=True)
+        '''unreal_output = discriminator([unreal_x, unreal_y], training=True)
         # halve the fake outpus and combine them to keep the final size same as the real output
         t1 = fake_output[:int(batch_size/2.0)]
         t2 = unreal_output[:int(batch_size/2.0)]
-        combined_fake_output = tf.concat([t1, t2], 0)
+        combined_fake_output = tf.concat([t1, t2], 0)'''
         # compute discriminator loss
-        disc_real_loss, disc_fake_loss = discriminator_loss(real_output, combined_fake_output)
+        disc_real_loss, disc_fake_loss = discriminator_loss(real_output, fake_output)
         total_disc_loss = disc_real_loss + disc_fake_loss
     # update discriminator's parameters
     disc_trainable_vars = discriminator.trainable_variables + disc_gen_enc.trainable_variables + disc_par_enc.trainable_variables
@@ -118,14 +159,14 @@ def d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, u
     return encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, disc_real_loss, disc_fake_loss, total_disc_loss
 
 
-def g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator):
+def g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, size_stateful):
     print("Applying gradient update on generator...")
     with tf.GradientTape() as gen_tape:
-        real_x, _, fake_y, _, _, encoder, decoder, _, _, gen_true_loss = get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc)
+        real_x, _, fake_y, _, _, encoder, decoder, _, _, gen_true_loss = get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, size_stateful)
         # discriminate pairs of true parent and generated child sequences
         fake_output = discriminator([real_x, fake_y], training=True)
         gen_fake_loss = generator_loss(fake_output)
-        total_gen_loss = gen_fake_loss + gen_true_loss
+        total_gen_loss = gen_true_loss + gen_fake_loss
     # get all trainable vars for generator
     gen_trainable_vars = decoder.trainable_variables + encoder.trainable_variables
     gradients_of_generator = gen_tape.gradient(total_gen_loss, gen_trainable_vars)
@@ -183,7 +224,6 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
   epo_tr_seq_var = list()
   epo_te_seq_var = list()
   batch_mut_distribution = dict()
-  teacher_forcing_ratio = 0.0
   #kmer_f_dict = utils.read_json(PATH_KMER_F_DICT)
   #print(kmer_f_dict)
 
@@ -208,17 +248,16 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
 
           pred_logits, gen_encoder, gen_decoder, gen_loss = utils.loop_encode_decode(seq_len, batch_size, unrolled_x, unrolled_y, gen_encoder, gen_decoder, enc_units, teacher_forcing_ratio, True, size_stateful)
           print("Training: true output seq")
-          print(unrolled_y[:5, 1:])
+          print(unrolled_y[:5, :], unrolled_y.shape)
           print()
-          print(tf.argmax(pred_logits, axis=-1)[:5, :])
+          print(tf.argmax(pred_logits, axis=-1)[:5, :], pred_logits.shape)
 
           # compute generated sequence variation
           variation_score = utils.get_sequence_variation_percentage(unrolled_x, pred_logits)
           print("Pretr: generation variation score: {}".format(str(variation_score)))
           #/ variation_score #+ mae([1.0], [variation_score])
           #var_score = mae([1.0], [variation_score])
-          gen_loss = gen_loss / variation_score #+ mae([1.0], [variation_score])
-          teacher_forcing_ratio = 1.0 - variation_score
+          gen_loss = gen_loss + mae([1.0], [variation_score]) #+ mae([1.0], [variation_score])
           epo_tr_seq_var.append(variation_score)
           print("Pretr: teacher forcing ratio: {}".format(str(teacher_forcing_ratio)))
           print("Pretrain epoch {}/{}, batch {}/{}, gen true loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches), str(gen_loss.numpy())))
@@ -236,6 +275,8 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
       gradients_of_generator = gen_tape.gradient(gen_loss, gen_trainable_vars)
       gradients_of_generator = [tf.clip_by_value(grad, clip_value_min=-1e-6, clip_value_max=1e-6) for grad in gradients_of_generator]
       pretrain_generator_optimizer.apply_gradients(zip(gradients_of_generator, gen_trainable_vars))
+      if step == 2:
+          break
   # save model
 
   gen_encoder.save_weights(GEN_ENC_WEIGHTS)
@@ -247,7 +288,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
   return np.mean(epo_avg_tr_gen_loss), np.mean(epo_te_gen_loss), np.mean(epo_te_seq_var), np.mean(epo_tr_seq_var), gen_encoder, gen_decoder
 
 
-def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, enc_units, vocab_size, n_train_batches, batch_size, parent_child_mut_indices, epochs):
+def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, enc_units, vocab_size, n_train_batches, batch_size, parent_child_mut_indices, epochs, size_stateful):
   """
   Training sequences balanced by mutation type
   """
@@ -274,12 +315,12 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
   mut_keys = list(parent_child_mut_indices.keys())
   for step in range(n_train_batches):
       unrolled_x, unrolled_y, batch_mut_distribution = sample_true_x_y(parent_child_mut_indices, batch_size, X_train, y_train, batch_mut_distribution)
-      un_X, un_y = utils.sample_unrelated_x_y(unrelated_X, unrelated_y, batch_size)
+      un_X, un_y = [], [] #utils.sample_unrelated_x_y(unrelated_X, unrelated_y, batch_size)
       seq_len = unrolled_x.shape[1]
       disc_gen = step % n_disc_step
       if disc_gen in list(range(0, n_disc_step - n_gen_step)):
           # train discriminator
-          _, _, disc_par_enc, disc_gen_enc, discriminator, disc_real_loss, disc_fake_loss, total_disc_loss = d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator)
+          _, _, disc_par_enc, disc_gen_enc, discriminator, disc_real_loss, disc_fake_loss, total_disc_loss = d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, size_stateful)
           # share weights with generator's encoder
           disc_par_enc.load_weights(GEN_ENC_WEIGHTS)
           disc_gen_enc.layers[1].set_weights(disc_par_enc.layers[1].get_weights())
@@ -296,19 +337,19 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
               print("Unrolled step: {}/{}".format(str(i+1), str(unrolled_steps)))
               # sample data for unrolling
               unroll_x, unroll_y, _ = sample_true_x_y(parent_child_mut_indices, batch_size, X_train, y_train, batch_mut_distribution)
-              un_unroll_X, un_unroll_y = utils.sample_unrelated_x_y(unrelated_X, unrelated_y, batch_size)
+              un_unroll_X, un_unroll_y = [], [] #utils.sample_unrelated_x_y(unrelated_X, unrelated_y, batch_size)
               # train discriminator
-              _, _, disc_par_enc, disc_gen_enc, discriminator, d_r_l, d_f_l, d_t_l = d_loop(seq_len, batch_size, vocab_size, enc_units, unroll_x, unroll_y, un_unroll_X, un_unroll_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator)
+              _, _, disc_par_enc, disc_gen_enc, discriminator, d_r_l, d_f_l, d_t_l = d_loop(seq_len, batch_size, vocab_size, enc_units, unroll_x, unroll_y, un_unroll_X, un_unroll_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, size_stateful)
               print("Unrolled disc losses: real {}, fake {}, total {}".format(str(d_r_l.numpy()), str(d_f_l.numpy()), str(d_t_l.numpy())))
           # finish unrolling
           # train generator with unrolled discriminator
-          encoder, decoder, _, _, _, gen_true_loss, gen_fake_loss, total_gen_loss = g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator)
+          encoder, decoder, _, _, _, gen_true_loss, gen_fake_loss, total_gen_loss = g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, size_stateful)
           print("Training epoch {}/{}, batch {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_train_batches), str(gen_true_loss.numpy()), str(gen_fake_loss.numpy()), str(total_gen_loss.numpy())))
           encoder.save_weights(GEN_ENC_WEIGHTS)
           if step % test_log_step == 0:
               print("Training: prediction on test data...")
               with tf.device('/device:cpu:0'):
-                  epo_bat_gen_te_loss, gen_bat_te_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, encoder, decoder)
+                  epo_bat_gen_te_loss, gen_bat_te_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, encoder, decoder, size_stateful)
                   epo_te_gen_loss.append(epo_bat_gen_te_loss)
                   epo_te_seq_var.append(gen_bat_te_seq_var)
           # reset weights of discriminator, disc_par_enc and disc_gen_enc after unrolling

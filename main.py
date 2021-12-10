@@ -70,25 +70,25 @@ enc_units = 128
 
 s_kmer = 3
 LEN_AA = 1274
-len_aa_subseq = 31
+len_aa_subseq = 32
 #len_final_aa_padding = len_aa_subseq + 1
-len_final_aa_padding = len_aa_subseq - s_kmer + 2
+len_final_aa_padding = len_aa_subseq - s_kmer + 1
 size_stateful = 10
 # Neural network parameters
 embedding_dim = 32
-batch_size = 32
+batch_size = 8
 te_batch_size = batch_size
-n_te_batches = 10
-enc_units = 64
-pretrain_epochs = 5
-epochs = 2
+n_te_batches = 1
+enc_units = 32
+pretrain_epochs = 1
+epochs = 10
 max_l_dist = 11
 test_train_size = 0.85
-pretrain_train_size = 0.01
-random_clade_size = 1000
-to_pretrain = True
+pretrain_train_size = 0.5
+random_clade_size = 100
+to_pretrain = False
 pretrained_model = False
-gan_train = False
+gan_train = True
 stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/", "data/pretrain/"]
 amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"
 
@@ -116,10 +116,9 @@ def read_files():
         print("Preprocessing sample-clade assignment file...")
         dataf = pd.read_csv(PATH_SAMPLES_CLADES, sep=",")
         filtered_dataf = preprocess_sequences.filter_samples_clades(dataf)
-
         clades_in_clades_out = utils.read_json(PATH_TRAINING_CLADES)
         print(clades_in_clades_out)
-        unrelated_clades = utils.read_json(PATH_UNRELATED_CLADES)
+        #unrelated_clades = utils.read_json(PATH_UNRELATED_CLADES)
         print("Generating cross product of real parent child...")
         preprocess_sequences.make_cross_product(clades_in_clades_out, filtered_dataf, len_aa_subseq, train_size=test_train_size, edit_threshold=max_l_dist, random_size=random_clade_size, unrelated=False)
         #print("Generating cross product of real sequences but not parent-child...")
@@ -180,7 +179,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
 
     #verify_ldist(combined_te_X, combined_te_y)
 
-    '''
+    
     tr_unrelated_files = glob.glob("data/tr_unrelated/*.csv")
     print("Loading unrelated datasets...")
     unrelated_X = list()
@@ -196,7 +195,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     unrelated_X = np.array(unrelated_X)
     unrelated_y = np.array(unrelated_y)
     print("Unrelated data sizes")
-    print(len(unrelated_X), len(unrelated_y))'''
+    print(len(unrelated_X), len(unrelated_y))
 
     print("train and test data sizes")
     print(len(combined_X), len(combined_y), len(combined_te_X), len(combined_te_y))
@@ -252,18 +251,8 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     test_dataset_in = np.array(combined_te_X)
     test_dataset_out = np.array(combined_te_y)
 
-    #sys.exit()
-
     if gen_encoder is None or gen_decoder is None:
         encoder, decoder = neural_network.make_generator_model(len_final_aa_padding, vocab_size, embedding_dim, enc_units, batch_size, size_stateful)
-
-        #encoder = encoder_decoder.Encoder(vocab_size, embedding_dim, enc_units, batch_size)
-        #decoder = encoder_decoder.Decoder(vocab_size, embedding_dim, enc_units, batch_size, 'luong')
-        out_vocab_size = 1
-        #encoder = encoder_decoder_attention.Encoder(vocab_size, embedding_dim, enc_units)
-        #decoder = encoder_decoder_attention.Decoder(vocab_size, embedding_dim, enc_units)
-        #print(encoder, decoder)
-
     else:
         encoder = gen_encoder
         decoder = gen_decoder
@@ -274,8 +263,6 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
         y_train = combined_y
     else:
         X_pretrain, X_train, y_pretrain, y_train  = train_test_split(combined_X, combined_y, test_size=pretrain_train_size)
-        #utils.split_test_train(combined_X, combined_y, pretrain_train_size) 
-        #train_test_split(combined_X, combined_y, test_size=pretrain_train_size)
         X_pretrain = np.array(X_pretrain)
         y_pretrain = np.array(y_pretrain)
         df_pretrain = pd.DataFrame(list(zip(X_pretrain, y_pretrain)), columns=["X", "Y"])
@@ -290,8 +277,6 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     print(X_train.shape, y_train.shape)
     X_train = np.array(X_train)
     y_train = np.array(y_train)
-
-    #sys.exit()
 
     # pretrain generator
     if to_pretrain is True:
@@ -334,7 +319,6 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
         np.savetxt("data/generated_files/pretrain_gen_batch_train_seq_var.txt", pretrain_gen_train_seq_var)
         print("Pre-training finished")
         print()
-
         end_time = time.time()
         print("Pretraining finished in {} seconds".format(str(np.round(end_time - start_time, 2))))
 
@@ -342,7 +326,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
         sys.exit()
     # GAN training
     # create discriminator model
-    disc_parent_encoder_model, disc_gen_encoder_model = neural_network.make_disc_par_gen_model(len_final_aa_padding, vocab_size, embedding_dim, enc_units)
+    disc_parent_encoder_model, disc_gen_encoder_model = neural_network.make_disc_par_gen_model(len_final_aa_padding, vocab_size, embedding_dim, enc_units, batch_size, size_stateful)
     discriminator = neural_network.make_discriminator_model(enc_units)
 
     # use the pretrained generator and train it along with discriminator
@@ -363,12 +347,12 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     print("Num of train batches: {}".format(str(n_train_batches)))
 
     # balance tr data by mutations
-    tr_parent_child_mut_indices = dict() #utils.get_mutation_tr_indices(X_train, y_train, forward_dict, rev_dict)
+    tr_parent_child_mut_indices = utils.get_mutation_tr_indices(X_train, y_train, kmer_f_dict, kmer_r_dict, forward_dict, rev_dict)
     utils.save_as_json(TR_MUT_INDICES, tr_parent_child_mut_indices)
 
     for n in range(epochs):
         print("Training epoch {}/{}...".format(str(n+1), str(epochs)))
-        epo_gen_true_loss, epo_gen_fake_loss, epo_total_gen_loss, epo_disc_true_loss, epo_disc_fake_loss, epo_total_disc_loss, epo_bat_te_loss, epo_bat_gen_seq_var, encoder, decoder = train_model.start_training_mut_balanced([X_train, y_train, unrelated_X, unrelated_y, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches], n, encoder, decoder, disc_parent_encoder_model, disc_gen_encoder_model, discriminator, enc_units, vocab_size, n_train_batches, batch_size, tr_parent_child_mut_indices, epochs)
+        epo_gen_true_loss, epo_gen_fake_loss, epo_total_gen_loss, epo_disc_true_loss, epo_disc_fake_loss, epo_total_disc_loss, epo_bat_te_loss, epo_bat_gen_seq_var, encoder, decoder = train_model.start_training_mut_balanced([X_train, y_train, unrelated_X, unrelated_y, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches], n, encoder, decoder, disc_parent_encoder_model, disc_gen_encoder_model, discriminator, enc_units, vocab_size, n_train_batches, batch_size, tr_parent_child_mut_indices, epochs, size_stateful)
 
         print("Training loss at epoch {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}, D true loss: {}, D fake loss: {}, Total D loss: {}".format(str(n+1), str(epochs), str(epo_gen_true_loss), str(epo_gen_fake_loss), str(epo_total_gen_loss), str(epo_disc_true_loss), str(epo_disc_fake_loss), str(epo_total_disc_loss)))
 
@@ -386,7 +370,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
         # predict seq on test data
         print("Prediction on test data...")
         with tf.device('/device:cpu:0'):
-            epo_tr_gen_te_loss, epo_tr_gen_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, len_final_aa_padding, vocab_size, enc_units, encoder, decoder)
+            epo_tr_gen_te_loss, epo_tr_gen_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, len_final_aa_padding, vocab_size, enc_units, encoder, decoder, size_stateful)
             train_te_loss.append(epo_tr_gen_te_loss)
             train_gen_test_seq_var.append(epo_tr_gen_seq_var)
         print()
