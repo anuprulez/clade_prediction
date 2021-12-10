@@ -30,7 +30,7 @@ def loss_function(real, pred):
   # pred shape = (BATCH_SIZE, max_length_output, tar_vocab_size )
   cross_entropy = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False, reduction='none')
   loss = cross_entropy(y_true=real, y_pred=pred)
-  mask = tf.logical_not(tf.math.equal(real, 0))   #output 0 for y=0 else output 1
+  mask = tf.logical_not(tf.math.equal(real, 0))  #output 0 for y=0 else output 1
   mask = tf.cast(mask, dtype=loss.dtype)  
   loss = mask* loss
   loss = tf.reduce_mean(loss)

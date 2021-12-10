@@ -105,6 +105,8 @@ def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, un
     # return gen_logits, gen_encoder, gen_decoder, loss
     variation_score = utils.get_sequence_variation_percentage(unrolled_x, generated_logits)
     print("Generation variation score: {}".format(str(variation_score)))
+
+    gen_t_loss = gen_t_loss + mae([1.0], [variation_score])
     # encode parent sequences for discriminator
     #enc_output, enc_f, enc_b = utils.stateful_encoding(size_stateful, unrolled_x, encoder, True)
     #enc_output, enc_f, enc_b = stateful_encoding(s_stateful, input_tokens, gen_encoder, train_test)
