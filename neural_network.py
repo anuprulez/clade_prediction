@@ -72,7 +72,6 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
                                    recurrent_regularizer="l1_l2",
                                    recurrent_initializer='glorot_uniform',
                                    return_sequences=True,
-                                   #stateful=True,
                                    return_state=True))
 
     dec_fc = tf.keras.layers.Dense(vocab_size, activation='softmax',

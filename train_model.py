@@ -75,9 +75,9 @@ def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, un
     #generated_logits, decoder, gen_t_loss = utils.generator_step(seq_len, batch_size, vocab_size, decoder, transformed_enc_state, unrolled_y, True)
     # compute generated sequence variation
 
-    #generated_logits, encoder, decoder, gen_t_loss = utils.loop_encode_decode(seq_len, batch_size, unrolled_x, unrolled_y, encoder, decoder, enc_units, teacher_forcing_ratio, True, size_stateful)
+    generated_logits, encoder, decoder, gen_t_loss = utils.loop_encode_decode(seq_len, batch_size, unrolled_x, unrolled_y, encoder, decoder, enc_units, teacher_forcing_ratio, True, size_stateful)
 
-    stateful_batches = list()
+    '''stateful_batches = list()
     n_stateful_batches = int(unrolled_x.shape[1]/float(size_stateful))
     for i in range(n_stateful_batches):
         s_batch = unrolled_x[:, i*size_stateful: (i+1)*size_stateful]
@@ -99,7 +99,7 @@ def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, un
     generated_logits, _, _ = decoder([i_tokens, x_enc_f, x_enc_b], training=True)
 
     loss = m_loss(unrolled_y, generated_logits)
-    gen_t_loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
+    gen_t_loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))'''
 
     # loop_encode_decode(seq_len, batch_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful):
     # return gen_logits, gen_encoder, gen_decoder, loss
