@@ -1,6 +1,8 @@
 import os
+import sys
 import shutil
 import itertools
+from itertools import product
 import json
 import pandas as pd
 import numpy as np
@@ -8,13 +10,35 @@ import random
 from random import choices
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
+from sklearn.preprocessing import RobustScaler
 from Levenshtein import distance as lev_dist
 
-SCE = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False, reduction='none')
+import neural_network
+
+PATH_KMER_F_DICT = "data/ncov_global/kmer_f_word_dictionaries.json"
+PATH_KMER_R_DICT = "data/ncov_global/kmer_r_word_dictionaries.json"
+
+m_loss = neural_network.MaskedLoss()
+
+cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False, reduction='none')
+mae = tf.keras.losses.MeanAbsoluteError()
+test_tf_ratio = 0.0
+
+
+def loss_function(real, pred):
+  # real shape = (BATCH_SIZE, max_length_output)
+  # pred shape = (BATCH_SIZE, max_length_output, tar_vocab_size )
+  cross_entropy = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False, reduction='none')
+  loss = cross_entropy(y_true=real, y_pred=pred)
+  mask = tf.logical_not(tf.math.equal(real, 0))  #output 0 for y=0 else output 1
+  mask = tf.cast(mask, dtype=loss.dtype)  
+  loss = mask* loss
+  loss = tf.reduce_mean(loss)
+  return loss 
 
 
 def make_kmers(seq, size):
-    return [seq[x:x+size] for x in range(len(seq) - size + 1)]
+    return ["".join(seq[x:x+size]) for x in range(len(seq) - size + 1)]
 
 
 def compute_Levenshtein_dist(seq_in, seq_out):
@@ -36,7 +60,70 @@ def clean_up(list_folders):
             continue
 
 
-def generate_cross_product(x_seq, y_seq, max_l_dist, cols=["X", "Y"], unrelated=False, unrelated_threshold=15):
+def add_padding_to_seq(seq):
+    return "{},{}".format(str(0), seq)
+
+
+def get_u_kmers(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict):
+    x_list = list()
+    y_list = list()
+    s_kmer = 3
+    for i, x_i in enumerate(x_seq):
+        for j, y_j in enumerate(y_seq):
+            # cut sequences of specific length
+            sub_x_i = x_i.split(",")[:len_aa_subseq]
+            sub_x_i = ",".join(sub_x_i)
+            sub_y_j = y_j.split(",")[:len_aa_subseq]
+            sub_y_j = ",".join(sub_y_j)
+            x_list.append(sub_x_i)
+            y_list.append(sub_y_j)
+    global_kmers = get_all_kmers(x_list, y_list, forward_dict, s_kmer)
+    global_kmers = list(set(global_kmers))
+    kmer_f_dict = {i + 1: global_kmers[i] for i in range(0, len(global_kmers))}
+    kmer_r_dict = {global_kmers[i]: i + 1  for i in range(0, len(global_kmers))}
+    save_as_json(PATH_KMER_F_DICT, kmer_f_dict)
+    save_as_json(PATH_KMER_R_DICT, kmer_r_dict)
+    enc_x, enc_y = encode_sequences_kmers(forward_dict, kmer_r_dict, x_list, y_list, s_kmer)
+    fil_x = list()
+    fil_y = list()
+    l_distance = list()
+    filtered_l_distance = list()
+    for i, (enc_i, enc_j) in enumerate(zip(enc_x, enc_y)):
+        re_x = reconstruct_seq([kmer_f_dict[int(pos)] for pos in enc_i.split(",")])
+        re_y = reconstruct_seq([kmer_f_dict[int(pos)] for pos in enc_j.split(",")])
+        l_dist = compute_Levenshtein_dist(re_x, re_y)
+        l_distance.append(l_dist)
+        if l_dist > 0 and l_dist < max_l_dist:
+            filtered_l_distance.append(l_dist)
+            #fil_x.append(add_padding_to_seq(enc_i))
+            #fil_y.append(add_padding_to_seq(enc_j))
+            fil_x.append(enc_i)
+            fil_y.append(enc_j)
+    return fil_x, fil_y, kmer_f_dict, kmer_r_dict
+
+    '''train_kmers = get_all_kmers(combined_X, combined_y, forward_dict, s_kmer)
+    kmers_global.extend(train_kmers)
+
+    kmers_global = list(set(kmers_global))
+
+    kmer_f_dict = {i + 1: kmers_global[i] for i in range(0, len(kmers_global))}
+    kmer_r_dict = {kmers_global[i]: i + 1  for i in range(0, len(kmers_global))}
+    utils.save_as_json(PATH_KMER_F_DICT, kmer_f_dict)
+    utils.save_as_json(PATH_KMER_R_DICT, kmer_r_dict)
+
+    kmer_f_dict[0] = "<start>"
+    #kmer_f_dict[len(kmers_global)+1] = "<end>"
+    kmer_r_dict["<start>"] = 0'''
+
+
+def split_test_train(x, y, split_size):
+    size = int(len(x) * split_size)
+    x_1, y_1 = x[0:size], y[0:size]
+    x_2, y_2 = x[size:], y[size:]
+    return x_1, x_2, y_1, y_2 
+
+
+def generate_cross_product(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict, cols=["X", "Y"], unrelated=False, unrelated_threshold=15):
     print(len(x_seq), len(y_seq))
     x_y = list(itertools.product(x_seq, y_seq))
     print(len(x_y))
@@ -45,21 +132,40 @@ def generate_cross_product(x_seq, y_seq, max_l_dist, cols=["X", "Y"], unrelated=
     filtered_l_distance = list()
     filtered_x = list()
     filtered_y = list()
-    for i, x_i in enumerate(x_seq):
+
+    filtered_x, filtered_y, kmer_f_dict, kmer_r_dict = get_u_kmers(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict)
+    
+    #import sys
+    #sys.exit()
+    '''for i, x_i in enumerate(x_seq):
         for j, y_j in enumerate(y_seq):
-            l_dist = compute_Levenshtein_dist(x_i, y_j)
+            # cut sequences of specific length
+            
+            sub_x_i = x_i.split(",")[:len_aa_subseq]
+            sub_x_i = ",".join(sub_x_i)
+            #print(len(x_i.split(",")), len(sub_x_i.split(",")))
+
+            sub_y_j = y_j.split(",")[:len_aa_subseq]
+            sub_y_j = ",".join(sub_y_j)
+            #print(len(y_j.split(",")), len(sub_y_j.split(",")))
+
+            l_dist = compute_Levenshtein_dist(sub_x_i, sub_y_j)
             l_distance.append(l_dist)
             if unrelated is False:
                 if l_dist > 0 and l_dist < max_l_dist:
-                    filtered_x.append(x_i)
-                    filtered_y.append(y_j)
+
+                    filtered_x.append(add_padding_to_seq(sub_x_i))
+
+                    filtered_y.append(add_padding_to_seq(sub_y_j))
+
                     filtered_l_distance.append(l_dist)
             else:
                 if l_dist > max_l_dist:
-                    filtered_x.append(x_i)
-                    filtered_y.append(y_j)
-                    filtered_l_distance.append(l_dist)
+                    filtered_x.append(add_padding_to_seq(sub_x_i))
+                    filtered_y.append(add_padding_to_seq(sub_y_j))
+                    filtered_l_distance.append(l_dist)'''
 
+    print(len(filtered_l_distance), np.mean(filtered_l_distance))
     filtered_dataframe = pd.DataFrame(list(zip(filtered_x, filtered_y)), columns=["X", "Y"])
     print("Combined dataframe size: {}".format(str(len(filtered_dataframe.index))))
     np.savetxt("data/generated_files/l_distance.txt", l_distance)
@@ -67,7 +173,7 @@ def generate_cross_product(x_seq, y_seq, max_l_dist, cols=["X", "Y"], unrelated=
     print("Mean levenshtein dist: {}".format(str(np.mean(l_distance))))
     print("Mean filtered levenshtein dist: {}".format(str(np.mean(filtered_l_distance))))
     print("Filtered dataframe size: {}".format(str(len(filtered_dataframe.index))))
-    return filtered_dataframe
+    return filtered_dataframe, kmer_f_dict, kmer_r_dict
 
 
 def transform_noise(noise):
@@ -78,18 +184,13 @@ def transform_noise(noise):
     return tf.convert_to_tensor(noise, dtype=tf.float32)
 
 
-def reconstruct_seq(kmers):
-    reconstructed_seq = []
-    for i, km in enumerate(kmers):
-         if i < len(kmers) - 1:
-             reconstructed_seq.append(km[0])
-         else:
-             reconstructed_seq.append(km)
-    return "".join(reconstructed_seq)
-
-
-def get_all_possible_words(vocab):
-    return [char for char in vocab]
+def get_all_possible_words(vocab, kmer_size=3):
+    all_com = [''.join(c) for c in product(vocab, repeat=kmer_size)]
+    kmer_f_dict = {i + 1: all_com[i] for i in range(0, len(all_com))}
+    kmer_r_dict = {all_com[i]: i + 1  for i in range(0, len(all_com))}
+    save_as_json(PATH_KMER_F_DICT, kmer_f_dict)
+    save_as_json(PATH_KMER_R_DICT, kmer_r_dict)
+    return kmer_f_dict, kmer_r_dict
 
 
 def convert_to_array(str_data):
@@ -141,6 +242,106 @@ def read_in_out(path):
     return samples
 
 
+def reconstruct_seq(kmers):
+    reconstructed_seq = []
+    for i, km in enumerate(kmers):
+         if i < len(kmers) - 1:
+             reconstructed_seq.append(km[0])
+         else:
+             reconstructed_seq.append(km)
+    return "".join(reconstructed_seq)
+
+
+def encode_sequences_kmers(f_dict, kmer_r_dict, x_seq, y_seq, s_kmer):
+    in_seq = list()
+    out_seq = list()
+    for index, (x, y) in enumerate(zip(x_seq, y_seq)):
+        x = x.split(",") #[1:]
+        x_chars = [str(f_dict[i]) for i in x]
+        x_seq = ",".join(x_chars)
+        #print(x_seq)
+        y = y.split(",") #[1:]
+        y_chars = [str(f_dict[i]) for i in y]
+        y_seq = ",".join(y_chars)
+
+        x_kmers = make_kmers(x_chars, s_kmer)
+
+        #print(x_kmers)
+        encoded_x = [str(kmer_r_dict[str(i)]) for i in x_kmers]
+        encoded_x = ",".join(encoded_x) #+ "," + str(len(kmer_r_dict) - 1)
+        in_seq.append(encoded_x)
+
+        y_kmers = make_kmers(y_chars, s_kmer)
+        encoded_y = [str(kmer_r_dict[str(i)]) for i in y_kmers]
+        encoded_y = ",".join(encoded_y) #+ "," + str(len(kmer_r_dict) - 1)
+        out_seq.append(encoded_y)
+
+        #print(encoded_x)
+        #print(encoded_y)
+        #	import sys
+        #sys.exit()
+    return in_seq, out_seq
+
+
+def get_all_kmers(x_seq, y_seq, f_dict, s_kmer):
+    all_kmers = list()
+    for index, (x, y) in enumerate(zip(x_seq, y_seq)):
+        x = x.split(",") #[1:]
+        x_chars = [str(f_dict[i]) for i in x]
+        x_seq = ",".join(x_chars)
+
+        y = y.split(",") #[1:]
+        y_chars = [str(f_dict[i]) for i in y]
+        y_seq = ",".join(y_chars)
+
+        x_kmers = make_kmers(x_chars, s_kmer)
+        y_kmers = make_kmers(y_chars, s_kmer)
+
+        u_x_mers = list(set(x_kmers))
+        u_y_mers = list(set(y_kmers))
+
+        all_kmers.extend(u_x_mers)
+        all_kmers.extend(u_y_mers)
+
+    return list(set(all_kmers))
+
+
+'''def ordinal_to_kmer(seq_df, f_dict, r_dict, kmer_f_dict, kmer_r_dict, kmer_s=3):
+    in_seq = list()
+    out_seq = list()
+    for index, (x, y) in seq_df.iterrows():
+        x = x.split(",")[1:]
+        x_chars = [str(f_dict[i]) for i in x]
+        x_seq = ",".join(x_chars)
+
+        y = y.split(",")[1:]
+        y_chars = [str(f_dict[i]) for i in y]
+        y_seq = ",".join(y_chars)
+
+        x_kmers = make_kmers(x_chars, kmer_s)
+        y_kmers = make_kmers(y_chars, kmer_s)
+
+        encoded_x = [str(kmer_r_dict[str(i)]) for i in x_kmers]
+        encoded_x = "0," + ",".join(encoded_x)
+        in_seq.append(encoded_x)
+        encoded_y = [str(kmer_r_dict[str(i)]) for i in y_kmers]
+        encoded_y = "0," + ",".join(encoded_y)
+        out_seq.append(encoded_y)
+
+        # reconstruct seq from predicted kmers
+        enc_x = encoded_x.split(",")[1:]
+        print(enc_x)
+        print()
+        enc_x = [kmer_f_dict[int(i)] for i in enc_x]
+        print(enc_x)
+        orig_x = reconstruct_seq(enc_x)
+        print()
+        print(orig_x, len(orig_x))
+        
+    enc_df = pd.DataFrame(list(zip(in_seq, out_seq)), columns=seq_df.columns)
+    return enc_df'''
+        
+
 def read_wuhan_seq(wu_path, rev_dict):
     with open(wu_path, "r") as wu_file:
         wuhan_seq = wu_file.read()
@@ -175,15 +376,23 @@ def embedding_info(dict_json):
     return len(dict_json)
     
 def convert_to_string_list(l):
-    l = l.numpy()
+    try:
+        l = l.numpy()
+    except Exception:
+        pass
     l = [",".join([str(i) for i in item]) for item in l]
     return l
 
 
-def get_sequence_variation_percentage(logits):
-    seq_tokens = tf.math.argmax(logits, axis=-1)
-    l_seq_tokens = convert_to_string_list(seq_tokens)
-    df_seqs = pd.DataFrame(l_seq_tokens, columns=["Sequences"])
+def get_sequence_variation_percentage(true_in, pred_logits):
+    seq_tokens = tf.math.argmax(pred_logits, axis=-1)
+    #print("Gen seqs:")
+    #print(seq_tokens)
+    i_tokens = convert_to_string_list(true_in)
+    o_tokens = convert_to_string_list(seq_tokens)
+    
+    df_seqs = pd.DataFrame(list(zip(i_tokens, o_tokens)), columns=["True output", "Pred output"])
+    #print(df_seqs)
     u_df_seqs = df_seqs.drop_duplicates()
     percent_variation = len(u_df_seqs.index) / float(len(df_seqs.index))
     return percent_variation
@@ -196,49 +405,235 @@ def sample_unrelated_x_y(unrelated_X, unrelated_y, batch_size):
     return convert_to_array(un_X), convert_to_array(un_y)
 
 
-def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, loaded_encoder, loaded_generator):
+def evaluate_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, loaded_encoder, loaded_decoder):
+  
+  for step in range(n_te_batches):
+        batch_x_test, batch_y_test = sample_unrelated_x_y(test_dataset_in, test_dataset_out, te_batch_size)
+        enc_start_state = [tf.zeros((te_batch_size, enc_units)), tf.zeros((te_batch_size, enc_units))]
+
+        print(batch_x_test.shape)
+
+        enc_out, enc_h, enc_c = loaded_encoder(batch_x_test, enc_start_state)
+
+        print(enc_out.shape)
+
+        dec_h = enc_h
+        dec_c = enc_c
+
+        start_tokens = tf.fill([te_batch_size], 0)
+
+        greedy_sampler = tfa.seq2seq.GreedyEmbeddingSampler()
+
+        print(greedy_sampler)
+
+        # Instantiate BasicDecoder object
+        decoder_instance = tfa.seq2seq.BasicDecoder(cell=loaded_decoder.rnn_cell, sampler=greedy_sampler, output_layer=loaded_decoder.fc)
+
+        print(decoder_instance)
+        # Setup Memory in decoder stack
+        loaded_decoder.attention_mechanism.setup_memory(enc_out)
+
+        # set decoder_initial_state
+        decoder_initial_state = loaded_decoder.build_initial_state(te_batch_size, [enc_h, enc_c], tf.float32)
+
+        print(decoder_initial_state)
+        ### Since the BasicDecoder wraps around Decoder's rnn cell only, you have to ensure that the inputs to BasicDecoder 
+        ### decoding step is output of embedding layer. tfa.seq2seq.GreedyEmbeddingSampler() takes care of this. 
+        ### You only need to get the weights of embedding layer, which can be done by decoder.embedding.variables[0] and pass this callabble to BasicDecoder's call() function
+
+        decoder_embedding_matrix = loaded_decoder.embedding.variables[0]
+        print(decoder_embedding_matrix.shape)
+
+        outputs, _, _ = decoder_instance(decoder_embedding_matrix, start_tokens = start_tokens, end_token=vocab_size-2, initial_state=decoder_initial_state)
+        print(outputs, dir(outputs))
+
+        '''loaded_decoder.attention_mechanism.setup_memory(enc_out)
+        decoder_initial_state = gen_decoder.build_initial_state(batch_size, [enc_h, enc_c], tf.float32)
+        
+        pred = gen_decoder(, decoder_initial_state)
+        gen_logits = pred.rnn_output
+        gen_loss = loss_function(unrolled_y, gen_logits)'''
+
+        #return outputs.sample_id.numpy()
+
+'''def translate(sentence):
+  result = evaluate_sentence(sentence)
+  print(result)
+  result = targ_lang.sequences_to_texts(result)
+  print('Input: %s' % (sentence))
+  print('Predicted translation: {}'.format(result))'''
+
+
+def scale_encodings(encoding):
+    encoding = encoding.numpy()
+    tf_enc = RobustScaler().fit_transform(encoding)
+    return tf.convert_to_tensor(tf_enc, dtype=tf.float32)
+
+
+def stateful_encoding(size_stateful, inputs, enc, training=False):
+    stateful_batches = list()
+    n_stateful_batches = int(inputs.shape[1]/float(size_stateful))
+    for i in range(n_stateful_batches):
+        s_batch = inputs[:, i*size_stateful: (i+1)*size_stateful]
+        enc_out, enc_state_h, enc_state_c = enc(s_batch, training=training)
+    return enc_out, enc_state_h, enc_state_c, enc
+
+
+def loop_encode_decode(seq_len, batch_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful):
+
+    enc_output, enc_f, enc_b, gen_encoder = stateful_encoding(s_stateful, input_tokens, gen_encoder, train_test)
+    dec_f, dec_b = enc_f, enc_b
+    #print()
+    #print(enc_output.shape, enc_f.shape, enc_b.shape)
+    #if train_test is True:
+    noise_generator = tf.random.Generator.from_non_deterministic_state()
+    dec_f = tf.math.add(dec_f, noise_generator.normal(shape=[batch_size, enc_units]))
+    dec_b = tf.math.add(dec_b, noise_generator.normal(shape=[batch_size, enc_units]))
+    
+    #gen_logits = list()
+
+    #loss = tf.constant(0.0)
+    target_mask = output_tokens != 0
+    i_tokens = tf.fill([batch_size, seq_len], 0)
+    gen_logits, _, _ = gen_decoder([i_tokens, dec_f, dec_b], training=train_test)
+
+    '''i_tokens = tf.fill([batch_size, 1], 0)
+    for t in range(seq_len - 1):
+        o_tokens = output_tokens[:, t+1:t+2]
+        dec_result, dec_f, dec_b = gen_decoder([i_tokens, dec_f, dec_b], training=train_test)
+
+        #if train_test is True:
+        dec_f = tf.math.add(dec_f, noise_generator.normal(shape=[batch_size, enc_units]))
+        dec_b = tf.math.add(dec_b, noise_generator.normal(shape=[batch_size, enc_units]))
+
+        gen_logits.append(dec_result)
+
+        if tf_ratio > 0.0:
+            i_tokens = o_tokens
+        else:
+            i_tokens = tf.argmax(dec_result, axis=-1)
+
+        step_loss = m_loss(o_tokens, dec_result)
+        loss += step_loss'''
+    loss = m_loss(output_tokens, gen_logits)
+    #print(loss)
+    loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
+    #gen_logits = tf.concat(gen_logits, axis=-2)
+    return gen_logits, gen_encoder, gen_decoder, loss
+    
+
+def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, loaded_encoder, loaded_generator, s_stateful):
     avg_test_loss = []
     avg_test_seq_var = []
+    train_mode = False
     for step in range(n_te_batches):
         batch_x_test, batch_y_test = sample_unrelated_x_y(test_dataset_in, test_dataset_out, te_batch_size)
         # generated noise for variation in predicted sequences
-        noise = tf.random.normal((te_batch_size, enc_units))
-        enc_output, enc_state = loaded_encoder(batch_x_test, training=False)
-        # add noise to the encoder state
-        enc_state = tf.math.add(enc_state, noise)
+        #noise = tf.random.normal((te_batch_size, enc_units))
+        #enc_output, enc_state_h, enc_state_c = loaded_encoder(batch_x_test, training=train_mode)
+        #enc_out, enc_state_h, enc_state_c = stateful_encoding(s_stateful, batch_x_test, loaded_encoder, False)
+        #loaded_encoder.reset_states()
+        #enc_state_h = tf.math.add(enc_state_h, noise)
+        #enc_state_c = tf.math.add(enc_state_c, noise)
+        #dec_state_h, dec_state_c = enc_state_h, enc_state_c
+        print("Test: true output seq:")
+        #print(batch_x_test)
+        #print()
+        print(batch_y_test[:5, :])
         # generate seqs stepwise - teacher forcing
-        generated_logits, _, loss = generator_step(seq_len, te_batch_size, vocab_size, loaded_generator, enc_state, batch_y_test, False)
-        variation_score = get_sequence_variation_percentage(generated_logits)
-        print("Test step {} variation score: {}".format(str(step+1), str(variation_score)))
-        print("Test step {} true loss: {}".format(str(step+1), str(loss.numpy())))
+        #generated_logits, loss = _loop_pred_step(seq_len, te_batch_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units)
+        generated_logits, _, _, loss = loop_encode_decode(seq_len, te_batch_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units, test_tf_ratio, train_mode, s_stateful)
+        print(tf.argmax(generated_logits, axis=-1)[:5, :])
+        #generated_output_seqs(seq_len, te_batch_size, vocab_size, loaded_generator, dec_state_h, dec_state_c, batch_x_test, batch_y_test, False)  
+        variation_score = get_sequence_variation_percentage(batch_x_test, generated_logits)
+        loss = loss + mae([1.0], [variation_score]) #/ variation_score #+ mae([1.0], [variation_score]) #variation_score
+        print("Test batch {} variation score: {}".format(str(step+1), str(variation_score)))
+        print("Test batch {} true loss: {}".format(str(step+1), str(loss.numpy())))
+        print()
         avg_test_loss.append(loss)
         avg_test_seq_var.append(variation_score)
     print()
-    print("Total test seq variation in {} steps: {}".format(str(n_te_batches), str(np.mean(avg_test_seq_var))))
-    print("Total test loss in {} steps: {}".format(str(n_te_batches), str(np.mean(avg_test_loss))))
+    print("Total test seq variation in {} batches: {}".format(str(n_te_batches), str(np.mean(avg_test_seq_var))))
+    print("Total test loss in {} batches: {}".format(str(n_te_batches), str(np.mean(avg_test_loss))))
+    print("---")
     return np.mean(avg_test_loss), np.mean(avg_test_seq_var)
 
 
-def generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state, real_o, train_gen):
+def save_predicted_test_data(test_data_in, test_data_out, te_encoder, te_decoder, te_batch_size, enc_units, epoch_type_name):
+    test_data_in, test_data_out = convert_to_array(test_data_in), convert_to_array(test_data_out)
+    seq_len = test_data_in.shape[1]
+    n_te_batches = int(test_data_in.shape[0] / te_batch_size)
+    test_tf_ratio = 0.0
+    train_mode = False
+    s_stateful = True
+    #print(test_data_in.shape, n_te_batches, te_batch_size)
+    test_x = list()
+    pred_y = list()
+    print("Saving predicted data for test...")
+    for b_c in range(n_te_batches):
+        s_idx = b_c*te_batch_size
+        e_idx = (b_c+1)*te_batch_size
+        #print(b_c, s_idx, e_idx)
+        batch_x_test, batch_y_test = test_data_in[s_idx:e_idx, :], test_data_out[s_idx:e_idx, :]
+        #print(batch_x_test.shape, batch_y_test.shape)
+        generated_logits, _, _, _ = loop_encode_decode(seq_len, te_batch_size, batch_x_test, batch_y_test, te_encoder, te_decoder, enc_units, test_tf_ratio, train_mode, s_stateful)
+        gen_tokens = tf.argmax(generated_logits, axis=-1)
+        variation_score = get_sequence_variation_percentage(batch_x_test, generated_logits)
+        print("Test batch {} variation score: {}".format(str(b_c+1), str(variation_score)))
+        batch_x_test = convert_to_string_list(batch_x_test)
+        gen_tokens = convert_to_string_list(gen_tokens)
+        test_x.extend(batch_x_test)
+        pred_y.extend(gen_tokens)
+
+    pred_dataframe = pd.DataFrame(list(zip(test_x, pred_y)), columns=["X", "Pred Y"])
+    df_filename = "data/generated_files/true_pred_epoch_type_{}.csv".format(epoch_type_name)
+    pred_dataframe.to_csv(df_filename, index=None)
+
+
+def generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state_h, dec_state_c, real_i, real_o, train_gen):
+    gen_logits = list()
     step_loss = tf.constant(0.0)
-    pred_logits = np.zeros((batch_size, seq_len, vocab_size))
-    # set initial token
-    i_token = tf.fill([batch_size, 1], 0)
-    for t in tf.range(seq_len):
-        dec_result, dec_state = gen_decoder([i_token, dec_state], training=train_gen)
-        dec_numpy = dec_result.numpy()
-        pred_logits[:, t, :] = np.reshape(dec_numpy, (dec_numpy.shape[0], dec_numpy.shape[2]))
+    i_token = real_o[:, 0:1]
+    for t in tf.range(seq_len - 1):
+        new_tokens = real_o[:, t:t+2]
+        #i_token, o_token = new_tokens[:, 0:1], new_tokens[:, 1:2]
+        dec_result, dec_state_h, dec_state_c = gen_decoder([i_token, dec_state_h, dec_state_c], training=train_gen)
         if len(real_o) > 0:
-            o_token = real_o[:, t:t+1]
-            loss = SCE(o_token, dec_result)
+            o_token = new_tokens[:, 1:2]
+            #loss = loss_function(o_token, dec_result)
+            loss = cross_entropy_loss(o_token, dec_result)
             step_loss += tf.reduce_mean(loss)
-        # teacher forcing, set current output as the next input
-        if train_gen == False:
-            i_token = tf.math.argmax(dec_result, axis=-1)
-        else:
+        # randomly select either true output or feed generated output from previous step for forced learning
+        if random.random() <= teacher_forcing_ratio:
+            #print("True")
             i_token = o_token
+        else:
+            #print("Generated")
+            i_token = tf.argmax(dec_result, axis=-1)
+        gen_logits.append(dec_result)
     step_loss = step_loss / float(seq_len)
-    pred_logits = tf.convert_to_tensor(pred_logits)
+    pred_logits = tf.concat(gen_logits, axis=-2)
+    return pred_logits, gen_decoder, step_loss
+
+
+def generated_output_seqs(seq_len, batch_size, vocab_size, gen_decoder, dec_state_h, dec_state_c, real_i, real_o, train_gen):
+    gen_logits = list()
+    step_loss = tf.constant(0.0)
+    i_token = tf.fill([batch_size, 1], 0)
+    for t in tf.range(seq_len - 1):
+        #dec_result, dec_state = gen_decoder([i_token, dec_state], training=train_gen)
+        dec_result, dec_state_h, dec_state_c = gen_decoder([i_token, dec_state_h, dec_state_c], training=train_gen)
+        gen_logits.append(dec_result)
+        if len(real_o) > 0:
+            o_token = real_o[:, t+1:t+2]
+            #loss = loss_function(o_token, dec_result)
+            loss = cross_entropy_loss(o_token, dec_result)
+            step_loss += tf.reduce_mean(loss)
+        #self feeding
+        i_token = tf.argmax(dec_result, axis=-1)
+    step_loss = step_loss / float(seq_len)
+    pred_logits = tf.concat(gen_logits, axis=-2)
+    gen_decoder.reset_states()
     return pred_logits, gen_decoder, step_loss
 
 
@@ -295,24 +690,18 @@ def save_batch(batch_x, batch_y, batch_mut_distribution):
     return batch_mut_distribution
 
 
-def get_mutation_tr_indices(train_in, train_out, f_dict, r_dict):
+def get_mutation_tr_indices(train_in, train_out, kmer_f_dict, kmer_r_dict, f_dict, r_dict):
     parent_child_mut_indices = dict()
     for index, (x, y) in enumerate(zip(train_in, train_out)):
-        true_x = x.split(",")
-        true_y = y.split(",")
-
+        true_x = x.split(",") #[1:]
+        true_y = y.split(",") #[1:]
+        re_true_x = reconstruct_seq([kmer_f_dict[pos] for pos in true_x])
+        re_true_y = reconstruct_seq([kmer_f_dict[pos] for pos in true_y])
         for i in range(len(true_x)):
-            first = true_x[i:i+1]
-            sec = true_y[i:i+1]
-
-            first_aa = [f_dict[j] for j in first]
-            sec_aa = [f_dict[j] for j in sec]
-        
-            first_mut = first_aa[0]
-            second_mut = sec_aa[0]
-
-            if first_mut != second_mut:
-                key = "{}>{}".format(first_mut, second_mut)
+            first = re_true_x[i:i+1]
+            sec = re_true_y[i:i+1]
+            if first != sec:
+                key = "{}>{}>{}".format(first, (i+1), sec)
                 if key not in parent_child_mut_indices:
                     parent_child_mut_indices[key] = list()
                 parent_child_mut_indices[key].append(index)

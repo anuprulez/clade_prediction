@@ -10,93 +10,111 @@ import tensorflow as tf
 import h5py
 
 import preprocess_sequences
-#import bahdanauAttention
+import bahdanauAttention
 
 
 GEN_ENC_WEIGHTS = "data/generated_files/generator_encoder_weights.h5"
-DROPOUT = 0.2
-LEAKY_ALPHA = 0.1
+ENC_DROPOUT = 0.2
+DEC_DROPOUT = 0.2
+DISC_DROPOUT = 0.2
+RECURR_DROPOUT = 0.25
+LEAKY_ALPHA = 0.3
 
 
-def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_size):
+class MaskedLoss(tf.keras.losses.Loss):
+  def __init__(self):
+    self.name = 'masked_loss'
+    self.loss = tf.keras.losses.SparseCategoricalCrossentropy(
+        from_logits=False, reduction='none')
+
+  def __call__(self, y_true, y_pred):
+    loss = self.loss(y_true, y_pred)
+    mask = tf.cast(y_true != 0, tf.float32)
+    loss *= mask
+    return tf.reduce_sum(loss)
+
+
+def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_size, s_stateful):
     # Create encoder model for Generator
     # define layers
-    #attention_layer = bahdanauAttention.BahdanauAttention(enc_units)
-    gen_inputs = tf.keras.Input(shape=(seq_len,))
-    gen_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
-    gen_gru = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(enc_units, 
-    				go_backwards=False,
+    gen_inputs = tf.keras.Input(batch_shape=(batch_size, s_stateful))
+    gen_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim, 
+        embeddings_regularizer="l1_l2"
+    )
+
+    gen_gru = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(enc_units,
+                    kernel_regularizer="l1_l2",
+                    recurrent_regularizer="l1_l2",
+                    recurrent_initializer='glorot_uniform',
     				return_sequences=True,
-    				return_state=True,
-    				recurrent_initializer='glorot_uniform'), merge_mode='ave')
-    inputs = tf.keras.Input(shape=(seq_len,))
+                    stateful=True,
+    				return_state=True))
+
     # create model
     embed = gen_embedding(gen_inputs)
-    embed = tf.keras.layers.Dropout(DROPOUT)(embed)
-    bi_output = gen_gru(embed)
-    gen_output = bi_output[0]
-    gen_state = tf.keras.layers.Add()([bi_output[1], bi_output[2]])
-    encoder_model = tf.keras.Model([gen_inputs], [gen_output, gen_state])
+    embed = tf.keras.layers.Dropout(ENC_DROPOUT)(embed)
+
+    enc_output, state_f, state_b = gen_gru(embed)
+
+    encoder_model = tf.keras.Model([gen_inputs], [enc_output, state_f, state_b])
 
     # Create decoder for Generator
-    e_state = tf.keras.Input(shape=(enc_units,))
-    new_tokens = tf.keras.Input(shape=(seq_len,))
+    i_dec_f = tf.keras.Input(shape=(enc_units,))
+    i_dec_b = tf.keras.Input(shape=(enc_units,))
+    new_tokens = tf.keras.Input(batch_shape=(batch_size, seq_len))
     # define layers
-    dec_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
-    dec_gru = tf.keras.layers.GRU(enc_units,
-                                   return_sequences=True,
-                                   return_state=True)
+    dec_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim, 
+        embeddings_regularizer="l1_l2"
+    )
 
-    dec_Wc = tf.keras.layers.Dense(enc_units, use_bias=True)
-    dec_fc = tf.keras.layers.Dense(vocab_size, use_bias=True, activation='softmax')
+    dec_gru = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(enc_units,
+                                   kernel_regularizer="l1_l2",
+                                   recurrent_regularizer="l1_l2",
+                                   recurrent_initializer='glorot_uniform',
+                                   return_sequences=True,
+                                   return_state=True))
+
+    dec_fc = tf.keras.layers.Dense(vocab_size, activation='softmax',
+        kernel_regularizer="l1_l2",
+    )
 
     vectors = dec_embedding(new_tokens)
-    vectors = tf.keras.layers.Dropout(DROPOUT)(vectors)
-    rnn_output, state = dec_gru(vectors, initial_state=e_state)
-    rnn_output = tf.keras.layers.Dropout(DROPOUT)(rnn_output)
-    # attention
-    '''context_vector, attention_weights = attention_layer(
-        query=rnn_output,
-        value=example_enc_output,
-        mask=(example_tokens != 0)
-    )'''
-
-    attention_vector = dec_Wc(rnn_output)
-    attention_vector = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(attention_vector)
-    attention_vector = tf.keras.layers.Dropout(DROPOUT)(attention_vector)
-    logits = dec_fc(attention_vector)
-    decoder_model = tf.keras.Model([new_tokens, e_state], [logits, state])
+    vectors = tf.keras.layers.Dropout(DEC_DROPOUT)(vectors)
+    rnn_output, dec_state_f, dec_state_b = dec_gru(vectors, initial_state=[i_dec_f, i_dec_b])
+    rnn_output = tf.keras.layers.Dropout(DEC_DROPOUT)(rnn_output)
+    logits = tf.keras.layers.TimeDistributed(dec_fc)(rnn_output)
+    decoder_model = tf.keras.Model([new_tokens, i_dec_f, i_dec_b], [logits, dec_state_f, dec_state_b])
     encoder_model.save_weights(GEN_ENC_WEIGHTS)
     return encoder_model, decoder_model
 
 
-def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units):
+def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units, batch_size, s_stateful):
     # parent seq encoder model
-    parent_inputs = tf.keras.Input(shape=(seq_len,))
-    enc_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
+    parent_inputs = tf.keras.Input(batch_shape=(batch_size, s_stateful))
+    enc_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim, embeddings_regularizer="l1_l2")
+
     enc_GRU = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(enc_units,
-                                   go_backwards=False,
-                                   return_sequences=True,
-                                   return_state=True,
-                                   recurrent_initializer='glorot_uniform'), merge_mode='ave')
+                    kernel_regularizer="l1_l2",
+                    recurrent_regularizer="l1_l2",
+                    recurrent_initializer='glorot_uniform',
+    				return_sequences=True,
+                    stateful=True,
+    				return_state=True))
+
     parent_inputs_embedding = enc_embedding(parent_inputs)
-    parent_inputs_embedding = tf.keras.layers.Dropout(DROPOUT)(parent_inputs_embedding)
-    par_bi_output = enc_GRU(parent_inputs_embedding)
-    enc_outputs = par_bi_output[0]
-    enc_state = tf.keras.layers.Add()([par_bi_output[1], par_bi_output[2]])
-    disc_par_encoder_model = tf.keras.Model([parent_inputs], [enc_state])
+    parent_inputs_embedding = tf.keras.layers.Dropout(ENC_DROPOUT)(parent_inputs_embedding)
+    enc_out, state_f, state_b = enc_GRU(parent_inputs_embedding)
+
+    disc_par_encoder_model = tf.keras.Model([parent_inputs], [enc_out, state_f, state_b])
 
     # generated seq encoder model
     gen_inputs = tf.keras.Input(shape=(None, vocab_size))
     gen_enc_inputs = tf.keras.layers.Dense(embedding_dim, use_bias=False)(gen_inputs)
     gen_enc_inputs = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(gen_enc_inputs)
-    gen_enc_inputs = tf.keras.layers.Dropout(DROPOUT)(gen_enc_inputs)
+    gen_enc_inputs = tf.keras.layers.Dropout(ENC_DROPOUT)(gen_enc_inputs)
 
-    gen_bi_output = enc_GRU(gen_enc_inputs)
-    gen_enc_outputs = gen_bi_output[0]
-    gen_enc_state = tf.keras.layers.Add()([gen_bi_output[1], gen_bi_output[2]])
-
-    disc_gen_encoder_model = tf.keras.Model([gen_inputs], [gen_enc_state])
+    gen_bi_output, gen_state_f, gen_state_b = enc_GRU(gen_enc_inputs)
+    disc_gen_encoder_model = tf.keras.Model([gen_inputs], [gen_bi_output, gen_state_f, gen_state_b])
 
     # initialize weights of discriminator's encoder model for parent and generated seqs
     disc_par_encoder_model.load_weights(GEN_ENC_WEIGHTS)
@@ -108,17 +126,17 @@ def make_discriminator_model(enc_units):
     parent_state = tf.keras.Input(shape=(enc_units,))
     generated_state = tf.keras.Input(shape=(enc_units,))
     x = tf.keras.layers.Concatenate()([parent_state, generated_state])
-    x = tf.keras.layers.Dropout(DROPOUT)(x)
+    x = tf.keras.layers.Dropout(DISC_DROPOUT)(x)
     #x = tf.keras.layers.LayerNormalization()(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.Dense(enc_units)(x)
     x = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(x)
-    x = tf.keras.layers.Dropout(DROPOUT)(x)
+    x = tf.keras.layers.Dropout(DISC_DROPOUT)(x)
     #x = tf.keras.layers.LayerNormalization()(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.Dense(enc_units/2)(x)
     x = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(x)
-    x = tf.keras.layers.Dropout(DROPOUT)(x)
+    x = tf.keras.layers.Dropout(DISC_DROPOUT)(x)
     #x = tf.keras.layers.LayerNormalization()(x)
     x = tf.keras.layers.BatchNormalization()(x)
     output_class = tf.keras.layers.Dense(1, activation="sigmoid")(x)

@@ -35,3 +35,13 @@ https://github.com/andrewliao11/unrolled-gans/blob/master/unrolled_gan.ipynb
 1. conda create --name clade_pred python=3.9
 2. conda activate clade_pred
 3. pip install tensorflow-gpu pandas matplotlib bio h5py scikit-learn nltk python-Levenshtein
+
+### Cross batch statefullness
+
+https://www.tensorflow.org/guide/keras/rnn
+
+### Teacher forcing
+
+https://aclanthology.org/2020.lrec-1.576.pdf
+https://dafx2020.mdw.ac.at/proceedings/papers/DAFx20in21_paper_12.pdf
+https://en.wikipedia.org/wiki/Gibbs_sampling
