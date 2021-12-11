@@ -81,11 +81,11 @@ te_batch_size = batch_size
 n_te_batches = 10
 enc_units = 32
 pretrain_epochs = 2
-epochs = 10
+epochs = 2
 max_l_dist = 11
 test_train_size = 0.85
 pretrain_train_size = 0.5
-random_clade_size = 1500
+random_clade_size = 200
 to_pretrain = True
 pretrained_model = False
 gan_train = True
@@ -306,11 +306,14 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
             print()
             print("Pretrain: predicting on test datasets...")
             #with tf.device('/device:cpu:0'):
+            
             pretrain_gen_te_loss, pretrain_gen_te_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, len_final_aa_padding, vocab_size, enc_units, encoder, decoder, size_stateful)
             pretrain_gen_test_loss.append(pretrain_gen_te_loss)
             pretrain_gen_test_seq_var.append(pretrain_gen_te_seq_var)
             print("Pre-training epoch {} finished".format(str(i+1)))
             print()
+            epoch_type_name = "pretrain_epoch_{}".format(str(i+1))
+            utils.save_predicted_test_data(test_dataset_in, test_dataset_out, encoder, decoder, te_batch_size, enc_units, epoch_type_name)
         np.savetxt(PRETRAIN_GEN_LOSS, pretrain_gen_train_loss)
         np.savetxt(PRETRAIN_GEN_TEST_LOSS, pretrain_gen_test_loss)
         np.savetxt("data/generated_files/pretrain_gen_test_seq_var.txt", pretrain_gen_test_seq_var)
@@ -374,6 +377,8 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
             train_te_loss.append(epo_tr_gen_te_loss)
             train_gen_test_seq_var.append(epo_tr_gen_seq_var)
         print()
+        epoch_type_name = "train_epoch_{}".format(str(n+1))
+        utils.save_predicted_test_data(test_dataset_in, test_dataset_out, encoder, decoder, te_batch_size, enc_units, epoch_type_name)
     print("Training finished")
     # save loss files
     np.savetxt(TRAIN_GEN_TOTAL_LOSS, train_gen_total_loss)

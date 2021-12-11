@@ -559,6 +559,37 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
     return np.mean(avg_test_loss), np.mean(avg_test_seq_var)
 
 
+def save_predicted_test_data(test_data_in, test_data_out, te_encoder, te_decoder, te_batch_size, enc_units, epoch_type_name):
+    test_data_in, test_data_out = convert_to_array(test_data_in), convert_to_array(test_data_out)
+    seq_len = test_data_in.shape[1]
+    n_te_batches = int(test_data_in.shape[0] / te_batch_size)
+    test_tf_ratio = 0.0
+    train_mode = False
+    s_stateful = True
+    #print(test_data_in.shape, n_te_batches, te_batch_size)
+    test_x = list()
+    pred_y = list()
+    print("Saving predicted data for test...")
+    for b_c in range(n_te_batches):
+        s_idx = b_c*te_batch_size
+        e_idx = (b_c+1)*te_batch_size
+        #print(b_c, s_idx, e_idx)
+        batch_x_test, batch_y_test = test_data_in[s_idx:e_idx, :], test_data_out[s_idx:e_idx, :]
+        #print(batch_x_test.shape, batch_y_test.shape)
+        generated_logits, _, _, _ = loop_encode_decode(seq_len, te_batch_size, batch_x_test, batch_y_test, te_encoder, te_decoder, enc_units, test_tf_ratio, train_mode, s_stateful)
+        gen_tokens = tf.argmax(generated_logits, axis=-1)
+        variation_score = get_sequence_variation_percentage(batch_x_test, generated_logits)
+        print("Test batch {} variation score: {}".format(str(b_c+1), str(variation_score)))
+        batch_x_test = convert_to_string_list(batch_x_test)
+        gen_tokens = convert_to_string_list(gen_tokens)
+        test_x.extend(batch_x_test)
+        pred_y.extend(gen_tokens)
+
+    pred_dataframe = pd.DataFrame(list(zip(test_x, pred_y)), columns=["X", "Pred Y"])
+    df_filename = "data/generated_files/true_pred_epoch_type_{}.csv".format(epoch_type_name)
+    pred_dataframe.to_csv(df_filename, index=None)
+
+
 def generator_step(seq_len, batch_size, vocab_size, gen_decoder, dec_state_h, dec_state_c, real_i, real_o, train_gen):
     gen_logits = list()
     step_loss = tf.constant(0.0)
@@ -670,7 +701,7 @@ def get_mutation_tr_indices(train_in, train_out, kmer_f_dict, kmer_r_dict, f_dic
             first = re_true_x[i:i+1]
             sec = re_true_y[i:i+1]
             if first != sec:
-                key = "{}>{}".format(first, sec)
+                key = "{}>{}>{}".format(first, (i+1), sec)
                 if key not in parent_child_mut_indices:
                     parent_child_mut_indices[key] = list()
                 parent_child_mut_indices[key].append(index)

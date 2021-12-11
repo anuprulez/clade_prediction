@@ -39,7 +39,7 @@ cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 n_disc_step = 6
 n_gen_step = 3
 unrolled_steps = 3
-test_log_step = 20
+test_log_step = 10
 teacher_forcing_ratio = 0.0
 
 
@@ -346,16 +346,17 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
           encoder, decoder, _, _, _, gen_true_loss, gen_fake_loss, total_gen_loss = g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, size_stateful)
           print("Training epoch {}/{}, batch {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_train_batches), str(gen_true_loss.numpy()), str(gen_fake_loss.numpy()), str(total_gen_loss.numpy())))
           encoder.save_weights(GEN_ENC_WEIGHTS)
-          if step % test_log_step == 0:
-              print("Training: prediction on test data...")
-              with tf.device('/device:cpu:0'):
-                  epo_bat_gen_te_loss, gen_bat_te_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, encoder, decoder, size_stateful)
-                  epo_te_gen_loss.append(epo_bat_gen_te_loss)
-                  epo_te_seq_var.append(gen_bat_te_seq_var)
           # reset weights of discriminator, disc_par_enc and disc_gen_enc after unrolling
           discriminator.load_weights(DISC_WEIGHTS)
           disc_par_enc.load_weights(DISC_PAR_ENC_WEIGHTS)
           disc_gen_enc.load_weights(DISC_GEN_ENC_WEIGHTS)
+ 
+      # intermediate prediction on test data while training
+      if (step + 1) % test_log_step == 0 and step > 0:
+          print("Training: prediction on test data...")
+          with tf.device('/device:cpu:0'):
+              _, _ = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, encoder, decoder, size_stateful)
+          
       print("Training epoch {}/{}, batch {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}, D true loss: {}, D fake loss: {}, Total D loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_train_batches), str(gen_true_loss.numpy()), str(gen_fake_loss.numpy()), str(total_gen_loss.numpy()), str(disc_real_loss.numpy()), str(disc_fake_loss.numpy()), str(total_disc_loss.numpy())))
       # write off results
       epo_ave_gen_true_loss.append(gen_true_loss.numpy())
