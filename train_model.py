@@ -36,10 +36,10 @@ pretrain_generator_optimizer = tf.keras.optimizers.Adam() #tf.keras.optimizers.A
 generator_optimizer = tf.keras.optimizers.Adam() # learning_rate=1e-3, beta_1=0.5
 discriminator_optimizer = tf.keras.optimizers.Adam() # learning_rate=3e-5, beta_1=0.5
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
-n_disc_step = 6
-n_gen_step = 3
+n_disc_step = 10
+n_gen_step = 5
 unrolled_steps = 3
-test_log_step = 10
+test_log_step = 20
 teacher_forcing_ratio = 0.0
 
 
