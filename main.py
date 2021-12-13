@@ -72,23 +72,23 @@ s_kmer = 3
 LEN_AA = 1274
 len_aa_subseq = 32
 #len_final_aa_padding = len_aa_subseq + 1
-len_final_aa_padding = len_aa_subseq - s_kmer + 1
+len_final_aa_padding = len_aa_subseq - s_kmer + 2
 size_stateful = 10
 # Neural network parameters
 embedding_dim = 32
 batch_size = 32
 te_batch_size = batch_size
-n_te_batches = 20
+n_te_batches = 10
 enc_units = 32
-pretrain_epochs = 2
-epochs = 50
+pretrain_epochs = 10
+epochs = 5
 max_l_dist = 11
 test_train_size = 0.85
 pretrain_train_size = 0.5
-random_clade_size = 1500
+random_clade_size = 500
 to_pretrain = True
 pretrained_model = False
-gan_train = True
+gan_train = False
 stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/", "data/pretrain/"]
 amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"
 
@@ -242,7 +242,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
 
     vocab_size = len(kmer_f_dict) + 1
 
-    print("Number of kmers: {}".format(str(len(kmer_f_dict) - 1)))
+    print("Number of kmers: {}".format(str(len(kmer_f_dict))))
     print("Vocab size: {}".format(str(len(kmer_f_dict) + 1)))
 
     combined_X = np.array(combined_X)

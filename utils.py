@@ -30,9 +30,9 @@ def loss_function(real, pred):
   # pred shape = (BATCH_SIZE, max_length_output, tar_vocab_size )
   cross_entropy = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False, reduction='none')
   loss = cross_entropy(y_true=real, y_pred=pred)
-  mask = tf.logical_not(tf.math.equal(real, 0))  #output 0 for y=0 else output 1
-  mask = tf.cast(mask, dtype=loss.dtype)  
-  loss = mask* loss
+  #mask = tf.logical_not(tf.math.equal(real, 0))  #output 0 for y=0 else output 1
+  #mask = tf.cast(mask, dtype=loss.dtype)  
+  #loss = mask* loss
   loss = tf.reduce_mean(loss)
   return loss 
 
@@ -95,10 +95,10 @@ def get_u_kmers(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict):
         l_distance.append(l_dist)
         if l_dist > 0 and l_dist < max_l_dist:
             filtered_l_distance.append(l_dist)
-            #fil_x.append(add_padding_to_seq(enc_i))
-            #fil_y.append(add_padding_to_seq(enc_j))
-            fil_x.append(enc_i)
-            fil_y.append(enc_j)
+            fil_x.append(add_padding_to_seq(enc_i))
+            fil_y.append(add_padding_to_seq(enc_j))
+            #fil_x.append(enc_i)
+            #fil_y.append(enc_j)
     return fil_x, fil_y, kmer_f_dict, kmer_r_dict
 
     '''train_kmers = get_all_kmers(combined_X, combined_y, forward_dict, s_kmer)
@@ -479,48 +479,107 @@ def stateful_encoding(size_stateful, inputs, enc, training=False):
     return enc_out, enc_state_h, enc_state_c, enc
 
 
+def clip_weights(tensor, clip_min=-1e-1, clip_max=1e-1):
+    return tf.clip_by_value(tensor, clip_value_min=clip_min, clip_value_max=clip_max)
+    #return tf.clip_by_norm(tensor, clip_norm=2.0)
+
+
 def loop_encode_decode(seq_len, batch_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful):
 
-    enc_output, enc_f, enc_b, gen_encoder = stateful_encoding(s_stateful, input_tokens, gen_encoder, train_test)
+    enc_output, enc_f, enc_b = gen_encoder(input_tokens, training=train_test) #stateful_encoding(s_stateful, input_tokens, gen_encoder, train_test)
     dec_f, dec_b = enc_f, enc_b
+
+    #print(dec_f[:5, :])
+    #print(dec_b[:5, :])
     #print()
-    #print(enc_output.shape, enc_f.shape, enc_b.shape)
+
+    #dec_f = tf.math.add(dec_f, tf.random.normal((dec_f.shape[0], dec_f.shape[1])))
+    #dec_b = tf.math.add(dec_b, tf.random.normal((dec_f.shape[0], dec_f.shape[1])))
+
+    dec_f = clip_weights(dec_f)
+    dec_b = clip_weights(dec_b)
+
+    #print(dec_f[:5, :])
+
+    #print("===============================")
+
+    '''if train_test is True:
+        dec_f = clip_weights(dec_f)
+        dec_b = clip_weights(dec_b)'''
+
+    #print(dec_f[:5, :])
+    #print(dec_b[:5, :])
+    #print()
+    #print("===============================")
+
     #if train_test is True:
     noise_generator = tf.random.Generator.from_non_deterministic_state()
-    dec_f = tf.math.add(dec_f, noise_generator.normal(shape=[batch_size, enc_units]))
-    dec_b = tf.math.add(dec_b, noise_generator.normal(shape=[batch_size, enc_units]))
+    dec_f = tf.math.add(dec_f, noise_generator.normal(shape=[dec_f.shape[0], dec_f.shape[1]]))
+    dec_b = tf.math.add(dec_b, noise_generator.normal(shape=[dec_f.shape[0], dec_f.shape[1]]))
+
+
+    dec_f = tf.clip_by_norm(dec_f, clip_norm=1.0)
+    dec_b = tf.clip_by_norm(dec_b, clip_norm=1.0)
     
-    #gen_logits = list()
 
-    #loss = tf.constant(0.0)
-    target_mask = output_tokens != 0
-    i_tokens = tf.fill([batch_size, seq_len], 0)
-    gen_logits, _, _ = gen_decoder([i_tokens, dec_f, dec_b], training=train_test)
+    '''if train_test is True:
+        dec_f = clip_weights(dec_f)
+        dec_b = clip_weights(dec_b)
+    '''
 
-    '''i_tokens = tf.fill([batch_size, 1], 0)
+    #print(dec_f[:5, :])
+    #print(dec_b[:5, :])
+    # tf.math.l2_normalize()
+    #print("===============================")
+
+
+    #
+    #target_mask = output_tokens != 0
+    #i_tokens = tf.fill([batch_size, 1], 0)
+    #gen_logits, _, _ = gen_decoder([i_tokens, dec_f, dec_b], training=train_test)
+
+    loss = tf.constant(0.0)
+    gen_logits = list()
+    i_tokens = tf.fill([batch_size, 1], 0)
+    i_state_f = dec_f
+    i_state_b = dec_b
     for t in range(seq_len - 1):
         o_tokens = output_tokens[:, t+1:t+2]
-        dec_result, dec_f, dec_b = gen_decoder([i_tokens, dec_f, dec_b], training=train_test)
+        dec_result, i_state_f, i_state_b = gen_decoder([i_tokens, i_state_f, i_state_b], training=train_test)
 
         #if train_test is True:
-        dec_f = tf.math.add(dec_f, noise_generator.normal(shape=[batch_size, enc_units]))
-        dec_b = tf.math.add(dec_b, noise_generator.normal(shape=[batch_size, enc_units]))
+        i_state_f = clip_weights(i_state_f)
+        i_state_b = clip_weights(i_state_b)
+
+        #print(dec_f[:5, :])
+        #if train_test is True:
+        i_state_f = tf.math.add(i_state_f, noise_generator.normal(shape=[i_state_f.shape[0], i_state_f.shape[1]]))
+        i_state_b = tf.math.add(i_state_b, noise_generator.normal(shape=[i_state_b.shape[0], i_state_b.shape[1]]))
+
+        i_state_f = tf.clip_by_norm(i_state_f, clip_norm=1.0)
+        i_state_b = tf.clip_by_norm(i_state_b, clip_norm=1.0)
 
         gen_logits.append(dec_result)
 
-        if tf_ratio > 0.0:
+        #if train_test is True
+        '''if random.random() < tf_ratio:
             i_tokens = o_tokens
         else:
-            i_tokens = tf.argmax(dec_result, axis=-1)
+            i_tokens = tf.argmax(dec_result, axis=-1)'''
 
-        step_loss = m_loss(o_tokens, dec_result)
-        loss += step_loss'''
-    loss = m_loss(output_tokens, gen_logits)
+        step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
+        loss += step_loss
+        i_tokens = tf.argmax(dec_result, axis=-1)
+    print()
+    print(i_state_f[:5, :])
+    print("===============================")
+    #loss = m_loss(output_tokens, gen_logits)
     #print(loss)
-    loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
-    #gen_logits = tf.concat(gen_logits, axis=-2)
+    #loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
+    loss = loss / seq_len
+    gen_logits = tf.concat(gen_logits, axis=-2)
     return gen_logits, gen_encoder, gen_decoder, loss
-    
+
 
 def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, loaded_encoder, loaded_generator, s_stateful):
     avg_test_loss = []
@@ -539,7 +598,7 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
         print("Test: true output seq:")
         #print(batch_x_test)
         #print()
-        print(batch_y_test[:5, :])
+        print(batch_y_test[:5, 1:])
         # generate seqs stepwise - teacher forcing
         #generated_logits, loss = _loop_pred_step(seq_len, te_batch_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units)
         generated_logits, _, _, loss = loop_encode_decode(seq_len, te_batch_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units, test_tf_ratio, train_mode, s_stateful)
@@ -569,6 +628,7 @@ def save_predicted_test_data(test_data_in, test_data_out, te_encoder, te_decoder
     #print(test_data_in.shape, n_te_batches, te_batch_size)
     test_x = list()
     pred_y = list()
+    n_te_batches = 10
     print("Saving predicted data for test...")
     for b_c in range(n_te_batches):
         s_idx = b_c*te_batch_size
@@ -693,8 +753,8 @@ def save_batch(batch_x, batch_y, batch_mut_distribution):
 def get_mutation_tr_indices(train_in, train_out, kmer_f_dict, kmer_r_dict, f_dict, r_dict):
     parent_child_mut_indices = dict()
     for index, (x, y) in enumerate(zip(train_in, train_out)):
-        true_x = x.split(",") #[1:]
-        true_y = y.split(",") #[1:]
+        true_x = x.split(",")[1:]
+        true_y = y.split(",")[1:]
         re_true_x = reconstruct_seq([kmer_f_dict[pos] for pos in true_x])
         re_true_y = reconstruct_seq([kmer_f_dict[pos] for pos in true_y])
         for i in range(len(true_x)):

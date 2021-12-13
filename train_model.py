@@ -33,14 +33,14 @@ TRAIN_GEN_DEC_MODEL = "data/generated_files/gen_dec_model"
 
 
 pretrain_generator_optimizer = tf.keras.optimizers.Adam() #tf.keras.optimizers.Adam() # learning_rate=1e-3, beta_1=0.5
-generator_optimizer = tf.keras.optimizers.Adam() # learning_rate=1e-3, beta_1=0.5
-discriminator_optimizer = tf.keras.optimizers.Adam() # learning_rate=3e-5, beta_1=0.5
+generator_optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3) # learning_rate=1e-3, beta_1=0.5
+discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) # learning_rate=3e-5, beta_1=0.5
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 n_disc_step = 10
 n_gen_step = 5
-unrolled_steps = 3
+unrolled_steps = 5
 test_log_step = 20
-teacher_forcing_ratio = 0.0
+teacher_forcing_ratio = 0.5
 
 
 m_loss = neural_network.MaskedLoss()
@@ -52,17 +52,17 @@ def wasserstein_loss(y_true, y_pred):
 
 
 def discriminator_loss(real_output, fake_output):
-    #real_loss = -tf.math.reduce_mean(real_output)
-    #fake_loss = tf.math.reduce_mean(fake_output)
-    real_loss = cross_entropy(tf.ones_like(real_output), real_output)
+    real_loss = -tf.math.reduce_mean(real_output)
+    fake_loss = tf.math.reduce_mean(fake_output)
+    #real_loss = cross_entropy(tf.ones_like(real_output), real_output)
     # loss on real parent and generated child sequences
-    fake_loss = cross_entropy(tf.zeros_like(fake_output), fake_output)
+    #fake_loss = cross_entropy(tf.zeros_like(fake_output), fake_output)
     return real_loss, fake_loss
 
 
 def generator_loss(fake_output):
-    return cross_entropy(tf.ones_like(fake_output), fake_output)
-    #return -tf.math.reduce_mean(fake_output)
+    #return cross_entropy(tf.ones_like(fake_output), fake_output)
+    return -tf.math.reduce_mean(fake_output)
 
 
 def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc_model, disc_gen_enc_model, size_stateful):
@@ -106,13 +106,13 @@ def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, un
     variation_score = utils.get_sequence_variation_percentage(unrolled_x, generated_logits)
     print("Generation variation score: {}".format(str(variation_score)))
 
-    gen_t_loss = gen_t_loss + mae([1.0], [variation_score])
+    #gen_t_loss = gen_t_loss + mae([1.0], [variation_score])
     # encode parent sequences for discriminator
     #enc_output, enc_f, enc_b = utils.stateful_encoding(size_stateful, unrolled_x, encoder, True)
     #enc_output, enc_f, enc_b = stateful_encoding(s_stateful, input_tokens, gen_encoder, train_test)
     #real_state_x = disc_par_enc_model(unrolled_x, training=True)
 
-    _, real_enc_f_x, real_enc_b_x, disc_par_enc_model = utils.stateful_encoding(size_stateful, unrolled_x, disc_par_enc_model, True)
+    _, real_enc_f_x, real_enc_b_x = disc_par_enc_model(unrolled_x, training=True) #utils.stateful_encoding(size_stateful, unrolled_x, disc_par_enc_model, True)
     real_state_x = real_enc_f_x + real_enc_b_x
     #print(real_state_x.shape, real_enc_f_x.shape, real_enc_b_x.shape)
     # unrelated real X
@@ -122,7 +122,7 @@ def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, un
     one_hot_real_y = tf.one_hot(unrolled_y, depth=generated_logits.shape[-1], axis=-1)
     #real_state_y = disc_gen_enc_model(one_hot_real_y, training=True)
 
-    _, real_enc_f_y, real_enc_b_y, disc_gen_enc_model = utils.stateful_encoding(size_stateful, one_hot_real_y, disc_gen_enc_model, True)
+    _, real_enc_f_y, real_enc_b_y = disc_gen_enc_model(one_hot_real_y, training=True) #utils.stateful_encoding(size_stateful, one_hot_real_y, disc_gen_enc_model, True)
     real_state_y = real_enc_f_y + real_enc_b_y
     #print(real_state_y.shape, real_enc_f_y.shape, real_enc_b_y.shape)
     # unrelated real y
@@ -131,7 +131,7 @@ def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, un
 
     # encode generated child sequences for discriminator
     #fake_state_y = disc_gen_enc_model(generated_logits, training=True)
-    _, fake_enc_f_y, fake_enc_b_y, disc_gen_enc_model = utils.stateful_encoding(size_stateful, generated_logits, disc_gen_enc_model, True)
+    _, fake_enc_f_y, fake_enc_b_y = disc_gen_enc_model(generated_logits, training=True) #utils.stateful_encoding(size_stateful, generated_logits, disc_gen_enc_model, True)
     fake_state_y = fake_enc_f_y + fake_enc_b_y
     #print(fake_state_y.shape, fake_enc_f_y.shape, fake_enc_b_y.shape)
     return real_state_x, real_state_y, fake_state_y, unrelated_real_state_x, unrelated_real_state_y, encoder, decoder, disc_par_enc_model, disc_gen_enc_model, gen_t_loss
@@ -155,6 +155,7 @@ def d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, u
         disc_real_loss, disc_fake_loss = discriminator_loss(real_output, fake_output)
         total_disc_loss = disc_real_loss + disc_fake_loss
     # update discriminator's parameters
+    print()
     disc_trainable_vars = discriminator.trainable_variables + disc_gen_enc.trainable_variables + disc_par_enc.trainable_variables
     gradients_of_discriminator = disc_tape.gradient(total_disc_loss, disc_trainable_vars)
     discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, disc_trainable_vars))
@@ -168,9 +169,10 @@ def g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, u
         # discriminate pairs of true parent and generated child sequences
         fake_output = discriminator([real_x, fake_y], training=True)
         gen_fake_loss = generator_loss(fake_output)
-        total_gen_loss = gen_true_loss + gen_fake_loss
+        total_gen_loss = gen_true_loss #+ gen_fake_loss
+    print()
     # get all trainable vars for generator
-    gen_trainable_vars = decoder.trainable_variables + encoder.trainable_variables
+    gen_trainable_vars = encoder.trainable_variables + decoder.trainable_variables
     gradients_of_generator = gen_tape.gradient(total_gen_loss, gen_trainable_vars)
     generator_optimizer.apply_gradients(zip(gradients_of_generator, gen_trainable_vars))
     return encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, gen_true_loss, gen_fake_loss, total_gen_loss
@@ -187,6 +189,7 @@ def sample_true_x_y(mut_indices, batch_size, X_train, y_train, batch_mut_distrib
         rand_row_index = np.random.randint(0, len(list_mut_rows), 1)[0]
         rand_batch_indices.append(list_mut_rows[rand_row_index])
     #rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)
+    #print(rand_mut_keys)
     x_batch_train = X_train[rand_batch_indices]
     y_batch_train = y_train[rand_batch_indices]
 
@@ -250,7 +253,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
 
           pred_logits, gen_encoder, gen_decoder, gen_loss = utils.loop_encode_decode(seq_len, batch_size, unrolled_x, unrolled_y, gen_encoder, gen_decoder, enc_units, teacher_forcing_ratio, True, size_stateful)
           print("Training: true output seq")
-          print(unrolled_y[:5, :], unrolled_y.shape)
+          print(unrolled_y[:5, 1:], unrolled_y.shape)
           print()
           print(tf.argmax(pred_logits, axis=-1)[:5, :], pred_logits.shape)
 
@@ -259,6 +262,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           print("Pretr: generation variation score: {}".format(str(variation_score)))
           #/ variation_score #+ mae([1.0], [variation_score])
           #var_score = mae([1.0], [variation_score])
+          #if variation_score < 1.0:
           gen_loss = gen_loss + mae([1.0], [variation_score]) #+ mae([1.0], [variation_score])
           epo_tr_seq_var.append(variation_score)
           print("Pretr: teacher forcing ratio: {}".format(str(teacher_forcing_ratio)))
@@ -275,7 +279,8 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           epo_avg_tr_gen_loss.append(gen_loss)
       gen_trainable_vars = gen_encoder.trainable_variables + gen_decoder.trainable_variables
       gradients_of_generator = gen_tape.gradient(gen_loss, gen_trainable_vars)
-      gradients_of_generator = [tf.clip_by_value(grad, clip_value_min=-1e-6, clip_value_max=1e-6) for grad in gradients_of_generator]
+      #gradients_of_generator = [tf.clip_by_value(grad, clip_value_min=-1e-6, clip_value_max=1e-6) for grad in gradients_of_generator]
+      gradients_of_generator = [(tf.clip_by_norm(grad, clip_norm=2.0)) for grad in gradients_of_generator]
       pretrain_generator_optimizer.apply_gradients(zip(gradients_of_generator, gen_trainable_vars))
   # save model
 
