@@ -60,11 +60,11 @@ def clean_up(list_folders):
             continue
 
 
-def add_padding_to_seq(seq):
-    return "{},{}".format(str(0), seq)
+def add_padding_to_seq(seq, s_token):
+    return "{},{}".format(str(s_token), seq)
 
 
-def get_u_kmers(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict):
+def get_u_kmers(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict, start_token):
     x_list = list()
     y_list = list()
     s_kmer = 3
@@ -81,6 +81,12 @@ def get_u_kmers(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict):
     global_kmers = list(set(global_kmers))
     kmer_f_dict = {i + 1: global_kmers[i] for i in range(0, len(global_kmers))}
     kmer_r_dict = {global_kmers[i]: i + 1  for i in range(0, len(global_kmers))}
+
+    kmer_f_dict[start_token] = "<start>"
+    kmer_r_dict["<start>"] = start_token
+
+    print(kmer_f_dict)
+
     save_as_json(PATH_KMER_F_DICT, kmer_f_dict)
     save_as_json(PATH_KMER_R_DICT, kmer_r_dict)
     enc_x, enc_y = encode_sequences_kmers(forward_dict, kmer_r_dict, x_list, y_list, s_kmer)
@@ -95,8 +101,8 @@ def get_u_kmers(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict):
         l_distance.append(l_dist)
         if l_dist > 0 and l_dist < max_l_dist:
             filtered_l_distance.append(l_dist)
-            fil_x.append(add_padding_to_seq(enc_i))
-            fil_y.append(add_padding_to_seq(enc_j))
+            fil_x.append(add_padding_to_seq(enc_i, start_token))
+            fil_y.append(add_padding_to_seq(enc_j, start_token))
             #fil_x.append(enc_i)
             #fil_y.append(enc_j)
     return fil_x, fil_y, kmer_f_dict, kmer_r_dict
@@ -123,7 +129,7 @@ def split_test_train(x, y, split_size):
     return x_1, x_2, y_1, y_2 
 
 
-def generate_cross_product(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict, cols=["X", "Y"], unrelated=False, unrelated_threshold=15):
+def generate_cross_product(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict, start_token, cols=["X", "Y"], unrelated=False, unrelated_threshold=15):
     print(len(x_seq), len(y_seq))
     x_y = list(itertools.product(x_seq, y_seq))
     print(len(x_y))
@@ -133,10 +139,8 @@ def generate_cross_product(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict
     filtered_x = list()
     filtered_y = list()
 
-    filtered_x, filtered_y, kmer_f_dict, kmer_r_dict = get_u_kmers(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict)
+    filtered_x, filtered_y, kmer_f_dict, kmer_r_dict = get_u_kmers(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict, start_token)
     
-    #import sys
-    #sys.exit()
     '''for i, x_i in enumerate(x_seq):
         for j, y_j in enumerate(y_seq):
             # cut sequences of specific length
@@ -276,10 +280,6 @@ def encode_sequences_kmers(f_dict, kmer_r_dict, x_seq, y_seq, s_kmer):
         encoded_y = ",".join(encoded_y) #+ "," + str(len(kmer_r_dict) - 1)
         out_seq.append(encoded_y)
 
-        #print(encoded_x)
-        #print(encoded_y)
-        #	import sys
-        #sys.exit()
     return in_seq, out_seq
 
 
@@ -405,65 +405,6 @@ def sample_unrelated_x_y(unrelated_X, unrelated_y, batch_size):
     return convert_to_array(un_X), convert_to_array(un_y)
 
 
-def evaluate_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, loaded_encoder, loaded_decoder):
-  
-  for step in range(n_te_batches):
-        batch_x_test, batch_y_test = sample_unrelated_x_y(test_dataset_in, test_dataset_out, te_batch_size)
-        enc_start_state = [tf.zeros((te_batch_size, enc_units)), tf.zeros((te_batch_size, enc_units))]
-
-        print(batch_x_test.shape)
-
-        enc_out, enc_h, enc_c = loaded_encoder(batch_x_test, enc_start_state)
-
-        print(enc_out.shape)
-
-        dec_h = enc_h
-        dec_c = enc_c
-
-        start_tokens = tf.fill([te_batch_size], 0)
-
-        greedy_sampler = tfa.seq2seq.GreedyEmbeddingSampler()
-
-        print(greedy_sampler)
-
-        # Instantiate BasicDecoder object
-        decoder_instance = tfa.seq2seq.BasicDecoder(cell=loaded_decoder.rnn_cell, sampler=greedy_sampler, output_layer=loaded_decoder.fc)
-
-        print(decoder_instance)
-        # Setup Memory in decoder stack
-        loaded_decoder.attention_mechanism.setup_memory(enc_out)
-
-        # set decoder_initial_state
-        decoder_initial_state = loaded_decoder.build_initial_state(te_batch_size, [enc_h, enc_c], tf.float32)
-
-        print(decoder_initial_state)
-        ### Since the BasicDecoder wraps around Decoder's rnn cell only, you have to ensure that the inputs to BasicDecoder 
-        ### decoding step is output of embedding layer. tfa.seq2seq.GreedyEmbeddingSampler() takes care of this. 
-        ### You only need to get the weights of embedding layer, which can be done by decoder.embedding.variables[0] and pass this callabble to BasicDecoder's call() function
-
-        decoder_embedding_matrix = loaded_decoder.embedding.variables[0]
-        print(decoder_embedding_matrix.shape)
-
-        outputs, _, _ = decoder_instance(decoder_embedding_matrix, start_tokens = start_tokens, end_token=vocab_size-2, initial_state=decoder_initial_state)
-        print(outputs, dir(outputs))
-
-        '''loaded_decoder.attention_mechanism.setup_memory(enc_out)
-        decoder_initial_state = gen_decoder.build_initial_state(batch_size, [enc_h, enc_c], tf.float32)
-        
-        pred = gen_decoder(, decoder_initial_state)
-        gen_logits = pred.rnn_output
-        gen_loss = loss_function(unrolled_y, gen_logits)'''
-
-        #return outputs.sample_id.numpy()
-
-'''def translate(sentence):
-  result = evaluate_sentence(sentence)
-  print(result)
-  result = targ_lang.sequences_to_texts(result)
-  print('Input: %s' % (sentence))
-  print('Predicted translation: {}'.format(result))'''
-
-
 def scale_encodings(encoding):
     encoding = encoding.numpy()
     tf_enc = RobustScaler().fit_transform(encoding)
@@ -479,28 +420,44 @@ def stateful_encoding(size_stateful, inputs, enc, training=False):
     return enc_out, enc_state_h, enc_state_c, enc
 
 
-def clip_weights(tensor, clip_min=-1e-1, clip_max=1e-1):
+def clip_weights(tensor, clip_min=-1e-2, clip_max=1e-2):
     return tf.clip_by_value(tensor, clip_value_min=clip_min, clip_value_max=clip_max)
     #return tf.clip_by_norm(tensor, clip_norm=2.0)
 
 
-def loop_encode_decode(seq_len, batch_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful):
+def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful):
 
+    '''enc_weights = gen_encoder.get_weights()
+    for wt in enc_weights:
+        print(wt.shape, wt)
+        print()
+    print(len(enc_weights))'''
+    clip_norm_val = 10.0
     enc_output, enc_f, enc_b = gen_encoder(input_tokens, training=train_test) #stateful_encoding(s_stateful, input_tokens, gen_encoder, train_test)
     dec_f, dec_b = enc_f, enc_b
-
-    #print(dec_f[:5, :])
+    show = 2
+    #print()
+    #print(dec_f[:show, :])
+    enc_clip_norm = tf.norm(dec_f)
+    #print("Encoder norm: {}".format(str(enc_clip_norm)))
     #print(dec_b[:5, :])
     #print()
 
     #dec_f = tf.math.add(dec_f, tf.random.normal((dec_f.shape[0], dec_f.shape[1])))
     #dec_b = tf.math.add(dec_b, tf.random.normal((dec_f.shape[0], dec_f.shape[1])))
 
-    dec_f = clip_weights(dec_f)
-    dec_b = clip_weights(dec_b)
+    
 
-    #print(dec_f[:5, :])
+    #noise_generator = tf.random.Generator.from_non_deterministic_state()
+    #dec_f = tf.math.add(dec_f, noise_generator.normal(shape=[dec_f.shape[0], dec_f.shape[1]]))
+    #dec_b = tf.math.add(dec_b, noise_generator.normal(shape=[dec_f.shape[0], dec_f.shape[1]]))
 
+    #print(dec_f[:show, :])
+    if enc_clip_norm > 10.0:
+        dec_f = tf.clip_by_norm(dec_f, clip_norm=clip_norm_val) #clip_weights(dec_f) #tf.clip_by_norm(dec_f, clip_norm=clip_norm_val) #clip_weights(dec_f)
+        dec_b = tf.clip_by_norm(dec_b, clip_norm=clip_norm_val) #clip_weights(dec_b) #tf.clip_by_norm(dec_b, clip_norm=clip_norm_val) #clip_weights(dec_b)
+    
+    
     #print("===============================")
 
     '''if train_test is True:
@@ -517,25 +474,19 @@ def loop_encode_decode(seq_len, batch_size, input_tokens, output_tokens, gen_enc
     dec_f = tf.math.add(dec_f, noise_generator.normal(shape=[dec_f.shape[0], dec_f.shape[1]]))
     dec_b = tf.math.add(dec_b, noise_generator.normal(shape=[dec_f.shape[0], dec_f.shape[1]]))
 
-
-    dec_f = tf.clip_by_norm(dec_f, clip_norm=1.0)
-    dec_b = tf.clip_by_norm(dec_b, clip_norm=1.0)
-    
-
-    '''if train_test is True:
-        dec_f = clip_weights(dec_f)
-        dec_b = clip_weights(dec_b)
-    '''
-
-    #print(dec_f[:5, :])
+    if tf.norm(dec_f) > 10:
+        dec_f = tf.clip_by_norm(dec_f, clip_norm=clip_norm_val) #clip_weights(dec_f) #tf.clip_by_norm(dec_f, clip_norm=clip_norm_val)
+        dec_b = tf.clip_by_norm(dec_b, clip_norm=clip_norm_val) #tf.clip_by_norm(dec_b, clip_norm=clip_norm_val)
+   
+    #print(dec_f[:show, :]) 
+    #print("Encoder norm after clipping: {}".format(str(tf.norm(dec_f))))
     #print(dec_b[:5, :])
     # tf.math.l2_normalize()
     #print("===============================")
 
-
     #
     #target_mask = output_tokens != 0
-    #i_tokens = tf.fill([batch_size, 1], 0)
+    #i_tokens = tf.fill([batch_size, seq_len], 0)
     #gen_logits, _, _ = gen_decoder([i_tokens, dec_f, dec_b], training=train_test)
 
     loss = tf.constant(0.0)
@@ -543,37 +494,42 @@ def loop_encode_decode(seq_len, batch_size, input_tokens, output_tokens, gen_enc
     i_tokens = tf.fill([batch_size, 1], 0)
     i_state_f = dec_f
     i_state_b = dec_b
+    o_state_norm = list()
+    o_state_norm_clip = list()
     for t in range(seq_len - 1):
         o_tokens = output_tokens[:, t+1:t+2]
         dec_result, i_state_f, i_state_b = gen_decoder([i_tokens, i_state_f, i_state_b], training=train_test)
-
-        #if train_test is True:
-        i_state_f = clip_weights(i_state_f)
+        dec_clip_norm = tf.norm(i_state_f)
+        o_state_norm.append(tf.norm(i_state_f))
+        '''i_state_f = clip_weights(i_state_f)
         i_state_b = clip_weights(i_state_b)
 
-        #print(dec_f[:5, :])
-        #if train_test is True:
         i_state_f = tf.math.add(i_state_f, noise_generator.normal(shape=[i_state_f.shape[0], i_state_f.shape[1]]))
         i_state_b = tf.math.add(i_state_b, noise_generator.normal(shape=[i_state_b.shape[0], i_state_b.shape[1]]))
 
         i_state_f = tf.clip_by_norm(i_state_f, clip_norm=1.0)
-        i_state_b = tf.clip_by_norm(i_state_b, clip_norm=1.0)
-
+        i_state_b = tf.clip_by_norm(i_state_b, clip_norm=1.0)'''
+        if dec_clip_norm > 10.0:
+            i_state_f = tf.clip_by_norm(i_state_f, clip_norm=clip_norm_val)
+            i_state_b = tf.clip_by_norm(i_state_b, clip_norm=clip_norm_val)
+            o_state_norm_clip.append(tf.norm(i_state_f))
         gen_logits.append(dec_result)
 
         #if train_test is True
-        '''if random.random() < tf_ratio:
+        if random.random() < tf_ratio:
             i_tokens = o_tokens
         else:
-            i_tokens = tf.argmax(dec_result, axis=-1)'''
+            i_tokens = tf.argmax(dec_result, axis=-1)
 
         step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
         loss += step_loss
-        i_tokens = tf.argmax(dec_result, axis=-1)
-    print()
-    print(i_state_f[:5, :])
-    print("===============================")
-    #loss = m_loss(output_tokens, gen_logits)
+        #i_tokens = tf.argmax(dec_result, axis=-1)
+    #print("Decoder norm: {}".format(str(np.mean(o_state_norm))))
+    #print("Decoder norm after clipping: {}".format(str(np.mean(o_state_norm_clip))))
+    #print()
+    #print(i_state_f[:5, :])
+    #print("===============================")
+    #loss = tf.reduce_mean(cross_entropy_loss(input_tokens, gen_logits))
     #print(loss)
     #loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
     loss = loss / seq_len
@@ -601,7 +557,7 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
         print(batch_y_test[:5, 1:])
         # generate seqs stepwise - teacher forcing
         #generated_logits, loss = _loop_pred_step(seq_len, te_batch_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units)
-        generated_logits, _, _, loss = loop_encode_decode(seq_len, te_batch_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units, test_tf_ratio, train_mode, s_stateful)
+        generated_logits, _, _, loss = loop_encode_decode(seq_len, te_batch_size, vocab_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units, test_tf_ratio, train_mode, s_stateful)
         print(tf.argmax(generated_logits, axis=-1)[:5, :])
         #generated_output_seqs(seq_len, te_batch_size, vocab_size, loaded_generator, dec_state_h, dec_state_c, batch_x_test, batch_y_test, False)  
         variation_score = get_sequence_variation_percentage(batch_x_test, generated_logits)
@@ -618,32 +574,37 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
     return np.mean(avg_test_loss), np.mean(avg_test_seq_var)
 
 
-def save_predicted_test_data(test_data_in, test_data_out, te_encoder, te_decoder, te_batch_size, enc_units, epoch_type_name):
+def save_predicted_test_data(test_data_in, test_data_out, te_batch_size, enc_units, vocab_size, epoch_type_name):
+    te_encoder = tf.keras.models.load_model("data/generated_files/pretrain_gen_encoder")
+    te_decoder = tf.keras.models.load_model("data/generated_files/pretrain_gen_decoder")
     test_data_in, test_data_out = convert_to_array(test_data_in), convert_to_array(test_data_out)
     seq_len = test_data_in.shape[1]
     n_te_batches = int(test_data_in.shape[0] / te_batch_size)
     test_tf_ratio = 0.0
     train_mode = False
     s_stateful = True
-    #print(test_data_in.shape, n_te_batches, te_batch_size)
     test_x = list()
     pred_y = list()
-    n_te_batches = 10
+    if n_te_batches > 10:
+        n_te_batches = 10
     print("Saving predicted data for test...")
     for b_c in range(n_te_batches):
         s_idx = b_c*te_batch_size
         e_idx = (b_c+1)*te_batch_size
         #print(b_c, s_idx, e_idx)
         batch_x_test, batch_y_test = test_data_in[s_idx:e_idx, :], test_data_out[s_idx:e_idx, :]
-        #print(batch_x_test.shape, batch_y_test.shape)
-        generated_logits, _, _, _ = loop_encode_decode(seq_len, te_batch_size, batch_x_test, batch_y_test, te_encoder, te_decoder, enc_units, test_tf_ratio, train_mode, s_stateful)
-        gen_tokens = tf.argmax(generated_logits, axis=-1)
-        variation_score = get_sequence_variation_percentage(batch_x_test, generated_logits)
-        print("Test batch {} variation score: {}".format(str(b_c+1), str(variation_score)))
-        batch_x_test = convert_to_string_list(batch_x_test)
-        gen_tokens = convert_to_string_list(gen_tokens)
-        test_x.extend(batch_x_test)
-        pred_y.extend(gen_tokens)
+        if batch_x_test.shape[0] == te_batch_size:
+            #print(batch_x_test.shape, batch_y_test.shape)
+            generated_logits, _, _, loss = loop_encode_decode(seq_len, te_batch_size, vocab_size, batch_x_test, batch_y_test, te_encoder, te_decoder, enc_units, test_tf_ratio, train_mode, s_stateful)
+            gen_tokens = tf.argmax(generated_logits, axis=-1)
+            variation_score = get_sequence_variation_percentage(batch_x_test, generated_logits)
+            print("Test batch {}, loss: {},  variation score: {}".format(str(b_c+1), str(loss), str(variation_score)))
+            batch_x_test = convert_to_string_list(batch_x_test)
+            gen_tokens = convert_to_string_list(gen_tokens)
+            test_x.extend(batch_x_test)
+            pred_y.extend(gen_tokens)
+        else:
+            break
 
     pred_dataframe = pd.DataFrame(list(zip(test_x, pred_y)), columns=["X", "Pred Y"])
     df_filename = "data/generated_files/true_pred_epoch_type_{}.csv".format(epoch_type_name)
@@ -766,3 +727,66 @@ def get_mutation_tr_indices(train_in, train_out, kmer_f_dict, kmer_r_dict, f_dic
                     parent_child_mut_indices[key] = list()
                 parent_child_mut_indices[key].append(index)
     return parent_child_mut_indices
+
+
+'''
+def evaluate_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, loaded_encoder, loaded_decoder):
+  
+  for step in range(n_te_batches):
+        batch_x_test, batch_y_test = sample_unrelated_x_y(test_dataset_in, test_dataset_out, te_batch_size)
+        enc_start_state = [tf.zeros((te_batch_size, enc_units)), tf.zeros((te_batch_size, enc_units))]
+
+        print(batch_x_test.shape)
+
+        enc_out, enc_h, enc_c = loaded_encoder(batch_x_test, enc_start_state)
+
+        print(enc_out.shape)
+
+        dec_h = enc_h
+        dec_c = enc_c
+
+        start_tokens = tf.fill([te_batch_size], 0)
+
+        greedy_sampler = tfa.seq2seq.GreedyEmbeddingSampler()
+
+        print(greedy_sampler)
+
+        # Instantiate BasicDecoder object
+        decoder_instance = tfa.seq2seq.BasicDecoder(cell=loaded_decoder.rnn_cell, sampler=greedy_sampler, output_layer=loaded_decoder.fc)
+
+        print(decoder_instance)
+        # Setup Memory in decoder stack
+        loaded_decoder.attention_mechanism.setup_memory(enc_out)
+
+        # set decoder_initial_state
+        decoder_initial_state = loaded_decoder.build_initial_state(te_batch_size, [enc_h, enc_c], tf.float32)
+
+        print(decoder_initial_state)
+        ### Since the BasicDecoder wraps around Decoder's rnn cell only, you have to ensure that the inputs to BasicDecoder 
+        ### decoding step is output of embedding layer. tfa.seq2seq.GreedyEmbeddingSampler() takes care of this. 
+        ### You only need to get the weights of embedding layer, which can be done by decoder.embedding.variables[0] and pass this callabble to BasicDecoder's call() function
+
+        decoder_embedding_matrix = loaded_decoder.embedding.variables[0]
+        print(decoder_embedding_matrix.shape)
+
+        outputs, _, _ = decoder_instance(decoder_embedding_matrix, start_tokens = start_tokens, end_token=vocab_size-2, initial_state=decoder_initial_state)
+        print(outputs, dir(outputs))
+
+        loaded_decoder.attention_mechanism.setup_memory(enc_out)
+        decoder_initial_state = gen_decoder.build_initial_state(batch_size, [enc_h, enc_c], tf.float32)
+        
+        pred = gen_decoder(, decoder_initial_state)
+        gen_logits = pred.rnn_output
+        gen_loss = loss_function(unrolled_y, gen_logits)
+
+        #return outputs.sample_id.numpy()
+
+def translate(sentence):
+  result = evaluate_sentence(sentence)
+  print(result)
+  result = targ_lang.sequences_to_texts(result)
+  print('Input: %s' % (sentence))
+  print('Predicted translation: {}'.format(result))
+
+
+'''

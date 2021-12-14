@@ -45,3 +45,5 @@ https://www.tensorflow.org/guide/keras/rnn
 https://aclanthology.org/2020.lrec-1.576.pdf
 https://dafx2020.mdw.ac.at/proceedings/papers/DAFx20in21_paper_12.pdf
 https://en.wikipedia.org/wiki/Gibbs_sampling
+http://people.csail.mit.edu/andyyuan/docs/interspeech-16.audio2vec.paper.pdf
+https://arxiv.org/pdf/2108.11992.pdf

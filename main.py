@@ -72,7 +72,7 @@ s_kmer = 3
 LEN_AA = 1274
 len_aa_subseq = 32
 #len_final_aa_padding = len_aa_subseq + 1
-len_final_aa_padding = len_aa_subseq - s_kmer + 2
+len_final_aa_padding = len_aa_subseq - s_kmer + 2 # write 2 here when there is padding of zero in in and out sequences
 size_stateful = 10
 # Neural network parameters
 embedding_dim = 32
@@ -80,15 +80,16 @@ batch_size = 32
 te_batch_size = batch_size
 n_te_batches = 10
 enc_units = 32
-pretrain_epochs = 10
-epochs = 5
+pretrain_epochs = 1
+epochs = 10
 max_l_dist = 11
 test_train_size = 0.85
 pretrain_train_size = 0.5
-random_clade_size = 500
-to_pretrain = True
-pretrained_model = False
-gan_train = False
+random_clade_size = 1500
+to_pretrain = False
+pretrained_model = True
+gan_train = True
+start_token = 0
 stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/", "data/pretrain/"]
 amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"
 
@@ -120,9 +121,10 @@ def read_files():
         print(clades_in_clades_out)
         #unrelated_clades = utils.read_json(PATH_UNRELATED_CLADES)
         print("Generating cross product of real parent child...")
-        preprocess_sequences.make_cross_product(clades_in_clades_out, filtered_dataf, len_aa_subseq, train_size=test_train_size, edit_threshold=max_l_dist, random_size=random_clade_size, unrelated=False)
+        preprocess_sequences.make_cross_product(clades_in_clades_out, filtered_dataf, len_aa_subseq, start_token, train_size=test_train_size, edit_threshold=max_l_dist, random_size=random_clade_size, unrelated=False)
         #print("Generating cross product of real sequences but not parent-child...")
         #preprocess_sequences.make_cross_product(unrelated_clades, filtered_dataf, len_aa_subseq, train_size=1.0, edit_threshold=max_l_dist, random_size=random_clade_size, unrelated=True)
+        #sys.exit()
     else:
         encoder = tf.keras.models.load_model(PRETRAIN_GEN_ENC_MODEL)
         decoder = tf.keras.models.load_model(PRETRAIN_GEN_DEC_MODEL)
@@ -240,6 +242,8 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     kmer_f_dict = utils.read_json(PATH_KMER_F_DICT)
     kmer_r_dict = utils.read_json(PATH_KMER_R_DICT)
 
+    print(kmer_f_dict)
+
     vocab_size = len(kmer_f_dict) + 1
 
     print("Number of kmers: {}".format(str(len(kmer_f_dict))))
@@ -313,7 +317,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
             print("Pre-training epoch {} finished".format(str(i+1)))
             print()
             epoch_type_name = "pretrain_epoch_{}".format(str(i+1))
-            utils.save_predicted_test_data(test_dataset_in, test_dataset_out, encoder, decoder, te_batch_size, enc_units, epoch_type_name)
+            utils.save_predicted_test_data(test_dataset_in, test_dataset_out, te_batch_size, enc_units, vocab_size, epoch_type_name)
         np.savetxt(PRETRAIN_GEN_LOSS, pretrain_gen_train_loss)
         np.savetxt(PRETRAIN_GEN_TEST_LOSS, pretrain_gen_test_loss)
         np.savetxt("data/generated_files/pretrain_gen_test_seq_var.txt", pretrain_gen_test_seq_var)
@@ -378,7 +382,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
             train_gen_test_seq_var.append(epo_tr_gen_seq_var)
         print()
         epoch_type_name = "train_epoch_{}".format(str(n+1))
-        utils.save_predicted_test_data(test_dataset_in, test_dataset_out, encoder, decoder, te_batch_size, enc_units, epoch_type_name)
+        utils.save_predicted_test_data(test_dataset_in, test_dataset_out, te_batch_size, enc_units, vocab_size, epoch_type_name)
     print("Training finished")
     # save loss files
     np.savetxt(TRAIN_GEN_TOTAL_LOSS, train_gen_total_loss)

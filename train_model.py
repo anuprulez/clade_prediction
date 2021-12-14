@@ -32,13 +32,13 @@ TRAIN_GEN_ENC_MODEL = "data/generated_files/gen_enc_model"
 TRAIN_GEN_DEC_MODEL = "data/generated_files/gen_dec_model"
 
 
-pretrain_generator_optimizer = tf.keras.optimizers.Adam() #tf.keras.optimizers.Adam() # learning_rate=1e-3, beta_1=0.5
+pretrain_generator_optimizer = tf.keras.optimizers.Adam()
 generator_optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3) # learning_rate=1e-3, beta_1=0.5
 discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) # learning_rate=3e-5, beta_1=0.5
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
-n_disc_step = 10
-n_gen_step = 5
-unrolled_steps = 5
+n_disc_step = 6
+n_gen_step = 3
+unrolled_steps = 3
 test_log_step = 20
 teacher_forcing_ratio = 0.5
 
@@ -75,7 +75,7 @@ def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, un
     #generated_logits, decoder, gen_t_loss = utils.generator_step(seq_len, batch_size, vocab_size, decoder, transformed_enc_state, unrolled_y, True)
     # compute generated sequence variation
 
-    generated_logits, encoder, decoder, gen_t_loss = utils.loop_encode_decode(seq_len, batch_size, unrolled_x, unrolled_y, encoder, decoder, enc_units, teacher_forcing_ratio, True, size_stateful)
+    generated_logits, encoder, decoder, gen_t_loss = utils.loop_encode_decode(seq_len, batch_size, vocab_size, unrolled_x, unrolled_y, encoder, decoder, enc_units, teacher_forcing_ratio, True, size_stateful)
 
     '''stateful_batches = list()
     n_stateful_batches = int(unrolled_x.shape[1]/float(size_stateful))
@@ -106,7 +106,14 @@ def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, un
     variation_score = utils.get_sequence_variation_percentage(unrolled_x, generated_logits)
     print("Generation variation score: {}".format(str(variation_score)))
 
-    #gen_t_loss = gen_t_loss + mae([1.0], [variation_score])
+    gen_tokens = tf.argmax(generated_logits, axis=-1)
+    print("True output")
+    print(unrolled_y[:5, 1:])
+    print()
+    print("Gen output")
+    print(gen_tokens[:5, :])
+    print()
+    gen_t_loss = gen_t_loss + mae([1.0], [variation_score])
     # encode parent sequences for discriminator
     #enc_output, enc_f, enc_b = utils.stateful_encoding(size_stateful, unrolled_x, encoder, True)
     #enc_output, enc_f, enc_b = stateful_encoding(s_stateful, input_tokens, gen_encoder, train_test)
@@ -222,6 +229,15 @@ def sample_true_x_y(mut_indices, batch_size, X_train, y_train, batch_mut_distrib
   return step_loss, dec_state, y_pred'''
 
 
+def redraw_unique(x, y):
+    x_str = utils.convert_to_string_list(x)
+    y_str = utils.convert_to_string_list(y)
+    u_x = list(set(x_str))
+    u_y = list(set(y_str))
+    print(len(u_x), len(u_y))
+    return u_x, u_y
+
+
 def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vocab_size, n_batches, batch_size, pretr_parent_child_mut_indices, epochs, size_stateful):
   X_train, y_train, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches = inputs
   epo_avg_tr_gen_loss = list()
@@ -235,6 +251,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
   for step in range(n_batches):
       loss = tf.constant(0.0)
       unrolled_x, unrolled_y, batch_mut_distribution = sample_true_x_y(pretr_parent_child_mut_indices, batch_size, X_train, y_train, batch_mut_distribution)
+      #unrolled_x, unrolled_y = redraw_unique(X_train, y_train)
       seq_len = unrolled_x.shape[1]
       '''
       # verify levenshtein distance
@@ -248,10 +265,10 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           print("---")
       import sys
       sys.exit()'''
-      
+
       with tf.GradientTape() as gen_tape:
 
-          pred_logits, gen_encoder, gen_decoder, gen_loss = utils.loop_encode_decode(seq_len, batch_size, unrolled_x, unrolled_y, gen_encoder, gen_decoder, enc_units, teacher_forcing_ratio, True, size_stateful)
+          pred_logits, gen_encoder, gen_decoder, gen_loss = utils.loop_encode_decode(seq_len, batch_size, vocab_size, unrolled_x, unrolled_y, gen_encoder, gen_decoder, enc_units, teacher_forcing_ratio, True, size_stateful)
           print("Training: true output seq")
           print(unrolled_y[:5, 1:], unrolled_y.shape)
           print()
@@ -280,7 +297,9 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
       gen_trainable_vars = gen_encoder.trainable_variables + gen_decoder.trainable_variables
       gradients_of_generator = gen_tape.gradient(gen_loss, gen_trainable_vars)
       #gradients_of_generator = [tf.clip_by_value(grad, clip_value_min=-1e-6, clip_value_max=1e-6) for grad in gradients_of_generator]
-      gradients_of_generator = [(tf.clip_by_norm(grad, clip_norm=2.0)) for grad in gradients_of_generator]
+      gradients_norm = [tf.norm(gd) for gd in gradients_of_generator]
+      print("Gradient norm: {}".format(str(tf.reduce_mean(gradients_norm).numpy())))
+      #gradients_of_generator = [(tf.clip_by_norm(grad, clip_norm=1.0)) for grad in gradients_of_generator]
       pretrain_generator_optimizer.apply_gradients(zip(gradients_of_generator, gen_trainable_vars))
   # save model
 
@@ -355,13 +374,11 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
           discriminator.load_weights(DISC_WEIGHTS)
           disc_par_enc.load_weights(DISC_PAR_ENC_WEIGHTS)
           disc_gen_enc.load_weights(DISC_GEN_ENC_WEIGHTS)
- 
       # intermediate prediction on test data while training
       if (step + 1) % test_log_step == 0 and step > 0:
           print("Training: prediction on test data...")
           with tf.device('/device:cpu:0'):
               _, _ = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, encoder, decoder, size_stateful)
-          
       print("Training epoch {}/{}, batch {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}, D true loss: {}, D fake loss: {}, Total D loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_train_batches), str(gen_true_loss.numpy()), str(gen_fake_loss.numpy()), str(total_gen_loss.numpy()), str(disc_real_loss.numpy()), str(disc_fake_loss.numpy()), str(total_disc_loss.numpy())))
       # write off results
       epo_ave_gen_true_loss.append(gen_true_loss.numpy())
