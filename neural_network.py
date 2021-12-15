@@ -15,8 +15,8 @@ import bahdanauAttention
 
 
 GEN_ENC_WEIGHTS = "data/generated_files/generator_encoder_weights.h5"
-ENC_DROPOUT = 0.2
-DEC_DROPOUT = 0.2
+ENC_DROPOUT = 0.3
+DEC_DROPOUT = 0.3
 DISC_DROPOUT = 0.2
 RECURR_DROPOUT = 0.25
 LEAKY_ALPHA = 0.1
@@ -72,7 +72,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     #gen_inputs = tf.keras.layers.Dropout(ENC_DROPOUT)(gen_inputs)
     embed = gen_embedding(gen_inputs)
     embed = tf.keras.layers.SpatialDropout1D(ENC_DROPOUT)(embed)
-    #embed = tf.keras.layers.LayerNormalization()(embed)
+    embed = tf.keras.layers.LayerNormalization()(embed)
     enc_output, state_f, state_b = gen_gru(embed)
 
     #state_f = tf.keras.layers.LayerNormalization()(state_f)
@@ -103,10 +103,10 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
 
     vectors = dec_embedding(new_tokens)
     vectors = tf.keras.layers.SpatialDropout1D(DEC_DROPOUT)(vectors)
-    #vectors = tf.keras.layers.LayerNormalization()(vectors)
+    vectors = tf.keras.layers.LayerNormalization()(vectors)
     rnn_output, dec_state_f, dec_state_b = dec_gru(vectors, initial_state=[i_dec_f, i_dec_b])
     rnn_output = tf.keras.layers.Dropout(DEC_DROPOUT)(rnn_output)
-    #rnn_output = tf.keras.layers.LayerNormalization()(rnn_output)
+    rnn_output = tf.keras.layers.LayerNormalization()(rnn_output)
     logits = tf.keras.layers.TimeDistributed(dec_fc)(rnn_output)
 
     #dec_state_f = tf.keras.layers.LayerNormalization()(dec_state_f)
@@ -132,6 +132,7 @@ def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units, batch
 
     parent_inputs_embedding = enc_embedding(parent_inputs)
     parent_inputs_embedding = tf.keras.layers.SpatialDropout1D(ENC_DROPOUT)(parent_inputs_embedding)
+    parent_inputs_embedding = tf.keras.layers.LayerNormalization()(parent_inputs_embedding)
     enc_out, state_f, state_b = par_gen_enc_GRU(parent_inputs_embedding)
 
     disc_par_encoder_model = tf.keras.Model([parent_inputs], [enc_out, state_f, state_b])

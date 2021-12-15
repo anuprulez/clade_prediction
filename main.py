@@ -81,11 +81,11 @@ te_batch_size = batch_size
 n_te_batches = 5
 enc_units = 32
 pretrain_epochs = 1
-epochs = 1
+epochs = 5
 max_l_dist = 11
 test_train_size = 0.85
 pretrain_train_size = 0.5
-random_clade_size = 1500
+random_clade_size = 150
 to_pretrain = True
 pretrained_model = False
 gan_train = True
@@ -334,6 +334,13 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     # GAN training
     # create discriminator model
     disc_parent_encoder_model, disc_gen_encoder_model = neural_network.make_disc_par_gen_model(len_final_aa_padding, vocab_size, embedding_dim, enc_units, batch_size, size_stateful)
+
+    for lr in disc_parent_encoder_model.layers:
+        print(lr)
+
+    for lr in disc_gen_encoder_model.layers:
+        print(lr)
+
     discriminator = neural_network.make_discriminator_model(enc_units)
 
     # use the pretrained generator and train it along with discriminator

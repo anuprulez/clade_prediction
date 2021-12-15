@@ -38,7 +38,7 @@ discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) # learnin
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 n_disc_step = 10
 n_gen_step = 5
-unrolled_steps = 0
+unrolled_steps = 5
 test_log_step = 20
 teacher_forcing_ratio = 0.0
 
@@ -113,7 +113,7 @@ def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, un
     print("Gen output")
     print(gen_tokens[:5, :])
     print()
-    gen_t_loss = gen_t_loss + mae([1.0], [variation_score])
+    #gen_t_loss = gen_t_loss + mae([1.0], [variation_score])
     # encode parent sequences for discriminator
     #enc_output, enc_f, enc_b = utils.stateful_encoding(size_stateful, unrolled_x, encoder, True)
     #enc_output, enc_f, enc_b = stateful_encoding(s_stateful, input_tokens, gen_encoder, train_test)

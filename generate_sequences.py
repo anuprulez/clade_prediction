@@ -18,14 +18,14 @@ import preprocess_sequences
 import utils
 
 
-RESULT_PATH = "test_results/08_12_high_lr_dropout/"
+RESULT_PATH = "test_results/15_12_1/"
 
 min_diff = 0
 max_diff = 61
 train_size = 1.0
-enc_units = 64
+enc_units = 32
 random_size = 20
-LEN_AA = 30
+LEN_AA = 31
 FUTURE_GEN_TEST = "test/20A_20B.csv"
 
 clade_parent = "20A" # 20A
@@ -42,6 +42,8 @@ PATH_PRE = "data/ncov_global/"
 PATH_SAMPLES_CLADES = PATH_PRE + "sample_clade_sequence_df.csv"
 PATH_F_DICT = PATH_PRE + "f_word_dictionaries.json"
 PATH_R_DICT = PATH_PRE + "r_word_dictionaries.json"
+PATH_KMER_F_DICT = PATH_PRE + "kmer_f_word_dictionaries.json"
+PATH_KMER_R_DICT = PATH_PRE + "kmer_r_word_dictionaries.json"
 PATH_CLADES = "data/generating_clades.json"
 COMBINED_FILE = RESULT_PATH + "combined_dataframe.csv"
 WUHAN_SEQ = PATH_PRE + "wuhan-hu-1-spike-prot.txt"
@@ -102,6 +104,8 @@ def load_model_generated_sequences(file_path):
     total_te_loss = list()
     forward_dict = utils.read_json(PATH_F_DICT)
     rev_dict = utils.read_json(PATH_R_DICT)
+    kmer_f_dict = utils.read_json(PATH_KMER_F_DICT)
+    kmer_r_dict = utils.read_json(PATH_KMER_R_DICT)
     encoded_wuhan_seq = utils.read_wuhan_seq(WUHAN_SEQ, rev_dict)
     print("Generating sequences for {}...".format(clade_parent))
     for te_name in te_clade_files:
@@ -110,10 +114,10 @@ def load_model_generated_sequences(file_path):
         te_y = te_clade_df["Y"] #.drop_duplicates()
         print(te_X)
         with tf.device('/device:cpu:0'):
-            predict_multiple(te_X, te_y, LEN_AA, vocab_size, encoded_wuhan_seq)
+            predict_multiple(te_X, te_y, LEN_AA, vocab_size, encoded_wuhan_seq, kmer_f_dict, kmer_r_dict)
 
 
-def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq):
+def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq, kmer_f_dict, kmer_r_dict):
     batch_size = 32 #test_x.shape[0]
     test_dataset_in = tf.data.Dataset.from_tensor_slices((test_x)).batch(batch_size)
     test_dataset_out = tf.data.Dataset.from_tensor_slices((test_y)).batch(batch_size)
@@ -123,11 +127,13 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq):
     test_tf_ratio = 0.0
     size_stateful = 10
     num_te_batches = int(len(test_x) / float(batch_size))
+    #num_te_batches = 50
+    
     print("Num test batches: {}".format(str(num_te_batches)))
     print("Loading trained model from {}...".format(RESULT_PATH))
-    loaded_encoder = tf.keras.models.load_model(RESULT_PATH + "pretrain_gen_encoder")
+    loaded_encoder = tf.keras.models.load_model(RESULT_PATH + "gen_enc_model") #"pretrain_gen_encoder"
     #loaded_encoder.load_weights(RESULT_PATH + GEN_ENC_WEIGHTS)
-    loaded_decoder = tf.keras.models.load_model(RESULT_PATH + "pretrain_gen_decoder")
+    loaded_decoder = tf.keras.models.load_model(RESULT_PATH + "gen_dec_model") #pretrain_gen_decoder
     #loaded_decoder.load_weights(RESULT_PATH + GEN_DEC_WEIGHTS)
     for step, (x, y) in enumerate(zip(test_dataset_in, test_dataset_out)):
         batch_x_test = utils.pred_convert_to_array(x)
@@ -141,30 +147,36 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq):
             l_ld_wuhan = list()
             print("Generating for iter {}/{}".format(str(i+1), str(generating_factor)))
 
-            #generated_logits, _, _ = utils.generated_output_seqs(LEN_AA, batch_size, vocab_size, loaded_decoder, dec_state_h, dec_state_c, [], False)
-            generated_logits, _, _, loss = utils.loop_encode_decode(LEN_AA, batch_size, batch_x_test, batch_y_test, loaded_encoder, loaded_decoder, enc_units, test_tf_ratio, False, size_stateful)
+            generated_logits, _, _, loss = utils.loop_encode_decode(LEN_AA, batch_size, vocab_size, batch_x_test, batch_y_test, loaded_encoder, loaded_decoder, enc_units, test_tf_ratio, False, size_stateful)
             # compute generated sequence variation
-            variation_score = utils.get_sequence_variation_percentage(batch_y_test, generated_logits)
+            #batch_x_test = batch_x_test[:, 1:]
+            variation_score = utils.get_sequence_variation_percentage(batch_x_test, generated_logits)
             print("Generated sequence variation score: {}".format(str(variation_score)))
             p_y = tf.math.argmax(generated_logits, axis=-1)
+            
+
             one_x = utils.convert_to_string_list(batch_x_test)
             pred_y = utils.convert_to_string_list(p_y)
             for k in range(0, len(one_x)):
                wu_bleu_score = 0.0
-               l_dist_x_pred = utils.compute_Levenshtein_dist(one_x[k], pred_y[k])
-               ld_wuhan_gen = utils.compute_Levenshtein_dist(encoded_wuhan_seq, pred_y[k])
-               wu_bleu_score = sentence_bleu([encoded_wuhan_seq.split(",")], pred_y[k].split(","))
+               
+               re_true_x = utils.reconstruct_seq([kmer_f_dict[pos] for pos in one_x[k].split(",")[1:]])
+               re_pred_y = utils.reconstruct_seq([kmer_f_dict[pos] for pos in pred_y[k].split(",")])
+
+               l_dist_x_pred = utils.compute_Levenshtein_dist(re_true_x, re_pred_y)
+               #ld_wuhan_gen = utils.compute_Levenshtein_dist(encoded_wuhan_seq, pred_y[k])
+               #wu_bleu_score = sentence_bleu([encoded_wuhan_seq.split(",")], pred_y[k].split(","))
                if l_dist_x_pred > min_diff and l_dist_x_pred < max_diff:
                    l_x_gen.append(l_dist_x_pred)
-                   true_x.append(one_x[k])
-                   predicted_y.append(pred_y[k])
-                   l_b_wu_score.append(wu_bleu_score)
-                   l_ld_wuhan.append(ld_wuhan_gen)
+                   true_x.append(re_true_x)
+                   predicted_y.append(re_pred_y)
+                   #l_b_wu_score.append(wu_bleu_score)
+                   #l_ld_wuhan.append(ld_wuhan_gen)
             print("Step:{}, mean levenshtein distance (x and pred): {}".format(str(i+1), str(np.mean(l_x_gen))))
-            print("Step:{}, mean levenshtein distance (wuhan and pred): {}".format(str(i+1), str(np.mean(l_ld_wuhan))))
+            #print("Step:{}, mean levenshtein distance (wuhan and pred): {}".format(str(i+1), str(np.mean(l_ld_wuhan))))
             print("Step:{}, median levenshtein distance (x and pred): {}".format(str(i+1), str(np.median(l_x_gen))))
-            print("Step:{}, standard deviation levenshtein distance (x and pred): {}".format(str(i+1), str(np.std(l_x_gen))))
-            print("Step:{}, variance levenshtein distance (x and pred): {}".format(str(i+1), str(np.var(l_x_gen))))
+            #print("Step:{}, standard deviation levenshtein distance (x and pred): {}".format(str(i+1), str(np.std(l_x_gen))))
+            #print("Step:{}, variance levenshtein distance (x and pred): {}".format(str(i+1), str(np.var(l_x_gen))))
             print("Generation iter {} done".format(str(i+1)))
             print("----------")
         print("Batch {} finished".format(str(step)))
