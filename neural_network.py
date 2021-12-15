@@ -141,7 +141,7 @@ def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units, batch
     gen_inputs = tf.keras.Input(shape=(None, vocab_size))
     gen_enc_inputs = tf.keras.layers.Dense(embedding_dim, use_bias=False, activation="linear")(gen_inputs)
     gen_enc_inputs = tf.keras.layers.Dropout(ENC_DROPOUT)(gen_enc_inputs)
-
+    gen_enc_inputs = tf.keras.layers.LayerNormalization()(gen_enc_inputs)
     gen_enc_GRU = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(enc_units,
                     kernel_regularizer="l2",
                     recurrent_regularizer="l2",
@@ -155,7 +155,9 @@ def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units, batch
 
     # initialize weights of discriminator's encoder model for parent and generated seqs
     disc_par_encoder_model.load_weights(GEN_ENC_WEIGHTS)
-    disc_gen_encoder_model.layers[1].set_weights(disc_par_encoder_model.layers[1].get_weights())
+    disc_gen_encoder_model.load_weights(GEN_ENC_WEIGHTS)
+    #disc_gen_encoder_model.layers[0].set_weights(disc_par_encoder_model.layers[0].get_weights())
+    #disc_gen_encoder_model.layers[1].set_weights(disc_par_encoder_model.layers[1].get_weights())
     return disc_par_encoder_model, disc_gen_encoder_model
 
 

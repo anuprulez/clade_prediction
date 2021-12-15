@@ -351,7 +351,8 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
           _, _, disc_par_enc, disc_gen_enc, discriminator, disc_real_loss, disc_fake_loss, total_disc_loss = d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, size_stateful)
           # share weights with generator's encoder
           disc_par_enc.load_weights(GEN_ENC_WEIGHTS)
-          disc_gen_enc.layers[1].set_weights(disc_par_enc.layers[1].get_weights())
+          disc_gen_enc.load_weights(GEN_ENC_WEIGHTS)
+          #disc_gen_enc.layers[1].set_weights(disc_par_enc.layers[1].get_weights())
           print("Training epoch {}/{}, batch {}/{}, D true loss: {}, D fake loss: {}, Total D loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_train_batches), str(disc_real_loss.numpy()), str(disc_fake_loss.numpy()), str(total_disc_loss.numpy())))
       else:
           # train generator with unrolled discriminator

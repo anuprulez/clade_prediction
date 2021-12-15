@@ -484,7 +484,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     residual_error = (tf.square(f_par) + tf.square(b_par)) / 2.0
     #print(f_par, b_par, residual_error)
     show = 2
-    print(dec_f[:show, :])
+    #print(dec_f[:show, :])
     #print()
 
     #noise_generator = tf.random.Generator.from_non_deterministic_state()
@@ -532,7 +532,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     dec_f = tf.math.add(dec_f, tf.random.normal((dec_f.shape[0], dec_f.shape[1]), stddev=0.1))
     dec_b = tf.math.add(dec_b, tf.random.normal((dec_f.shape[0], dec_f.shape[1]), stddev=0.1))
   
-    print(dec_f[:show, :])
+    #print(dec_f[:show, :])
     #print("Encoder norm after adding noise: {}".format(str(tf.norm(dec_f))))
     #print("===============================")
 
@@ -602,11 +602,11 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
         step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
         loss += step_loss
         #i_tokens = tf.argmax(dec_result, axis=-1)
-    print("Decoder norm: {}".format(str(np.mean(o_state_norm))))
-    print("Decoder norm after clipping: {}".format(str(np.mean(o_state_norm_clip))))
+    #print("Decoder norm: {}".format(str(np.mean(o_state_norm))))
+    #print("Decoder norm after clipping: {}".format(str(np.mean(o_state_norm_clip))))
     #print()
     #print(i_state_f[:5, :])
-    print("===============================")
+    #print("===============================")
     #loss = tf.reduce_mean(cross_entropy_loss(input_tokens, gen_logits))
     #print(loss)
     #loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
