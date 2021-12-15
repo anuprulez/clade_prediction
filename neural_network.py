@@ -47,7 +47,6 @@ class ScatterEncodings(tf.keras.layers.Layer):
     nb = tf.reshape(nb, [1, -1])
     # return pairwise euclidead difference matrix
     D = 1 - tf.reduce_mean(tf.sqrt(tf.maximum(na - 2*tf.matmul(A, A, False, True) + nb, 0.0))) 
-    
     return D
 
 
@@ -75,14 +74,6 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     embed = tf.keras.layers.SpatialDropout1D(ENC_DROPOUT)(embed)
     #embed = tf.keras.layers.LayerNormalization()(embed)
     enc_output, state_f, state_b = gen_gru(embed)
-
-    #similarity_state_f = enc_distance(state_f)
-    #similarity_state_b = enc_distance(state_b)
-
-    #print(similarity_state_f, similarity_state_b)
-
-    #state_f = tf.keras.layers.Dropout(ENC_DROPOUT)(state_f)
-    #state_b = tf.keras.layers.Dropout(ENC_DROPOUT)(state_b)
 
     #state_f = tf.keras.layers.LayerNormalization()(state_f)
     #state_b = tf.keras.layers.LayerNormalization()(state_b)

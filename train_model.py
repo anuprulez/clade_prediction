@@ -284,7 +284,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           #/ variation_score #+ mae([1.0], [variation_score])
           #var_score = mae([1.0], [variation_score])
           #if variation_score < 1.0:
-          gen_loss = gen_loss + mae([1.0], [variation_score]) #+ mae([1.0], [variation_score])
+          #gen_loss = gen_loss + mae([1.0], [variation_score]) #+ mae([1.0], [variation_score])
           epo_tr_seq_var.append(variation_score)
           print("Pretr: teacher forcing ratio: {}".format(str(teacher_forcing_ratio)))
           print("Pretrain epoch {}/{}, batch {}/{}, gen true loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches), str(gen_loss.numpy())))

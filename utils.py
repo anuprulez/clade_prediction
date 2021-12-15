@@ -484,7 +484,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     residual_error = (tf.square(f_par) + tf.square(b_par)) / 2.0
     #print(f_par, b_par, residual_error)
     show = 2
-    print(dec_f[:show, :])
+    #print(dec_f[:show, :])
     #print()
 
     #noise_generator = tf.random.Generator.from_non_deterministic_state()
@@ -493,8 +493,8 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
 
     #print()
     #print(dec_f[:show, :])
-    enc_clip_norm = tf.norm(dec_f)
-    print("Encoder norm: {}".format(str(enc_clip_norm)))
+    #enc_clip_norm = tf.norm(dec_f)
+    #print("Encoder norm: {}".format(str(enc_clip_norm)))
     #print(dec_b[:5, :])
     #print()
 
@@ -532,8 +532,8 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     dec_f = tf.math.add(dec_f, tf.random.normal((dec_f.shape[0], dec_f.shape[1]), stddev=0.1))
     dec_b = tf.math.add(dec_b, tf.random.normal((dec_f.shape[0], dec_f.shape[1]), stddev=0.1))
   
-    print(dec_f[:show, :])
-    print("Encoder norm after adding noise: {}".format(str(tf.norm(dec_f))))
+    #print(dec_f[:show, :])
+    #print("Encoder norm after adding noise: {}".format(str(tf.norm(dec_f))))
     #print("===============================")
 
     #if train_test is True:
@@ -561,13 +561,20 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     i_state_b = dec_b
     o_state_norm = list()
     o_state_norm_clip = list()
+    dec_state_error = tf.constant(0.0)
     for t in range(seq_len - 1):
         o_tokens = output_tokens[:, t+1:t+2]
         dec_result, i_state_f, i_state_b = gen_decoder([i_tokens, i_state_f, i_state_b], training=train_test)
+
+        e_pw_dec_state_f = pairwise_dist(i_state_f)
+        e_pw_dec_state_b = pairwise_dist(i_state_b)
+
+        dec_state_error += (tf.square(e_pw_dec_state_f) + tf.square(e_pw_dec_state_b)) / 2.0
         
         #i_state_f = tf.math.add(i_state_f, tf.random.normal((dec_f.shape[0], dec_f.shape[1]), stddev=0.1))
         #i_state_b = tf.math.add(i_state_b, tf.random.normal((dec_f.shape[0], dec_f.shape[1]), stddev=0.1))
-
+        #print(i_state_f[:show, :])
+        #print("----")
         dec_clip_norm = tf.norm(i_state_f)
         o_state_norm.append(dec_clip_norm)
 
@@ -604,8 +611,9 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     #print(loss)
     #loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
     loss = loss / seq_len
-    print("Errors: ", loss, residual_error)
-    loss = loss + residual_error
+    dec_state_error = dec_state_error / seq_len
+    print("Errors: ", loss, residual_error, dec_state_error)
+    loss = loss + residual_error + dec_state_error
     gen_logits = tf.concat(gen_logits, axis=-2)
     return gen_logits, gen_encoder, gen_decoder, loss
 
@@ -634,7 +642,7 @@ def predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batc
         print(tf.argmax(generated_logits, axis=-1)[:5, :])
         #generated_output_seqs(seq_len, te_batch_size, vocab_size, loaded_generator, dec_state_h, dec_state_c, batch_x_test, batch_y_test, False)  
         variation_score = get_sequence_variation_percentage(batch_x_test, generated_logits)
-        loss = loss + mae([1.0], [variation_score]) #/ variation_score #+ mae([1.0], [variation_score]) #variation_score
+        #loss = loss + mae([1.0], [variation_score]) #/ variation_score #+ mae([1.0], [variation_score]) #variation_score
         print("Test batch {} variation score: {}".format(str(step+1), str(variation_score)))
         print("Test batch {} true loss: {}".format(str(step+1), str(loss.numpy())))
         print()
@@ -658,8 +666,8 @@ def save_predicted_test_data(test_data_in, test_data_out, te_batch_size, enc_uni
     s_stateful = True
     test_x = list()
     pred_y = list()
-    if n_te_batches > 10:
-        n_te_batches = 10
+    if n_te_batches > 100:
+        n_te_batches = 100
     print("Saving predicted data for test...")
     for b_c in range(n_te_batches):
         s_idx = b_c*te_batch_size
