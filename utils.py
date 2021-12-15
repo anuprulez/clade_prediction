@@ -8,8 +8,10 @@ import pandas as pd
 import numpy as np
 import random
 from random import choices
+from scipy.spatial import distance
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
+from tensorflow.keras import backend as K
 from sklearn.preprocessing import RobustScaler
 from Levenshtein import distance as lev_dist
 
@@ -425,21 +427,74 @@ def clip_weights(tensor, clip_min=-1e-2, clip_max=1e-2):
     #return tf.clip_by_norm(tensor, clip_norm=2.0)
 
 
-def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful):
+def compute_enc_distance(enc_mat):
+    dist = np.zeros((enc_mat.shape[0], enc_mat.shape[0])) #tf.fill([enc_mat.shape[0], enc_mat.shape[0]], 0) #
+    ref_dist = np.zeros((enc_mat.shape[0], enc_mat.shape[0])) #tf.fill([enc_mat.shape[0], enc_mat.shape[0]], 0) #
+    #dist = tf.Variable(dist)
+    for i in range(enc_mat.shape[0]):
+        for j in range(enc_mat.shape[0]):
+            dist[i, j] = distance.euclidean(enc_mat[i], enc_mat[j])
+            if i != j:
+                ref_dist[i, j] = 1.0
+    dist = tf.convert_to_tensor(dist, dtype=tf.float32)
+    ref_dist = tf.convert_to_tensor(ref_dist, dtype=tf.float32)
+    return dist #1 - tf.reduce_mean(dist) #tf.math.reduce_mean(ref_dist - dist)
+    #print(tf.matmul(enc_mat, enc_mat, transpose_b=True))
+    #prod = 1 - tf.matmul(enc_mat, enc_mat, transpose_b=True) # transpose second matrix)
+    #prod = tf.matmul(enc_mat, enc_mat, transpose_b=True) # transpose second matrix)
+    #dist = 1 - prod
+    #print("Cosine dist:", dist)
+    #return dist
 
-    '''enc_weights = gen_encoder.get_weights()
-    for wt in enc_weights:
-        print(wt.shape, wt)
-        print()
-    print(len(enc_weights))'''
-    clip_norm_val = 10.0
+
+def pairwise_dist(A):
+    # https://gist.github.com/mbsariyildiz/34cdc26afb630e8cae079048eef91865
+    # squared norms of each row in A and B
+    na = tf.reduce_sum(tf.square(A), 1)
+    nb = tf.reduce_sum(tf.square(A), 1)
+    # na as a row and nb as a co"lumn vectors
+    na = tf.reshape(na, [-1, 1])
+    nb = tf.reshape(nb, [1, -1])
+    # return pairwise euclidead difference matrix
+    #D = na - (2 * tf.matmul(A, A, False, True)) + nb
+    #D = D / tf.reduce_sum(D)
+    #D = tf.square(D)
+    #D = 1 - tf.reduce_mean(tf.sqrt(tf.maximum(na - 2*tf.matmul(A, A, False, True) + nb, 0.0)))
+    #D = 1 - tf.reduce_mean(tf.maximum(na - 2*tf.matmul(A, A, False, True) + nb, 0.0))
+    #D = 1 - tf.reduce_mean(1 - (1 - tf.reduce_sum((tf.expand_dims(A, 1) - tf.expand_dims(A, 0))**2, 2)))
+    '''r = tf.reduce_sum(A*A, 1)
+    r = tf.reshape(r, [-1, 1])
+    D = tf.sqrt(r - 2 * tf.matmul(A, tf.transpose(A)) + tf.transpose(r))'''
+    D = na - 2*tf.matmul(A, A, False, True) + nb
+    return 1.0 - tf.reduce_mean(D)
+
+
+def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful):
+    clip_norm_val = 20.0
     enc_output, enc_f, enc_b = gen_encoder(input_tokens, training=train_test) #stateful_encoding(s_stateful, input_tokens, gen_encoder, train_test)
     dec_f, dec_b = enc_f, enc_b
+    f_par = pairwise_dist(dec_f)
+    b_par = pairwise_dist(dec_b)
+
+    '''f_par_sk = compute_enc_distance(dec_f)
+    print(f_par_sk)
+    print()
+    print(f_par)
+    print("---")'''
+    residual_error = (tf.square(f_par) + tf.square(b_par)) / 2.0
+    #print(f_par, b_par, residual_error)
     show = 2
+    print(dec_f[:show, :])
+    #print()
+
+    #noise_generator = tf.random.Generator.from_non_deterministic_state()
+    #dec_f = tf.math.add(dec_f, noise_generator.normal(shape=[dec_f.shape[0], dec_f.shape[1]]))
+    #dec_b = tf.math.add(dec_b, noise_generator.normal(shape=[dec_f.shape[0], dec_f.shape[1]]))
+
     #print()
     #print(dec_f[:show, :])
     enc_clip_norm = tf.norm(dec_f)
-    #print("Encoder norm: {}".format(str(enc_clip_norm)))
+    print("Encoder norm: {}".format(str(enc_clip_norm)))
     #print(dec_b[:5, :])
     #print()
 
@@ -453,9 +508,9 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     #dec_b = tf.math.add(dec_b, noise_generator.normal(shape=[dec_f.shape[0], dec_f.shape[1]]))
 
     #print(dec_f[:show, :])
-    if enc_clip_norm > 10.0:
+    '''if enc_clip_norm > clip_norm_val:
         dec_f = tf.clip_by_norm(dec_f, clip_norm=clip_norm_val) #clip_weights(dec_f) #tf.clip_by_norm(dec_f, clip_norm=clip_norm_val) #clip_weights(dec_f)
-        dec_b = tf.clip_by_norm(dec_b, clip_norm=clip_norm_val) #clip_weights(dec_b) #tf.clip_by_norm(dec_b, clip_norm=clip_norm_val) #clip_weights(dec_b)
+        dec_b = tf.clip_by_norm(dec_b, clip_norm=clip_norm_val)''' #clip_weights(dec_b) #tf.clip_by_norm(dec_b, clip_norm=clip_norm_val) #clip_weights(dec_b)
     
     
     #print("===============================")
@@ -467,16 +522,26 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     #print(dec_f[:5, :])
     #print(dec_b[:5, :])
     #print()
+
+    '''if enc_clip_norm > clip_norm_val:
+        dec_f = tf.clip_by_norm(dec_f, clip_norm=clip_norm_val)
+        dec_b = tf.clip_by_norm(dec_b, clip_norm=clip_norm_val)
+        print(dec_f[:show, :])
+        print("Encoder norm after clipping: {}".format(str(tf.norm(dec_f))))'''
+
+    dec_f = tf.math.add(dec_f, tf.random.normal((dec_f.shape[0], dec_f.shape[1]), stddev=0.1))
+    dec_b = tf.math.add(dec_b, tf.random.normal((dec_f.shape[0], dec_f.shape[1]), stddev=0.1))
+  
+    print(dec_f[:show, :])
+    print("Encoder norm after adding noise: {}".format(str(tf.norm(dec_f))))
     #print("===============================")
 
     #if train_test is True:
-    noise_generator = tf.random.Generator.from_non_deterministic_state()
-    dec_f = tf.math.add(dec_f, noise_generator.normal(shape=[dec_f.shape[0], dec_f.shape[1]]))
-    dec_b = tf.math.add(dec_b, noise_generator.normal(shape=[dec_f.shape[0], dec_f.shape[1]]))
+    
 
-    if tf.norm(dec_f) > 10:
+    '''if tf.norm(dec_f) > clip_norm_val:
         dec_f = tf.clip_by_norm(dec_f, clip_norm=clip_norm_val) #clip_weights(dec_f) #tf.clip_by_norm(dec_f, clip_norm=clip_norm_val)
-        dec_b = tf.clip_by_norm(dec_b, clip_norm=clip_norm_val) #tf.clip_by_norm(dec_b, clip_norm=clip_norm_val)
+        dec_b = tf.clip_by_norm(dec_b, clip_norm=clip_norm_val) #tf.clip_by_norm(dec_b, clip_norm=clip_norm_val)'''
    
     #print(dec_f[:show, :]) 
     #print("Encoder norm after clipping: {}".format(str(tf.norm(dec_f))))
@@ -499,8 +564,13 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     for t in range(seq_len - 1):
         o_tokens = output_tokens[:, t+1:t+2]
         dec_result, i_state_f, i_state_b = gen_decoder([i_tokens, i_state_f, i_state_b], training=train_test)
+        
+        #i_state_f = tf.math.add(i_state_f, tf.random.normal((dec_f.shape[0], dec_f.shape[1]), stddev=0.1))
+        #i_state_b = tf.math.add(i_state_b, tf.random.normal((dec_f.shape[0], dec_f.shape[1]), stddev=0.1))
+
         dec_clip_norm = tf.norm(i_state_f)
-        o_state_norm.append(tf.norm(i_state_f))
+        o_state_norm.append(dec_clip_norm)
+
         '''i_state_f = clip_weights(i_state_f)
         i_state_b = clip_weights(i_state_b)
 
@@ -509,10 +579,11 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
 
         i_state_f = tf.clip_by_norm(i_state_f, clip_norm=1.0)
         i_state_b = tf.clip_by_norm(i_state_b, clip_norm=1.0)'''
-        if dec_clip_norm > 10.0:
+        '''if dec_clip_norm > clip_norm_val:
             i_state_f = tf.clip_by_norm(i_state_f, clip_norm=clip_norm_val)
             i_state_b = tf.clip_by_norm(i_state_b, clip_norm=clip_norm_val)
-            o_state_norm_clip.append(tf.norm(i_state_f))
+            o_state_norm_clip.append(tf.norm(i_state_f))'''
+
         gen_logits.append(dec_result)
 
         #if train_test is True
@@ -524,15 +595,17 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
         step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
         loss += step_loss
         #i_tokens = tf.argmax(dec_result, axis=-1)
-    #print("Decoder norm: {}".format(str(np.mean(o_state_norm))))
-    #print("Decoder norm after clipping: {}".format(str(np.mean(o_state_norm_clip))))
+    print("Decoder norm: {}".format(str(np.mean(o_state_norm))))
+    print("Decoder norm after clipping: {}".format(str(np.mean(o_state_norm_clip))))
     #print()
     #print(i_state_f[:5, :])
-    #print("===============================")
+    print("===============================")
     #loss = tf.reduce_mean(cross_entropy_loss(input_tokens, gen_logits))
     #print(loss)
     #loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
     loss = loss / seq_len
+    print("Errors: ", loss, residual_error)
+    loss = loss + residual_error
     gen_logits = tf.concat(gen_logits, axis=-2)
     return gen_logits, gen_encoder, gen_decoder, loss
 
