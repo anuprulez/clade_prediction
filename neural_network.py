@@ -75,27 +75,38 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     #embed = tf.keras.layers.LayerNormalization()(embed)
     enc_output, state_f, state_b = gen_gru(embed)
 
+    enc_state = tf.keras.layers.Concatenate()([state_f, state_b])
+    enc_state = tf.keras.layers.Dropout(ENC_DROPOUT)(enc_state)
+    enc_state = tf.keras.layers.LayerNormalization()(enc_state)
     #state_f = tf.keras.layers.LayerNormalization()(state_f)
     #state_b = tf.keras.layers.LayerNormalization()(state_b)
 
-    encoder_model = tf.keras.Model([gen_inputs], [enc_output, state_f, state_b])
+    encoder_model = tf.keras.Model([gen_inputs], [enc_output, enc_state])
 
     # Create decoder for Generator
-    i_dec_f = tf.keras.Input(shape=(enc_units,))
-    i_dec_b = tf.keras.Input(shape=(enc_units,))
+    dec_input_state = tf.keras.Input(shape=(2 * enc_units,))
+    #i_dec_b = tf.keras.Input(shape=(enc_units,))
     new_tokens = tf.keras.Input(shape=(seq_len,)) # batch_size, seq_len
     # define layers
     dec_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim, 
         embeddings_regularizer="l2"
     )
 
-    dec_gru = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(enc_units,
+    '''dec_gru = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(enc_units,
                                    kernel_regularizer="l2",
                                    recurrent_regularizer="l2",
                                    recurrent_initializer='glorot_normal',
                                    kernel_initializer="glorot_normal",
                                    return_sequences=True,
-                                   return_state=True))
+                                   return_state=True))'''
+
+    dec_gru = tf.keras.layers.GRU(2 * enc_units,
+                                   kernel_regularizer="l2",
+                                   recurrent_regularizer="l2",
+                                   recurrent_initializer='glorot_normal',
+                                   kernel_initializer="glorot_normal",
+                                   return_sequences=True,
+                                   return_state=True)
 
     dec_fc = tf.keras.layers.Dense(vocab_size, activation='softmax',
         kernel_regularizer="l2",
@@ -103,16 +114,18 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
 
     vectors = dec_embedding(new_tokens)
     vectors = tf.keras.layers.SpatialDropout1D(DEC_DROPOUT)(vectors)
+    
     #vectors = tf.keras.layers.LayerNormalization()(vectors)
-    rnn_output, dec_state_f, dec_state_b = dec_gru(vectors, initial_state=[i_dec_f, i_dec_b])
+    rnn_output, dec_state = dec_gru(vectors, initial_state=dec_input_state)
     rnn_output = tf.keras.layers.Dropout(DEC_DROPOUT)(rnn_output)
+    dec_state = tf.keras.layers.LayerNormalization()(dec_state)
     #rnn_output = tf.keras.layers.LayerNormalization()(rnn_output)
-    logits = tf.keras.layers.TimeDistributed(dec_fc)(rnn_output)
+    #logits = tf.keras.layers.TimeDistributed(dec_fc)(rnn_output)
 
     #dec_state_f = tf.keras.layers.LayerNormalization()(dec_state_f)
     #dec_state_b = tf.keras.layers.LayerNormalization()(dec_state_b)
-    #logits = dec_fc(rnn_output)
-    decoder_model = tf.keras.Model([new_tokens, i_dec_f, i_dec_b], [logits, dec_state_f, dec_state_b])
+    logits = dec_fc(rnn_output)
+    decoder_model = tf.keras.Model([new_tokens, dec_input_state], [logits, dec_state])
     encoder_model.save_weights(GEN_ENC_WEIGHTS)
     return encoder_model, decoder_model
 

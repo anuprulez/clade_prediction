@@ -39,7 +39,7 @@ cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 n_disc_step = 10
 n_gen_step = 5
 unrolled_steps = 5
-test_log_step = 100
+test_log_step = 5
 teacher_forcing_ratio = 0.0
 
 
@@ -317,7 +317,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
               print("-------")
               print("Pretr: Prediction on test data at epoch {}/{}, batch {}/{}...".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches)))
               print()
-              gen_te_loss, gen_te_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, gen_encoder, gen_decoder, size_stateful)
+              gen_te_loss, gen_te_seq_var = utils.predict_sequence(epo_step, step, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, gen_encoder, gen_decoder, size_stateful)
               epo_te_gen_loss.append(gen_te_loss)
               epo_te_seq_var.append(gen_te_seq_var)
               print("-------")
@@ -408,7 +408,7 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
       if (step + 1) % test_log_step == 0 and step > 0:
           print("Training: prediction on test data...")
           with tf.device('/device:cpu:0'):
-              _, _ = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, encoder, decoder, size_stateful)
+              _, _ = utils.predict_sequence(epo_step, step, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, encoder, decoder, size_stateful)
       print("Training epoch {}/{}, batch {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}, D true loss: {}, D fake loss: {}, Total D loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_train_batches), str(gen_true_loss.numpy()), str(gen_fake_loss.numpy()), str(total_gen_loss.numpy()), str(disc_real_loss.numpy()), str(disc_fake_loss.numpy()), str(total_disc_loss.numpy())))
       # write off results
       epo_ave_gen_true_loss.append(gen_true_loss.numpy())
