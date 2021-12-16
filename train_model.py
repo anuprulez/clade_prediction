@@ -39,7 +39,7 @@ cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 n_disc_step = 10
 n_gen_step = 5
 unrolled_steps = 5
-test_log_step = 20
+test_log_step = 100
 teacher_forcing_ratio = 0.0
 
 
@@ -242,7 +242,19 @@ def redraw_unique(x, y):
     return u_x, u_y
 
 
-def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vocab_size, n_batches, batch_size, pretr_parent_child_mut_indices, epochs, size_stateful):
+def get_mut_size(mut_dist):
+    pos_size = dict()
+    for mut in mut_dist:
+        size = mut_dist[mut]
+        pos = mut.split(">")[1]
+        if pos not in pos_size:
+            pos_size[pos] = 0
+        pos_size[pos] += len(size)
+    #print(pos_size)
+    return pos_size
+
+
+def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vocab_size, n_batches, batch_size, pretr_parent_child_mut_indices, epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict):
   X_train, y_train, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches = inputs
   epo_avg_tr_gen_loss = list()
   epo_te_gen_loss = list()
@@ -251,28 +263,41 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
   batch_mut_distribution = dict()
   #kmer_f_dict = utils.read_json(PATH_KMER_F_DICT)
   #print(kmer_f_dict)
-
+  pos_size = get_mut_size(pretr_parent_child_mut_indices)
   for step in range(n_batches):
-      loss = tf.constant(0.0)
       unrolled_x, unrolled_y, batch_mut_distribution = sample_true_x_y(pretr_parent_child_mut_indices, batch_size, X_train, y_train, batch_mut_distribution)
+
+      '''str_x = [",".join(str(pos) for pos in item) for item in unrolled_x]
+      str_y = [",".join(str(pos) for pos in item) for item in unrolled_y]
+      #print(str_x, str_y)
+      muts = utils.get_mutation_tr_indices(str_x, str_y, kmer_f_dict, kmer_r_dict, forward_dict, rev_dict)
+      print(kmer_f_dict)
+      print(muts)
+      print(unrolled_x)
+      print()
+      print(unrolled_y)
+      print()'''
+
+      
+      
       #unrolled_x, unrolled_y = redraw_unique(X_train, y_train)
       seq_len = unrolled_x.shape[1]
-      '''
+      
       # verify levenshtein distance
-      for i in range(len(unrolled_x)):
+      '''for i in range(len(unrolled_x)):
           re_x = utils.reconstruct_seq([kmer_f_dict[str(pos)] for pos in unrolled_x[i][1:]])
           re_y = utils.reconstruct_seq([kmer_f_dict[str(pos)] for pos in unrolled_y[i][1:]])
-          l_dist = utils.compute_Levenshtein_dist(re_x, re_y)
+          #l_dist = utils.compute_Levenshtein_dist(re_x, re_y)
           print(re_x)
           print(re_y)
-          print(l_dist)
-          print("---")
-      import sys
+          #print(l_dist)
+          print("---")'''
+      '''import sys
       sys.exit()'''
-
+      print(pos_size)
       with tf.GradientTape() as gen_tape:
-
-          pred_logits, gen_encoder, gen_decoder, gen_loss = utils.loop_encode_decode(seq_len, batch_size, vocab_size, unrolled_x, unrolled_y, gen_encoder, gen_decoder, enc_units, teacher_forcing_ratio, True, size_stateful)
+          
+          pred_logits, gen_encoder, gen_decoder, gen_loss = utils.loop_encode_decode(seq_len, batch_size, vocab_size, unrolled_x, unrolled_y, gen_encoder, gen_decoder, enc_units, teacher_forcing_ratio, True, size_stateful, pos_size)
           print("Training: true output seq")
           print(unrolled_y[:5, 1:], unrolled_y.shape)
           print()
