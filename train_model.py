@@ -294,7 +294,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           print("---")'''
       '''import sys
       sys.exit()'''
-      print(pos_size)
+      #print(pos_size)
       with tf.GradientTape() as gen_tape:
           
           pred_logits, gen_encoder, gen_decoder, gen_loss = utils.loop_encode_decode(seq_len, batch_size, vocab_size, unrolled_x, unrolled_y, gen_encoder, gen_decoder, enc_units, teacher_forcing_ratio, True, size_stateful, pos_size)

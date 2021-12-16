@@ -473,6 +473,7 @@ def pairwise_dist(A, B):
     r = tf.reshape(r, [-1, 1])
     D = tf.sqrt(r - 2 * tf.matmul(A, tf.transpose(A)) + tf.transpose(r))'''
     D = na - 2*tf.matmul(A, B, False, True) + nb
+    #print(D.shape)
     return 1.0 - tf.reduce_mean(D)
 
 
@@ -560,6 +561,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     #gen_logits, _, _ = gen_decoder([i_tokens, dec_f, dec_b], training=train_test)
 
     loss = tf.constant(0.0)
+    aa_pos_loss =  tf.constant(0.0)
     gen_logits = list()
     i_tokens = tf.fill([batch_size, 1], 0)
     i_state_f = dec_f
@@ -623,14 +625,16 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
         #print(i_tokens)
         #print(o_tokens)
         
-        if str(t) in mut_freq:
-            '''if float(mut_freq[str(t)]) > 1.0:
-                mut_error_factor = tf.math.log(float(mut_freq[str(t)]))
-            else:'''
+        #if str(t) in mut_freq:
             #mut_error_factor = tf.math.log(10.0 + float(mut_freq[str(t)]))
-            mut_error_factor = float(mut_freq[str(t)])
+            #mut_error_factor = float(mut_freq[str(t)])
         #print(i_tokens)
         #print()
+        dec_reshape = tf.reshape(dec_result, [dec_result.shape[0], dec_result.shape[2]])
+        pw_aa_euclid_dist = pairwise_dist(dec_reshape, dec_reshape)
+        aa_pos_loss += pw_aa_euclid_dist
+        #print(pw_aa_euclid_dist)
+        #print(dec_result.shape, dec_reshape.shape)
         step_loss = mut_error_factor * tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
         loss += step_loss
         i_tokens = tf.argmax(dec_result, axis=-1)
@@ -646,11 +650,15 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     #print(loss)
     #loss = loss / tf.reduce_sum(tf.cast(target_mask, tf.float32))
     gen_logits = tf.concat(gen_logits, axis=-2)
-    var_loss = get_variation_loss(input_tokens, output_tokens, gen_logits)
+
+    #pw_dist_gen_logits = pairwise_dist(gen_logits, gen_logits)
+    #print(pw_dist_gen_logits)
+    #var_loss = get_variation_loss(input_tokens, output_tokens, gen_logits)
     loss = loss / seq_len
     dec_state_error = dec_state_error / seq_len
-    print("Errors: ", loss, residual_error, dec_state_error, var_loss)
-    loss = loss + residual_error + dec_state_error + var_loss
+    aa_pos_loss = aa_pos_loss / seq_len
+    print("Errors: ", loss, residual_error, dec_state_error, aa_pos_loss)
+    loss = loss + residual_error + dec_state_error + aa_pos_loss
     
     #print(gen_logits.shape)
     #gen_tokens = tf.argmax(gen_logits, axis=-1)
