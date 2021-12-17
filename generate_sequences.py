@@ -18,7 +18,7 @@ import preprocess_sequences
 import utils
 
 
-RESULT_PATH = "test_results/15_12_1/"
+RESULT_PATH = "test_results/17_12_1/"
 
 min_diff = 0
 max_diff = 61
@@ -34,7 +34,7 @@ clade_childen = ["20B"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"]
 # ["20G", "21C_Epsilon", "21F_Iota"]
 # {"20B": ["20I (Alpha, V1)", "20F", "20D", "21G (Lambda)", "21H"]}
 
-generating_factor = 1
+generating_factor = 2
 
 PATH_PRE = "data/ncov_global/"
 #PATH_SEQ = PATH_PRE + "spikeprot0815.fasta"
@@ -111,34 +111,40 @@ def load_model_generated_sequences(file_path):
     print("Generating sequences for {}...".format(clade_parent))
     for te_name in te_clade_files:
         te_clade_df = pd.read_csv(te_name, sep="\t")
-        te_X = te_clade_df["X"] #.drop_duplicates()
-        te_y = te_clade_df["Y"] #.drop_duplicates()
-        print(te_X)
+        te_X = te_clade_df["X"].drop_duplicates()
+        te_y = te_clade_df["Y"].drop_duplicates()
+        print(te_y)
+        child_clades = "_".join(clade_childen)
+        #df_true_y = pd.DataFrame(te_y, columns=[child_clades])
+        true_y_df_path = "{}generated_seqs_true_y_{}.csv".format(RESULT_PATH, child_clades)
+        te_y.to_csv(true_y_df_path, index=None)
+
         with tf.device('/device:cpu:0'):
             predict_multiple(te_X, te_y, LEN_AA, vocab_size, encoded_wuhan_seq, kmer_f_dict, kmer_r_dict)
 
 
 def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq, kmer_f_dict, kmer_r_dict):
-    batch_size = 32 #test_x.shape[0]
+    batch_size = 1 #test_x.shape[0]
+    print(batch_size)
     test_dataset_in = tf.data.Dataset.from_tensor_slices((test_x)).batch(batch_size)
-    test_dataset_out = tf.data.Dataset.from_tensor_slices((test_y)).batch(batch_size)
+    #test_dataset_out = tf.data.Dataset.from_tensor_slices((test_y)).batch(batch_size)
     true_x = list()
-    true_y = list()
+    #true_y = list()
     predicted_y = list()
     test_tf_ratio = 0.0
-    size_stateful = 10
+    size_stateful = 100
     num_te_batches = int(len(test_x) / float(batch_size))
     #num_te_batches = 50
     
     print("Num test batches: {}".format(str(num_te_batches)))
     print("Loading trained model from {}...".format(RESULT_PATH))
-    loaded_encoder = tf.keras.models.load_model(RESULT_PATH + "gen_enc_model") #"pretrain_gen_encoder"
+    loaded_encoder = tf.keras.models.load_model(RESULT_PATH + "pretrain_gen_encoder") #"pretrain_gen_encoder"
     #loaded_encoder.load_weights(RESULT_PATH + GEN_ENC_WEIGHTS)
-    loaded_decoder = tf.keras.models.load_model(RESULT_PATH + "gen_dec_model") #pretrain_gen_decoder
+    loaded_decoder = tf.keras.models.load_model(RESULT_PATH + "pretrain_gen_decoder") #pretrain_gen_decoder
     #loaded_decoder.load_weights(RESULT_PATH + GEN_DEC_WEIGHTS)
-    for step, (x, y) in enumerate(zip(test_dataset_in, test_dataset_out)):
+    for step, x in enumerate(test_dataset_in):
         batch_x_test = utils.pred_convert_to_array(x)
-        batch_y_test = utils.pred_convert_to_array(y)
+        #batch_y_test = utils.pred_convert_to_array(y)
         print(batch_x_test.shape)
         print("Generating sequences for the set of test sequence...")
         for i in range(generating_factor):
@@ -148,14 +154,13 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq, kmer
             l_ld_wuhan = list()
             print("Generating for iter {}/{}".format(str(i+1), str(generating_factor)))
 
-            generated_logits, _, _, loss = utils.loop_encode_decode(LEN_AA, batch_size, vocab_size, batch_x_test, batch_y_test, loaded_encoder, loaded_decoder, enc_units, test_tf_ratio, False, size_stateful)
+            generated_logits, _, _, loss = utils.loop_encode_decode(LEN_AA, batch_size, vocab_size, batch_x_test, [], loaded_encoder, loaded_decoder, enc_units, test_tf_ratio, False, size_stateful, dict())
             # compute generated sequence variation
             #batch_x_test = batch_x_test[:, 1:]
             variation_score = utils.get_sequence_variation_percentage(batch_x_test, generated_logits)
             print("Generated sequence variation score: {}".format(str(variation_score)))
             p_y = tf.math.argmax(generated_logits, axis=-1)
             
-
             one_x = utils.convert_to_string_list(batch_x_test)
             pred_y = utils.convert_to_string_list(p_y)
             for k in range(0, len(one_x)):
@@ -169,8 +174,8 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq, kmer
                #wu_bleu_score = sentence_bleu([encoded_wuhan_seq.split(",")], pred_y[k].split(","))
                if l_dist_x_pred > min_diff and l_dist_x_pred < max_diff:
                    l_x_gen.append(l_dist_x_pred)
-                   true_x.append(re_true_x)
-                   predicted_y.append(re_pred_y)
+                   true_x.append(one_x[0])
+                   predicted_y.append(pred_y[0])
                    #l_b_wu_score.append(wu_bleu_score)
                    #l_ld_wuhan.append(ld_wuhan_gen)
             print("Step:{}, mean levenshtein distance (x and pred): {}".format(str(i+1), str(np.mean(l_x_gen))))
@@ -187,8 +192,9 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq, kmer
     print(len(true_x), len(predicted_y))
     child_clades = "_".join(clade_childen)
     true_predicted_multiple = pd.DataFrame(list(zip(true_x, predicted_y)), columns=[clade_parent, "Generated"])
-    df_path = "{}true_predicted_multiple_{}_{}_{}_times_max_LD_{}.csv".format(RESULT_PATH, clade_parent, child_clades, str(generating_factor), str(max_diff))
+    df_path = "{}generated_seqs_{}_{}_{}_times_max_LD_{}.csv".format(RESULT_PATH, clade_parent, child_clades, str(generating_factor), str(max_diff))
     true_predicted_multiple.to_csv(df_path, index=None)
+    
 
 
 def create_parent_child_true_seq(forward_dict, rev_dict):

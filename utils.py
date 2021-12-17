@@ -401,10 +401,15 @@ def get_sequence_variation_percentage(true_in, pred_logits):
     seq_tokens = tf.math.argmax(pred_logits, axis=-1)
     i_tokens = convert_to_string_list(true_in)
     o_tokens = convert_to_string_list(seq_tokens)
-    df_seqs = pd.DataFrame(list(zip(i_tokens, o_tokens)), columns=["True output", "Pred output"])
+    df_seqs = pd.DataFrame(list(zip(i_tokens, o_tokens)), columns=["X", "Pred"])
     u_df_seqs = df_seqs.drop_duplicates()
-    percent_variation = len(u_df_seqs.index) / float(len(df_seqs.index))
-    return percent_variation
+    pair_percent_variation = len(u_df_seqs.index) / float(len(df_seqs.index))
+    df_x = df_seqs["X"].drop_duplicates()
+    df_pred = df_seqs["Pred"].drop_duplicates()
+    x_percent_variation = len(df_x.index) / float(len(df_seqs.index))
+    pred_percent_variation = len(df_pred.index) / float(len(df_seqs.index))
+    print("Variation scores, true x: {}, pred y: {}, x_pred pair: {}".format(str(x_percent_variation), str(pred_percent_variation), str(pair_percent_variation)))
+    return x_percent_variation, pred_percent_variation, pair_percent_variation
 
 
 def sample_unrelated_x_y(unrelated_X, unrelated_y, batch_size):
@@ -502,7 +507,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     #dec_f = tf.math.add(dec_f, tf.random.normal((dec_f.shape[0], dec_f.shape[1])))
     #dec_b = tf.math.add(dec_b, tf.random.normal((dec_f.shape[0], dec_f.shape[1])))
 
-    dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=1.0))
+    #dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=1.0))
 
     #
     #target_mask = output_tokens != 0
@@ -518,8 +523,8 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     o_state_norm_clip = list()
     dec_state_error = tf.constant(0.0)
     mut_error_factor = 1.0
-    for t in range(seq_len - 1):
-        o_tokens = output_tokens[:, t+1:t+2]
+    for t in range(output_tokens.shape[1] - 1):
+        
         #print(i_tokens)
         dec_result, dec_state = gen_decoder([i_tokens, dec_state], training=train_test)
         e_pw_dec_state = pairwise_dist(dec_state, dec_state)
@@ -555,8 +560,11 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
         aa_pos_loss += pw_aa_euclid_dist
         #print(pw_aa_euclid_dist)
         #print(dec_result.shape, dec_reshape.shape)
-        step_loss = mut_error_factor * tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
-        loss += step_loss
+        if len(output_tokens) > 0:
+            o_tokens = output_tokens[:, t+1:t+2]
+            #step_loss = mut_error_factor * tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
+            step_loss = m_loss(o_tokens, dec_result)
+            loss += step_loss
         i_tokens = tf.argmax(dec_result, axis=-1)
         #i_tokens = tf.argmax(dec_result, axis=-1)
     #import sys
@@ -594,8 +602,9 @@ def predict_sequence(tr_epoch, tr_batch, test_dataset_in, test_dataset_out, te_b
     batch_x = list()
     batch_y = list()
     batch_pred = list()
-    for step in range(n_te_batches):
-        batch_x_test, batch_y_test = sample_unrelated_x_y(test_dataset_in, test_dataset_out, te_batch_size)
+    for step, (batch_x_test, batch_y_test) in enumerate(zip(test_dataset_in, test_dataset_out)):
+    #for step in range(n_te_batches):
+        #batch_x_test, batch_y_test = sample_unrelated_x_y(test_dataset_in, test_dataset_out, te_batch_size)
         # generated noise for variation in predicted sequences
         #noise = tf.random.normal((te_batch_size, enc_units))
         #enc_output, enc_state_h, enc_state_c = loaded_encoder(batch_x_test, training=train_mode)
