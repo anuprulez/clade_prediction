@@ -504,10 +504,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     #dec_f = tf.math.add(dec_f, noise_generator.normal(shape=[dec_f.shape[0], dec_f.shape[1]]))
     #dec_b = tf.math.add(dec_b, noise_generator.normal(shape=[dec_f.shape[0], dec_f.shape[1]]))
 
-    #dec_f = tf.math.add(dec_f, tf.random.normal((dec_f.shape[0], dec_f.shape[1])))
-    #dec_b = tf.math.add(dec_b, tf.random.normal((dec_f.shape[0], dec_f.shape[1])))
-
-    #dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=1.0))
+    dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=1.0))
 
     #
     #target_mask = output_tokens != 0
@@ -602,9 +599,9 @@ def predict_sequence(tr_epoch, tr_batch, test_dataset_in, test_dataset_out, te_b
     batch_x = list()
     batch_y = list()
     batch_pred = list()
-    for step, (batch_x_test, batch_y_test) in enumerate(zip(test_dataset_in, test_dataset_out)):
-    #for step in range(n_te_batches):
-        #batch_x_test, batch_y_test = sample_unrelated_x_y(test_dataset_in, test_dataset_out, te_batch_size)
+    #for step, (batch_x_test, batch_y_test) in enumerate(zip(test_dataset_in, test_dataset_out)):
+    for step in range(n_te_batches):
+        batch_x_test, batch_y_test = sample_unrelated_x_y(test_dataset_in, test_dataset_out, te_batch_size)
         # generated noise for variation in predicted sequences
         #noise = tf.random.normal((te_batch_size, enc_units))
         #enc_output, enc_state_h, enc_state_c = loaded_encoder(batch_x_test, training=train_mode)

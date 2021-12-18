@@ -78,10 +78,10 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
                     #stateful=True,
     				return_state=True))'''
     gen_gru = tf.keras.layers.GRU(enc_units,
-                    kernel_regularizer="l2",
-                    recurrent_regularizer="l2",
+                    #kernel_regularizer="l2",
+                    #recurrent_regularizer="l2",
                     recurrent_initializer='glorot_normal',
-                    kernel_initializer="glorot_normal",
+                    #kernel_initializer="glorot_normal",
     				return_sequences=True,
                     #stateful=True,
     				return_state=True)

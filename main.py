@@ -70,22 +70,22 @@ enc_units = 128
 
 s_kmer = 3
 LEN_AA = 1274
-len_aa_subseq = 32
+len_aa_subseq = 12
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 2 # write 2 here when there is padding of zero in in and out sequences
 size_stateful = 10
 # Neural network parameters
-embedding_dim = 256
-batch_size = 64
+embedding_dim = 32
+batch_size = 8
 te_batch_size = batch_size
 n_te_batches = 10
-enc_units = 1024
+enc_units = 128
 pretrain_epochs = 10
 epochs = 5
 max_l_dist = 11
 test_train_size = 0.85
 pretrain_train_size = 0.5
-random_clade_size = 100
+random_clade_size = 2000
 to_pretrain = True
 pretrained_model = False
 gan_train = False
@@ -244,7 +244,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
 
     print(kmer_f_dict)
 
-    vocab_size = 5000 #len(kmer_f_dict) + 1
+    vocab_size = len(kmer_f_dict) + 1
 
     print("Number of kmers: {}".format(str(len(kmer_f_dict))))
     print("Vocab size: {}".format(str(len(kmer_f_dict) + 1)))
@@ -256,7 +256,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     test_dataset_out = np.array(combined_te_y)
 
     if gen_encoder is None or gen_decoder is None:
-        len_final_aa_padding = 16
+        #len_final_aa_padding = 16
         encoder, decoder = neural_network.make_generator_model(len_final_aa_padding, vocab_size, embedding_dim, enc_units, batch_size, size_stateful)
     else:
         encoder = gen_encoder
