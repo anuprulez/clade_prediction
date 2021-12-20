@@ -33,14 +33,14 @@ TRAIN_GEN_ENC_MODEL = "data/generated_files/gen_enc_model"
 TRAIN_GEN_DEC_MODEL = "data/generated_files/gen_dec_model"
 
 
-pretrain_generator_optimizer = tf.keras.optimizers.Adam()
+pretrain_generator_optimizer = tf.keras.optimizers.Adam(0.001)
 generator_optimizer = tf.keras.optimizers.Adam() # learning_rate=1e-3, beta_1=0.5
 discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) # learning_rate=3e-5, beta_1=0.5
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 n_disc_step = 10
 n_gen_step = 5
 unrolled_steps = 5
-test_log_step = 50
+test_log_step = 20
 teacher_forcing_ratio = 0.0
 
 
@@ -290,10 +290,10 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
   for step in range(n_batches):
       unrolled_x, unrolled_y, batch_mut_distribution = sample_true_x_y(pretr_parent_child_mut_indices, batch_size, X_train, y_train, batch_mut_distribution)
 
-      print("Batch {} x and y:".format(str(step+1)))
+      '''print("Batch {} x and y:".format(str(step+1)))
       print(unrolled_x[:5, :])
       print(unrolled_y[:5, :])
-      print()
+      print()'''
       '''str_x = [",".join(str(pos) for pos in item) for item in unrolled_x]
       str_y = [",".join(str(pos) for pos in item) for item in unrolled_y]
       #print(str_x, str_y)
@@ -322,7 +322,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           
           pred_logits, gen_encoder, gen_decoder, gen_loss = utils.loop_encode_decode(seq_len, batch_size, vocab_size, unrolled_x, unrolled_y, gen_encoder, gen_decoder, enc_units, teacher_forcing_ratio, True, size_stateful, pos_size)
           print("Training: true output seq")
-          print(unrolled_y[:5, :], unrolled_y.shape)
+          print(unrolled_y[:5, 1:], unrolled_y.shape)
           print()
           print(tf.argmax(pred_logits, axis=-1)[:5, :], pred_logits.shape)
 
