@@ -33,7 +33,7 @@ TRAIN_GEN_ENC_MODEL = "data/generated_files/gen_enc_model"
 TRAIN_GEN_DEC_MODEL = "data/generated_files/gen_dec_model"
 
 
-pretrain_generator_optimizer = tf.keras.optimizers.Adam(0.001)
+pretrain_generator_optimizer = tf.keras.optimizers.Adam(0.0001)
 generator_optimizer = tf.keras.optimizers.Adam() # learning_rate=1e-3, beta_1=0.5
 discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) # learning_rate=3e-5, beta_1=0.5
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
@@ -41,7 +41,7 @@ n_disc_step = 10
 n_gen_step = 5
 unrolled_steps = 5
 test_log_step = 20
-teacher_forcing_ratio = 0.0
+teacher_forcing_ratio = 0.9
 
 
 m_loss = neural_network.MaskedLoss()

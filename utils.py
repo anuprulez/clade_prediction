@@ -496,9 +496,9 @@ def pairwise_dist(A, B):
 
 def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful, mut_freq):
     clip_norm_val = 20.0
-
+    #, training=train_test
     show = 2
-    enc_output, enc_state = gen_encoder(input_tokens, training=train_test) #stateful_encoding(s_stateful, input_tokens, gen_encoder, train_test)
+    enc_output, enc_state = gen_encoder(input_tokens) #stateful_encoding(s_stateful, input_tokens, gen_encoder, train_test)
     dec_state = enc_state
     #dec_state_tuple = tf.linalg.normalize(dec_state, ord='euclidean', axis=None, name=None) 
     #pairwise_dist(dec_state, dec_state) #tf.linalg.normalize(dec_state, ord='euclidean', axis=None, name=None)#pairwise_dist(dec_state, dec_state)
@@ -512,7 +512,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     #dec_state = dec_state_tuple[0]
     #dec_state = dec_state_tuple[0]
     residual_error = tf.math.abs(1.0 - tf.norm(dec_state)) #pairwise_dist(dec_state, dec_state) #tf.tensordot(dec_state, dec_state, axes=0) #1.0 - tf.norm(dec_state) #
-    print(tf.norm(dec_state), dec_state[:show, :])
+    #print(tf.norm(dec_state), dec_state[:show, :])
     #print()
     #noise_generator = tf.random.Generator.from_non_deterministic_state()
     #dec_f = tf.math.add(dec_f, noise_generator.normal(shape=[dec_f.shape[0], dec_f.shape[1]]))
@@ -533,36 +533,16 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     dec_state_error = tf.constant(0.0)
     mut_error_factor = tf.constant(1.0)
     #dec_state = None
-    for t in range(output_tokens.shape[1] - 1):
+    for t in range(seq_len - 1):
         
         #print(i_tokens)
-        dec_result, dec_state = gen_decoder([i_tokens, dec_state], training=train_test)
-        #dec_state_tuple_loop = tf.linalg.normalize(dec_state, ord='euclidean', axis=None, name=None)
-        #dec_state = dec_state_tuple_loop[0]
-        #e_pw_dec_state = pairwise_dist(dec_state, dec_state)
+        dec_result, dec_state = gen_decoder([i_tokens, dec_state]) #, training=train_test
+        dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=0.01))
         e_pw_dec_state = tf.math.abs(1.0 - tf.norm(dec_state)) #pairwise_dist(dec_state, dec_state)
         o_state_norm.append(tf.norm(dec_state))
-        dec_state_error += tf.square(e_pw_dec_state)
-        #dec_state_error += tf.tensordot(e_pw_dec_state, e_pw_dec_state, axes=0)
-        #dec_state_error += e_pw_dec_state #tf.math.abs(e_pw_dec_state)
+        dec_state_error += e_pw_dec_state 
         
-        #i_state_f = tf.math.add(i_state_f, tf.random.normal((dec_f.shape[0], dec_f.shape[1]), stddev=0.1))
-        #i_state_b = tf.math.add(i_state_b, tf.random.normal((dec_f.shape[0], dec_f.shape[1]), stddev=0.1))
-
         gen_logits.append(dec_result)
-
-        #if train_test is True
-        '''if random.random() < tf_ratio:
-            i_tokens = o_tokens
-        else:
-            i_tokens = tf.argmax(dec_result, axis=-1)'''
-
-        '''if train_test is True:
-            i_tokens = o_tokens
-        else:'''
-        
-        #print(i_tokens)
-        #print(o_tokens)
         
         if str(t) in mut_freq:
             mut_error_factor = float(mut_freq[str(t)])
@@ -580,8 +560,12 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #step_loss = cross_entropy_loss(o_tokens, dec_result)
             step_loss = tf.reduce_mean(step_loss)
             loss += step_loss
+
+        if random.random() < tf_ratio:
+            #print("True tokens...")
             i_tokens = o_tokens
         else:
+            #print("Pred tokens...")
             i_tokens = tf.argmax(dec_result, axis=-1)
         #i_tokens = tf.argmax(dec_result, axis=-1)
     #import sys
@@ -606,8 +590,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     print("Decoder norm: {}".format(str(np.mean(o_state_norm))))
     print("--------------")
     loss = loss + residual_error + dec_state_error
-    #loss = loss + residual_error + dec_state_error + aa_pos_loss
-    
+
     #print(gen_logits.shape)
     #gen_tokens = tf.argmax(gen_logits, axis=-1)
     #print(gen_tokens)
@@ -642,7 +625,7 @@ def predict_sequence(tr_epoch, tr_batch, test_dataset_in, test_dataset_out, te_b
         print(batch_y_test[:5, 1:])
         # generate seqs stepwise - teacher forcing
         #generated_logits, loss = _loop_pred_step(seq_len, te_batch_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units)
-        generated_logits, _, _, loss = loop_encode_decode(seq_len, te_batch_size, vocab_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units, test_tf_ratio, train_mode, s_stateful, dict())
+        generated_logits, _, _, loss = loop_encode_decode(seq_len, te_batch_size, vocab_size, batch_x_test, [], loaded_encoder, loaded_generator, enc_units, test_tf_ratio, train_mode, s_stateful, dict())
         print(tf.argmax(generated_logits, axis=-1)[:5, :])
         one_x = convert_to_string_list(batch_x_test)
         one_y = convert_to_string_list(batch_y_test)

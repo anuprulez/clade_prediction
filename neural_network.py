@@ -66,7 +66,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     # define layers
     gen_inputs = tf.keras.Input(shape=(seq_len,)) #batch_size, s_stateful
     gen_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim, 
-        embeddings_regularizer="l2", mask_zero=True
+        embeddings_regularizer="l2", #mask_zero=True
     )
 
     gen_gru = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(enc_units,
@@ -108,7 +108,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     new_tokens = tf.keras.Input(shape=(seq_len,)) # batch_size, seq_len
     # define layers
     dec_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim, 
-        embeddings_regularizer="l2", mask_zero=True
+        embeddings_regularizer="l2", #mask_zero=True
     )
 
     '''dec_gru = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(enc_units,
