@@ -597,6 +597,29 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     return gen_logits, gen_encoder, gen_decoder, loss
 
 
+def loop_encode_decode_predict(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful, mut_freq):
+    enc_output, enc_state = gen_encoder(input_tokens)
+    dec_state = enc_state
+    dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=0.5))
+    loss = tf.constant(0.0)
+    gen_logits = list()
+    o_state_norm = list()
+    i_tokens = tf.fill([batch_size, 1], 0)
+    for t in range(seq_len - 1):
+        dec_result, dec_state = gen_decoder([i_tokens, dec_state])      
+        gen_logits.append(dec_result)
+        o_state_norm.append(tf.norm(dec_state))
+        o_tokens = output_tokens[:, t+1:t+2]
+        step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
+        loss += step_loss
+        i_tokens = tf.argmax(dec_result, axis=-1)
+    gen_logits = tf.concat(gen_logits, axis=-2)
+    loss = loss / seq_len
+    print("Encoder norm: {}".format(str(tf.norm(enc_state))))
+    print("Decoder norm: {}".format(str(np.mean(o_state_norm))))
+    print("--------------")
+    return gen_logits, gen_encoder, gen_decoder, loss
+
 def predict_sequence(tr_epoch, tr_batch, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, loaded_encoder, loaded_generator, s_stateful):
     avg_test_loss = []
     avg_test_seq_var = []
@@ -625,7 +648,7 @@ def predict_sequence(tr_epoch, tr_batch, test_dataset_in, test_dataset_out, te_b
         print(batch_y_test[:5, 1:])
         # generate seqs stepwise - teacher forcing
         #generated_logits, loss = _loop_pred_step(seq_len, te_batch_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units)
-        generated_logits, _, _, loss = loop_encode_decode(seq_len, te_batch_size, vocab_size, batch_x_test, [], loaded_encoder, loaded_generator, enc_units, test_tf_ratio, train_mode, s_stateful, dict())
+        generated_logits, _, _, loss = loop_encode_decode_predict(seq_len, te_batch_size, vocab_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units, test_tf_ratio, train_mode, s_stateful, dict())
         print(tf.argmax(generated_logits, axis=-1)[:5, :])
         one_x = convert_to_string_list(batch_x_test)
         one_y = convert_to_string_list(batch_y_test)

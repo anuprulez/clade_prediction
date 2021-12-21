@@ -15,8 +15,8 @@ import bahdanauAttention
 
 
 GEN_ENC_WEIGHTS = "data/generated_files/generator_encoder_weights.h5"
-ENC_DROPOUT = 0.5
-DEC_DROPOUT = 0.5
+ENC_DROPOUT = 0.1
+DEC_DROPOUT = 0.1
 DISC_DROPOUT = 0.2
 RECURR_DROPOUT = 0.25
 LEAKY_ALPHA = 0.1
@@ -90,7 +90,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     #gen_inputs = tf.keras.layers.Dropout(ENC_DROPOUT)(gen_inputs)
     embed = gen_embedding(gen_inputs)
     #embed = tf.keras.layers.Dropout(ENC_DROPOUT)(embed)
-    #embed = tf.keras.layers.SpatialDropout1D(ENC_DROPOUT)(embed)
+    embed = tf.keras.layers.SpatialDropout1D(ENC_DROPOUT)(embed)
     #embed = tf.keras.layers.LayerNormalization()(embed)
     enc_output, enc_f, enc_b = gen_gru(embed)
 
@@ -133,11 +133,11 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
 
     vectors = dec_embedding(new_tokens)
     #vectors = tf.keras.layers.Dropout(DEC_DROPOUT)(vectors)
-    #vectors = tf.keras.layers.SpatialDropout1D(DEC_DROPOUT)(vectors)
+    vectors = tf.keras.layers.SpatialDropout1D(DEC_DROPOUT)(vectors)
     
     #vectors = tf.keras.layers.LayerNormalization()(vectors)
     rnn_output, dec_state = dec_gru(vectors, initial_state=dec_input_state)
-    #rnn_output = tf.keras.layers.Dropout(DEC_DROPOUT)(rnn_output)
+    rnn_output = tf.keras.layers.Dropout(DEC_DROPOUT)(rnn_output)
     #dec_state = tf.keras.layers.LayerNormalization()(dec_state)
     #rnn_output = tf.keras.layers.LayerNormalization()(rnn_output)
     logits = tf.keras.layers.TimeDistributed(dec_fc)(rnn_output)
