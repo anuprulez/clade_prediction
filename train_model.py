@@ -40,7 +40,7 @@ cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 n_disc_step = 6
 n_gen_step = 3
 unrolled_steps = 3
-test_log_step = 5
+test_log_step = 20
 teacher_forcing_ratio = 0.0
 
 
