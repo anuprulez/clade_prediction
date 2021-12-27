@@ -498,12 +498,12 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     show = 2
     enc_output, enc_state = gen_encoder(input_tokens)
     dec_state = enc_state
-    print(dec_state[:2, :])
+    #print(dec_state[:2, :])
     residual_pw_dist, pw_norm = pairwise_dist(dec_state, dec_state)
     residual_norm = tf.math.abs(1.0 - tf.norm(dec_state))
     dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=1.0))
-    print()
-    print(dec_state[:2, :])
+    #print()
+    #print(dec_state[:2, :])
     loss = tf.constant(0.0)
     gen_logits = list()
     o_state_norm = list()

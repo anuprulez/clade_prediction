@@ -188,9 +188,8 @@ def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units, batch
 
     # initialize weights of discriminator's encoder model for parent and generated seqs
     disc_par_encoder_model.load_weights(GEN_ENC_WEIGHTS)
-    disc_gen_encoder_model.load_weights(GEN_ENC_WEIGHTS)
-    #disc_gen_encoder_model.layers[0].set_weights(disc_par_encoder_model.layers[0].get_weights())
-    #disc_gen_encoder_model.layers[1].set_weights(disc_par_encoder_model.layers[1].get_weights())
+    #disc_gen_encoder_model.load_weights(GEN_ENC_WEIGHTS)
+    disc_gen_encoder_model.layers[1].set_weights(disc_par_encoder_model.layers[1].get_weights())
     return disc_par_encoder_model, disc_gen_encoder_model
 
 
@@ -199,19 +198,25 @@ def make_discriminator_model(enc_units):
     generated_state = tf.keras.Input(shape=(enc_units,))
     x = tf.keras.layers.Concatenate()([parent_state, generated_state])
     x = tf.keras.layers.Dropout(DISC_DROPOUT)(x)
-    x = tf.keras.layers.LayerNormalization()(x)
+    #x = tf.keras.layers.LayerNormalization()(x)
+    #x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.Dense(2 * enc_units)(x)
+    #x = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(x)
+    x = tf.keras.layers.Dropout(DISC_DROPOUT)(x)
+    #x = tf.keras.layers.LayerNormalization()(x)
     #x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.Dense(enc_units)(x)
-    x = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(x)
+    #x = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(x)
     x = tf.keras.layers.Dropout(DISC_DROPOUT)(x)
-    x = tf.keras.layers.LayerNormalization()(x)
-    #x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.Dense(enc_units/2)(x)
-    x = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(x)
+    #x = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(x)
     x = tf.keras.layers.Dropout(DISC_DROPOUT)(x)
-    x = tf.keras.layers.LayerNormalization()(x)
+    x = tf.keras.layers.Dense(enc_units/4)(x)
+    #x = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(x)
+    x = tf.keras.layers.Dropout(DISC_DROPOUT)(x)
+    #x = tf.keras.layers.LayerNormalization()(x)
     #x = tf.keras.layers.BatchNormalization()(x)
-    output_class = tf.keras.layers.Dense(1, activation="linear")(x)
+    output_class = tf.keras.layers.Dense(1, activation="softmax")(x)
     disc_model = tf.keras.Model([parent_state, generated_state], [output_class])
     return disc_model
 

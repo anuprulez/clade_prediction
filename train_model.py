@@ -34,8 +34,8 @@ TRAIN_GEN_DEC_MODEL = "data/generated_files/gen_dec_model"
 
 
 pretrain_generator_optimizer = tf.keras.optimizers.Adam(learning_rate=5e-5)
-generator_optimizer = tf.keras.optimizers.Adam() # learning_rate=1e-3, beta_1=0.5
-discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) # learning_rate=3e-5, beta_1=0.5
+generator_optimizer = tf.keras.optimizers.Adam(learning_rate=5e-5) # learning_rate=1e-3, beta_1=0.5
+discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=5e-5) # learning_rate=3e-5, beta_1=0.5
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 n_disc_step = 6
 n_gen_step = 3
@@ -53,17 +53,17 @@ def wasserstein_loss(y_true, y_pred):
 
 
 def discriminator_loss(real_output, fake_output):
-    real_loss = -tf.math.reduce_mean(real_output)
-    fake_loss = tf.math.reduce_mean(fake_output)
-    #real_loss = cross_entropy(tf.ones_like(real_output), real_output)
+    #real_loss = -tf.math.reduce_mean(real_output)
+    #fake_loss = tf.math.reduce_mean(fake_output)
+    real_loss = cross_entropy(tf.ones_like(real_output), real_output)
     # loss on real parent and generated child sequences
-    #fake_loss = cross_entropy(tf.zeros_like(fake_output), fake_output)
+    fake_loss = cross_entropy(tf.zeros_like(fake_output), fake_output)
     return real_loss, fake_loss
 
 
 def generator_loss(fake_output):
-    #return cross_entropy(tf.ones_like(fake_output), fake_output)
-    return -tf.math.reduce_mean(fake_output)
+    return cross_entropy(tf.ones_like(fake_output), fake_output)
+    #return -tf.math.reduce_mean(fake_output)
 
 
 def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc_model, disc_gen_enc_model, size_stateful, pos_size):

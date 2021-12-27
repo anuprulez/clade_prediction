@@ -336,11 +336,11 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     # create discriminator model
     disc_parent_encoder_model, disc_gen_encoder_model = neural_network.make_disc_par_gen_model(len_final_aa_padding, vocab_size, embedding_dim, enc_units, batch_size, size_stateful)
 
-    for lr in disc_parent_encoder_model.layers:
+    '''for lr in disc_parent_encoder_model.layers:
         print(lr)
     print()
     for lr in disc_gen_encoder_model.layers:
-        print(lr)
+        print(lr)'''
     #sys.exit()
     discriminator = neural_network.make_discriminator_model(enc_units)
 
