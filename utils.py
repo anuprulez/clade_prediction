@@ -484,10 +484,10 @@ def pairwise_dist(A, B):
     D = 1.0 - D
     zeros = tf.fill([A.shape[0]], 0.0)
     D = tf.linalg.set_diag(D, zeros)
-    print(D)
+    #print(D)
     D_mean = tf.math.abs(tf.reduce_mean(D))
     D_norm = tf.math.abs(1.0 - tf.norm(D))
-    print(D_mean, tf.norm(D), D_norm)
+    #print(D_mean, tf.norm(D), D_norm)
     '''corr_matrix = tfp.stats.correlation(A)
     print(corr_matrix)
     print(A.shape, corr_matrix.shape)'''
@@ -498,11 +498,12 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     show = 2
     enc_output, enc_state = gen_encoder(input_tokens)
     dec_state = enc_state
-    #print(dec_state[:2, :])
+    print(dec_state[:2, :])
     residual_pw_dist, pw_norm = pairwise_dist(dec_state, dec_state)
     residual_norm = tf.math.abs(1.0 - tf.norm(dec_state))
-    dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=0.05))
-    #print(dec_state[:2, :])
+    dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=1.0))
+    print()
+    print(dec_state[:2, :])
     loss = tf.constant(0.0)
     gen_logits = list()
     o_state_norm = list()
@@ -523,25 +524,25 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
         if str(t) in mut_freq:
             mut_error_factor = float(mut_freq[str(t)])
             mut_error_factor = tf.convert_to_tensor(mut_error_factor, dtype=tf.float32)
-            mut_error_factor = tf.math.log(10.0 + mut_error_factor)
-        dec_reshape = tf.reshape(dec_result, [dec_result.shape[0], dec_result.shape[2]])
+            #mut_error_factor = tf.math.log(10.0 + mut_error_factor)
+        #dec_reshape = tf.reshape(dec_result, [dec_result.shape[0], dec_result.shape[2]])
 
         if len(output_tokens) > 0:
             o_tokens = output_tokens[:, t+1:t+2]
             step_loss = mut_error_factor * tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
             step_loss = tf.reduce_mean(step_loss)
             loss += step_loss
-        if t in list(range(free_run_s_index, free_run_s_index + free_run_loops)):
+        '''if t in list(range(free_run_s_index, free_run_s_index + free_run_loops)):
             i_tokens = tf.argmax(dec_result, axis=-1)
         else:
-            i_tokens = o_tokens
-
+            i_tokens = o_tokens'''
+        i_tokens = tf.argmax(dec_result, axis=-1)
     gen_logits = tf.concat(gen_logits, axis=-2)
     loss = loss / seq_len
     dec_state_error = dec_state_error / seq_len
-    print("Errors: ", loss, residual_norm, dec_state_error, pw_norm)
-    print("Decoder norm: {}".format(str(np.mean(o_state_norm))))
-    print("--------------")
+    #print("Errors: ", loss, residual_norm, dec_state_error, pw_norm)
+    #print("Decoder norm: {}".format(str(np.mean(o_state_norm))))
+    #print("--------------")
     loss = loss + residual_norm + dec_state_error + pw_norm
     return gen_logits, gen_encoder, gen_decoder, loss
 
@@ -550,7 +551,7 @@ def loop_encode_decode_predict(seq_len, batch_size, vocab_size, input_tokens, ou
     enc_output, enc_state = gen_encoder(input_tokens)
     dec_state = enc_state
     #print(dec_state[:2, :])
-    dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=0.05))
+    dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=1.0))
     #print(dec_state[:2, :])
     loss = tf.constant(0.0)
     gen_logits = list()
@@ -566,9 +567,9 @@ def loop_encode_decode_predict(seq_len, batch_size, vocab_size, input_tokens, ou
         i_tokens = tf.argmax(dec_result, axis=-1)
     gen_logits = tf.concat(gen_logits, axis=-2)
     loss = loss / seq_len
-    print("Encoder norm: {}".format(str(tf.norm(enc_state))))
-    print("Decoder norm: {}".format(str(np.mean(o_state_norm))))
-    print("--------------")
+    #print("Encoder norm: {}".format(str(tf.norm(enc_state))))
+    #print("Decoder norm: {}".format(str(np.mean(o_state_norm))))
+    #print("--------------")
     return gen_logits, gen_encoder, gen_decoder, loss
 
 def predict_sequence(tr_epoch, tr_batch, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, loaded_encoder, loaded_generator, s_stateful):

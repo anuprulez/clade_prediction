@@ -80,15 +80,15 @@ batch_size = 4
 te_batch_size = batch_size
 n_te_batches = 10
 enc_units = 32
-pretrain_epochs = 2
+pretrain_epochs = 10
 epochs = 5
 max_l_dist = 11
 test_train_size = 0.85
 pretrain_train_size = 0.5
 random_clade_size = 3000
-to_pretrain = True
-pretrained_model = False
-gan_train = False
+to_pretrain = False
+pretrained_model = True
+gan_train = True
 start_token = 0
 stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/", "data/pretrain/"]
 amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"
@@ -385,7 +385,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
         # predict seq on test data
         print("Prediction on test data...")
         with tf.device('/device:cpu:0'):
-            epo_tr_gen_te_loss, epo_tr_gen_seq_var = utils.predict_sequence(test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, len_final_aa_padding, vocab_size, enc_units, encoder, decoder, size_stateful)
+            epo_tr_gen_te_loss, epo_tr_gen_seq_var = utils.predict_sequence(n, 0, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, len_final_aa_padding, vocab_size, enc_units, encoder, decoder, size_stateful)
             train_te_loss.append(epo_tr_gen_te_loss)
             train_gen_test_seq_var.append(epo_tr_gen_seq_var)
         print()
