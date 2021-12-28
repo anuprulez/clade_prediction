@@ -538,7 +538,6 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             o_tokens = output_tokens[:, t+1:t+2]
             #step_loss = mut_error_factor * tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
             step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
-            #step_loss = tf.reduce_mean(step_loss)
             loss += step_loss
 
         '''if t in list(range(free_run_s_index, free_run_s_index + free_run_loops)):
@@ -557,7 +556,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     print("Errors: ", loss, residual_norm, pw_norm, dec_loop_norm, dec_loop_pw_norm)
     print("Decoder norm: {}".format(str(dec_step_norm)))
     print("--------------")
-    loss = loss + residual_norm + pw_norm + dec_step_norm #+ dec_loop_norm + dec_loop_pw_norm #dec_state_error + pw_norm
+    loss = loss + residual_norm + pw_norm + dec_step_norm
     return gen_logits, gen_encoder, gen_decoder, loss
 
 
@@ -575,7 +574,7 @@ def loop_encode_decode_predict(seq_len, batch_size, vocab_size, input_tokens, ou
     i_tokens = tf.fill([batch_size, 1], 0)
     for t in range(seq_len - 1):
         dec_result, dec_state = gen_decoder([i_tokens, dec_state])
-        dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=stddev))
+        #dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=stddev))
         #print(dec_result, tf.argmax(dec_result, axis=-1))
         
         #sq_logits = tf.squeeze(dec_result, axis=1)
@@ -593,8 +592,8 @@ def loop_encode_decode_predict(seq_len, batch_size, vocab_size, input_tokens, ou
         i_tokens = tf.argmax(dec_result, axis=-1)
     gen_logits = tf.concat(gen_logits, axis=-2)
     loss = loss / seq_len
-    #print("Encoder norm: {}".format(str(tf.norm(enc_state))))
-    #print("Decoder norm: {}".format(str(np.mean(o_state_norm))))
+    print("Encoder norm: {}".format(str(tf.norm(enc_state))))
+    print("Decoder norm: {}".format(str(np.mean(o_state_norm))))
     #print("--------------")
     return gen_logits, gen_encoder, gen_decoder, loss
 
