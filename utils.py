@@ -506,6 +506,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     loss = tf.constant(0.0)
     gen_logits = list()
     o_state_norm = list()
+    dec_step_norm = tf.constant(0.0)
     dec_loop_norm = tf.constant(0.0)
     dec_loop_pw_norm = tf.constant(0.0)
     mut_error_factor = tf.constant(1.0)
@@ -516,17 +517,16 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     for t in range(seq_len - 1):
         dec_result, dec_state = gen_decoder([i_tokens, dec_state])
         _, dec_state_loop_pw_norm = pairwise_dist(dec_state, dec_state)
-        dec_state_step_norm = tf.math.abs(1.0 - tf.norm(dec_state))
+        dec_state_step_norm = tf.math.abs(1.0 - tf.norm(dec_state)) 
         o_state_norm.append(tf.norm(dec_state))
         #dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=stddev))
 
-        if t == 5:
-            print(dec_state[:show, :])
+        '''if t == 5:
+            print(dec_state[:show, :])'''
 
         dec_loop_pw_norm += dec_state_loop_pw_norm
         dec_loop_norm += dec_state_step_norm
-        
-
+        dec_step_norm += tf.norm(dec_state)
         gen_logits.append(dec_result)
 
         '''if str(t) in mut_freq:
@@ -553,10 +553,11 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     loss = loss / seq_len
     dec_loop_norm = dec_loop_norm / seq_len
     dec_loop_pw_norm = dec_loop_pw_norm / seq_len
+    dec_step_norm = dec_step_norm / seq_len
     print("Errors: ", loss, residual_norm, pw_norm, dec_loop_norm, dec_loop_pw_norm)
-    print("Decoder norm: {}".format(str(np.mean(o_state_norm))))
+    print("Decoder norm: {}".format(str(dec_step_norm)))
     print("--------------")
-    loss = loss + residual_norm + pw_norm + dec_loop_norm + dec_loop_pw_norm #dec_state_error + pw_norm
+    loss = loss + residual_norm + pw_norm + dec_step_norm #+ dec_loop_norm + dec_loop_pw_norm #dec_state_error + pw_norm
     return gen_logits, gen_encoder, gen_decoder, loss
 
 
