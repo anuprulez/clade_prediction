@@ -85,10 +85,10 @@ epochs = 5
 max_l_dist = 11
 test_train_size = 0.85
 pretrain_train_size = 0.5
-random_clade_size = 3000
+random_clade_size = 2000
 to_pretrain = True
 pretrained_model = False
-gan_train = True
+gan_train = False
 start_token = 0
 stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/", "data/pretrain/"]
 amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"
@@ -109,6 +109,7 @@ def read_files():
     rev_dict = utils.read_json(PATH_R_DICT)
     encoder = None
     decoder = None
+    pf_model = None
     #kmer_f_dict, kmer_r_dict = utils.get_all_possible_words(amino_acid_codes, s_kmer)
 
     if pretrained_model is False:
@@ -258,9 +259,11 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     if gen_encoder is None or gen_decoder is None:
         #len_final_aa_padding = 16
         encoder, decoder = neural_network.make_generator_model(len_final_aa_padding, vocab_size, embedding_dim, enc_units, batch_size, size_stateful)
+        pf_model = neural_network.create_pf_model(len_final_aa_padding - 1, vocab_size, embedding_dim, enc_units, batch_size)
     else:
         encoder = gen_encoder
         decoder = gen_decoder
+        pf_model = neural_network.create_pf_model(len_final_aa_padding - 1, vocab_size, embedding_dim, enc_units, batch_size)
 
     # divide into pretrain and train
     if to_pretrain is False:
@@ -302,7 +305,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
         print("Num of pretrain batches: {}".format(str(n_pretrain_batches)))
         for i in range(pretrain_epochs):
             print("Pre training epoch {}/{}...".format(str(i+1), str(pretrain_epochs)))
-            pretrain_gen_tr_loss, bat_te_gen_loss, bat_te_seq_var, bat_tr_seq_var, encoder, decoder = train_model.pretrain_generator([X_pretrain, y_pretrain, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches], i, encoder, decoder, enc_units, vocab_size, n_pretrain_batches, batch_size, pretr_parent_child_mut_indices, pretrain_epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict)
+            pretrain_gen_tr_loss, bat_te_gen_loss, bat_te_seq_var, bat_tr_seq_var, encoder, decoder = train_model.pretrain_generator([X_pretrain, y_pretrain, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches], i, encoder, decoder, pf_model, enc_units, vocab_size, n_pretrain_batches, batch_size, pretr_parent_child_mut_indices, pretrain_epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict)
             print("Pre training loss at epoch {}/{}: Generator loss: {}, variation score: {}".format(str(i+1), str(pretrain_epochs), str(pretrain_gen_tr_loss), str(np.mean(bat_tr_seq_var))))
             pretrain_gen_train_loss.append(pretrain_gen_tr_loss)
             pretrain_gen_batch_test_loss.append(bat_te_gen_loss)

@@ -34,6 +34,7 @@ TRAIN_GEN_DEC_MODEL = "data/generated_files/gen_dec_model"
 
 
 pretrain_generator_optimizer = tf.keras.optimizers.Adam(learning_rate=5e-5)
+pf_discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=5e-5)
 generator_optimizer = tf.keras.optimizers.Adam(learning_rate=5e-5) # learning_rate=1e-3, beta_1=0.5
 discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=5e-5) # learning_rate=3e-5, beta_1=0.5
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
@@ -276,7 +277,7 @@ def get_text_data():
     return train_x, train_y, test_x, test_y
 
 
-def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vocab_size, n_batches, batch_size, pretr_parent_child_mut_indices, epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict):
+def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, pf_model, enc_units, vocab_size, n_batches, batch_size, pretr_parent_child_mut_indices, epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict):
   X_train, y_train, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches = inputs
   epo_avg_tr_gen_loss = list()
   epo_te_gen_loss = list()
@@ -328,30 +329,50 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           # compute generated sequence variation
           variation_score = utils.get_sequence_variation_percentage(unrolled_x, pred_logits)
           print("Pretr: generation variation score: {}".format(str(variation_score)))
-          #/ variation_score #+ mae([1.0], [variation_score])
-          #var_score = mae([1.0], [variation_score])
-          #if variation_score < 1.0:
-          #gen_loss = gen_loss + mae([1.0], [variation_score]) #+ mae([1.0], [variation_score])
           epo_tr_seq_var.append(variation_score)
-          print("Pretr: teacher forcing ratio: {}".format(str(teacher_forcing_ratio)))
-          print("Pretrain epoch {}/{}, batch {}/{}, gen true loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches), str(gen_loss.numpy())))
-          if (step + 1) % test_log_step == 0 and step > 0:
-              print("-------")
-              print("Pretr: Prediction on test data at epoch {}/{}, batch {}/{}...".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches)))
-              print()
-              gen_te_loss, gen_te_seq_var = utils.predict_sequence(epo_step, step, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, gen_encoder, gen_decoder, size_stateful)
-              epo_te_gen_loss.append(gen_te_loss)
-              epo_te_seq_var.append(gen_te_seq_var)
-              print("-------")
-          print()
-          epo_avg_tr_gen_loss.append(gen_loss)
+          #print("Pretr: teacher forcing ratio: {}".format(str(teacher_forcing_ratio)))
+
+      '''with tf.GradientTape() as pf_tape:
+
+          # train pf model
+          true_y = unrolled_y[:, 1:]
+          pred_y = tf.argmax(pred_logits, axis=-1)
+          true_o = pf_model(true_y)
+          fake_o = pf_model(pred_y)
+
+          true_pf_disc_loss, fake_pf_disc_loss = discriminator_loss(true_o, fake_o)
+          total_pf_disc_loss = true_pf_disc_loss + fake_pf_disc_loss
+          fake_pf_gen_loss = generator_loss(fake_o)
+
+          print(true_pf_disc_loss, fake_pf_disc_loss, fake_pf_gen_loss)'''
+
+          ##########################
+
+      #gen_loss = gen_loss + fake_pf_gen_loss
+      print("Pretrain epoch {}/{}, batch {}/{}, gen true loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches), str(gen_loss.numpy())))
       gen_trainable_vars = gen_encoder.trainable_variables + gen_decoder.trainable_variables
       gradients_of_generator = gen_tape.gradient(gen_loss, gen_trainable_vars)
       #gradients_of_generator = [tf.clip_by_value(grad, clip_value_min=-1e-6, clip_value_max=1e-6) for grad in gradients_of_generator]
-      gradients_norm = [tf.norm(gd) for gd in gradients_of_generator]
-      print("Pretrain gradient norm: {}".format(str(tf.reduce_mean(gradients_norm).numpy())))
+      #gradients_norm = [tf.norm(gd) for gd in gradients_of_generator]
+      #print("Pretrain gradient norm: {}".format(str(tf.reduce_mean(gradients_norm).numpy())))
       #gradients_of_generator = [(tf.clip_by_norm(grad, clip_norm=1.0)) for grad in gradients_of_generator]
       pretrain_generator_optimizer.apply_gradients(zip(gradients_of_generator, gen_trainable_vars))
+
+      # optimize pf discriminator
+      #pf_disc_trainable_vars = pf_model.trainable_variables
+      #pf_gradients = pf_tape.gradient(total_pf_disc_loss, pf_disc_trainable_vars)
+      #pf_discriminator_optimizer.apply_gradients(zip(pf_gradients, pf_disc_trainable_vars))
+
+      if (step + 1) % test_log_step == 0 and step > 0:
+          print("-------")
+          print("Pretr: Prediction on test data at epoch {}/{}, batch {}/{}...".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches)))
+          print()
+          gen_te_loss, gen_te_seq_var = utils.predict_sequence(epo_step, step, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, gen_encoder, gen_decoder, size_stateful)
+          epo_te_gen_loss.append(gen_te_loss)
+          epo_te_seq_var.append(gen_te_seq_var)
+          print("-------")
+          print()
+      epo_avg_tr_gen_loss.append(gen_loss)
   # save model
 
   gen_encoder.save_weights(GEN_ENC_WEIGHTS)
