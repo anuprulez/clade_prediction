@@ -27,7 +27,8 @@ cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=F
 mae = tf.keras.losses.MeanAbsoluteError()
 mse = tf.keras.losses.MeanSquaredError()
 test_tf_ratio = 0.0
-stddev = 1.0
+enc_stddev = 1.0
+dec_stddev = 0.01
 
 
 def loss_function(real, pred):
@@ -500,7 +501,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     #print(dec_state[:show, :])
     residual_pw_dist, pw_norm = pairwise_dist(dec_state, dec_state)
     residual_norm = tf.math.abs(1.0 - tf.norm(dec_state))
-    dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=stddev))
+    dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
     #print()
     #print(dec_state[:show, :])
     loss = tf.constant(0.0)
@@ -517,16 +518,16 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     for t in range(seq_len - 1):
         dec_result, dec_state = gen_decoder([i_tokens, dec_state])
         _, dec_state_loop_pw_norm = pairwise_dist(dec_state, dec_state)
-        dec_state_step_norm = tf.math.abs(1.0 - tf.norm(dec_state)) 
+        dec_state_step_norm = tf.math.abs(1.0 - tf.norm(dec_state))
         o_state_norm.append(tf.norm(dec_state))
-        #dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=stddev))
+        #dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
 
         '''if t == 5:
             print(dec_state[:show, :])'''
 
         dec_loop_pw_norm += dec_state_loop_pw_norm
         dec_loop_norm += dec_state_step_norm
-        dec_step_norm += tf.norm(dec_state)
+        dec_step_norm += tf.math.abs(1.0 - tf.norm(dec_state)) #tf.norm(dec_state)
         gen_logits.append(dec_result)
 
         '''if str(t) in mut_freq:
@@ -556,7 +557,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     print("Errors: ", loss, residual_norm, pw_norm, dec_loop_norm, dec_loop_pw_norm)
     print("Decoder norm: {}".format(str(dec_step_norm)))
     print("--------------")
-    loss = loss + residual_norm + pw_norm + dec_step_norm
+    loss = loss + residual_norm + dec_step_norm #pw_norm
     return gen_logits, gen_encoder, gen_decoder, loss
 
 
@@ -566,7 +567,7 @@ def loop_encode_decode_predict(seq_len, batch_size, vocab_size, input_tokens, ou
     dec_state = enc_state
     #print(dec_state[:show, :])
     #print()
-    dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=stddev))
+    dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
     #print(dec_state[:show, :])
     loss = tf.constant(0.0)
     gen_logits = list()
@@ -574,21 +575,12 @@ def loop_encode_decode_predict(seq_len, batch_size, vocab_size, input_tokens, ou
     i_tokens = tf.fill([batch_size, 1], 0)
     for t in range(seq_len - 1):
         dec_result, dec_state = gen_decoder([i_tokens, dec_state])
-        #dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=stddev))
-        #print(dec_result, tf.argmax(dec_result, axis=-1))
-        
-        #sq_logits = tf.squeeze(dec_result, axis=1)
-        #sq_new_tokens = tf.argmax(sq_logits, axis=-1) #tf.random.categorical(sq_logits/1.0, num_samples=1)
-        #print(sq_logits, sq_new_tokens)
-        #print()
-        #dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=stddev/10.0))    
         gen_logits.append(dec_result)
         o_state_norm.append(tf.norm(dec_state))
+        #dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
         o_tokens = output_tokens[:, t+1:t+2]
         step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
         loss += step_loss
-        #print(dec_result, o_tokens, tf.argmax(dec_result, axis=-1))
-        #print()
         i_tokens = tf.argmax(dec_result, axis=-1)
     gen_logits = tf.concat(gen_logits, axis=-2)
     loss = loss / seq_len
