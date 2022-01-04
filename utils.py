@@ -27,7 +27,7 @@ cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=F
 mae = tf.keras.losses.MeanAbsoluteError()
 mse = tf.keras.losses.MeanSquaredError()
 test_tf_ratio = 0.0
-enc_stddev = 1.0
+enc_stddev = 0.5
 dec_stddev = 0.01
 
 
@@ -496,11 +496,12 @@ def pairwise_dist(A, B):
 
 def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful, mut_freq):
     show = 2
+    max_norm = 5.0
     enc_output, enc_state = gen_encoder(input_tokens)
     dec_state = enc_state
     #print(dec_state[:show, :])
-    residual_pw_dist, pw_norm = pairwise_dist(dec_state, dec_state)
-    residual_norm = tf.math.abs(1.0 - tf.norm(dec_state))
+    _, pw_norm = pairwise_dist(dec_state, dec_state)
+    residual_norm = tf.norm(dec_state) #tf.math.abs(max_norm - tf.norm(dec_state))
     dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
     #print()
     #print(dec_state[:show, :])
@@ -518,7 +519,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     for t in range(seq_len - 1):
         dec_result, dec_state = gen_decoder([i_tokens, dec_state])
         _, dec_state_loop_pw_norm = pairwise_dist(dec_state, dec_state)
-        dec_state_step_norm = tf.math.abs(1.0 - tf.norm(dec_state))
+        dec_state_step_norm = tf.norm(dec_state) #tf.math.abs(max_norm - tf.norm(dec_state))
         o_state_norm.append(tf.norm(dec_state))
         #dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
 
@@ -527,7 +528,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
 
         dec_loop_pw_norm += dec_state_loop_pw_norm
         dec_loop_norm += dec_state_step_norm
-        dec_step_norm += tf.math.abs(1.0 - tf.norm(dec_state)) #tf.norm(dec_state)
+        #dec_step_norm += tf.math.abs(1.0 - tf.norm(dec_state)) #tf.norm(dec_state)
         gen_logits.append(dec_result)
 
         '''if str(t) in mut_freq:
@@ -557,7 +558,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     print("Errors: ", loss, residual_norm, pw_norm, dec_loop_norm, dec_loop_pw_norm)
     print("Decoder norm: {}".format(str(dec_step_norm)))
     print("--------------")
-    loss = loss + residual_norm + dec_step_norm #pw_norm
+    loss = loss + residual_norm + pw_norm + dec_loop_norm + dec_loop_pw_norm
     return gen_logits, gen_encoder, gen_decoder, loss
 
 
