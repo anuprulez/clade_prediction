@@ -107,6 +107,8 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
                     recurrent_regularizer="l2",
                     recurrent_initializer='glorot_normal',
                     kernel_initializer="glorot_normal",
+                    #kernel_constraint=tf.keras.constraints.unit_norm(),
+                    #recurrent_constraint=tf.keras.constraints.unit_norm(),
     				return_sequences=True,
                     #stateful=True,
     				return_state=True))
@@ -157,6 +159,8 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
                                    recurrent_regularizer="l2",
                                    recurrent_initializer='glorot_normal',
                                    kernel_initializer="glorot_normal",
+                                   #kernel_constraint=tf.keras.constraints.unit_norm(),
+                                   #recurrent_constraint=tf.keras.constraints.unit_norm(),
                                    return_sequences=True,
                                    return_state=True)
 
