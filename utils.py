@@ -495,7 +495,7 @@ def pairwise_dist(A, B):
     D_min = tf.math.reduce_min(D)
     D_max = tf.math.reduce_max(D)
 
-    D = (D - D_min) / (D_max - D_min + 1.0)
+    D = (D - D_min) / ((D_max - D_min) + 1e-10)
 
     #print(D)
 
@@ -577,13 +577,14 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #print(tf.repeat(batch_size, repeats=tf.constant(batch_size)))
             #print(tf.repeat(o_tokens, repeats=tf.repeat(batch_size, repeats=tf.constant(batch_size))))
 
-            #exp_o_tokens = tf.repeat(o_tokens, repeats=tf.repeat(batch_size, repeats=tf.constant(batch_size)))
-            #exp_logits = tf.concat([dec_result, dec_result, dec_result, dec_result], axis=0)
+            exp_o_tokens = tf.repeat(o_tokens, repeats=tf.repeat(batch_size, repeats=tf.constant(batch_size)))
+            exp_logits = tf.concat([dec_result, dec_result, dec_result, dec_result], axis=0)
+            step_loss = tf.reduce_mean(cross_entropy_loss(exp_o_tokens, exp_logits))
             #print(dec_result.shape, exp_logits.shape)
             #print(exp_logits[0], exp_logits[1], exp_logits[2], exp_logits[3])
             #print("---")
             #print(exp_logits[0], exp_logits[4], exp_logits[8], exp_logits[12])
-            step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
+            #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
             loss += step_loss
 
         '''if t in list(range(free_run_s_index, free_run_s_index + free_run_loops)):
@@ -613,7 +614,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     #loss = loss + enc_mean_dist + dec_loop_mean_dist + enc_state_norm + dec_loop_norm #+ enc_pw_norm #+ dec_loop_pw_norm
     #loss = loss + enc_mean_dist + dec_loop_mean_dist + enc_state_norm + dec_loop_norm
     #loss = loss + enc_pw_norm + enc_state_norm + dec_loop_norm # + residual_norm + dec_loop_norm
-    loss = loss + enc_state_norm + dec_loop_norm + enc_mean_dist
+    loss = loss + enc_state_norm + dec_loop_norm + enc_mean_dist + dec_loop_mean_dist
     return gen_logits, gen_encoder, gen_decoder, loss
 
 
@@ -622,8 +623,8 @@ def loop_encode_decode_predict(seq_len, batch_size, vocab_size, input_tokens, ou
     enc_output, enc_state = gen_encoder(input_tokens)
     enc_norm = tf.norm(enc_state)
     dec_state = enc_state
-    #print(dec_state[:show, :])
-    #print()
+    print(dec_state)
+    print()
     dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
     #print(dec_state[:show, :])
     loss = tf.constant(0.0)

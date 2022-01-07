@@ -15,8 +15,8 @@ import bahdanauAttention
 
 
 GEN_ENC_WEIGHTS = "data/generated_files/generator_encoder_weights.h5"
-ENC_DROPOUT = 0.1
-DEC_DROPOUT = 0.1
+ENC_DROPOUT = 0.2
+DEC_DROPOUT = 0.2
 DISC_DROPOUT = 0.2
 RECURR_DROPOUT = 0.25
 LEAKY_ALPHA = 0.1
@@ -242,23 +242,25 @@ def make_discriminator_model(enc_units):
     x = tf.keras.layers.Concatenate()([parent_state, generated_state])
     x = tf.keras.layers.Dropout(DISC_DROPOUT)(x)
     #x = tf.keras.layers.LayerNormalization()(x)
-    #x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.Dense(2 * enc_units)(x)
-    #x = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(x)
+    x = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(x)
     x = tf.keras.layers.Dropout(DISC_DROPOUT)(x)
     #x = tf.keras.layers.LayerNormalization()(x)
-    #x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.Dense(enc_units)(x)
-    #x = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(x)
+    x = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(x)
     x = tf.keras.layers.Dropout(DISC_DROPOUT)(x)
+    x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.Dense(enc_units/2)(x)
-    #x = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(x)
+    x = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(x)
     x = tf.keras.layers.Dropout(DISC_DROPOUT)(x)
+    x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.Dense(enc_units/4)(x)
-    #x = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(x)
+    x = tf.keras.layers.LeakyReLU(LEAKY_ALPHA)(x)
     x = tf.keras.layers.Dropout(DISC_DROPOUT)(x)
     #x = tf.keras.layers.LayerNormalization()(x)
-    #x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.BatchNormalization()(x)
     output_class = tf.keras.layers.Dense(1, activation="softmax")(x)
     disc_model = tf.keras.Model([parent_state, generated_state], [output_class])
     return disc_model
