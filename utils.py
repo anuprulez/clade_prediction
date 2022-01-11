@@ -557,21 +557,10 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
         dec_loop_mean_dist += dec_state_mean_dist
         dec_state_step_norm = tf.math.abs(max_norm - tf.norm(dec_state))
         dec_loop_norm += dec_state_step_norm
-        #o_state_norm.append(tf.norm(dec_state))
-        #dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
-
-        '''if t == 5:
-            print(dec_state[:show, :])'''
 
         dec_loop_pw_norm += dec_state_loop_pw_norm
 
-        #dec_step_norm += tf.math.abs(1.0 - tf.norm(dec_state)) #tf.norm(dec_state)
         gen_logits.append(dec_result)
-
-        '''if str(t) in mut_freq:
-            mut_error_factor = float(mut_freq[str(t)])
-            mut_error_factor = tf.convert_to_tensor(mut_error_factor, dtype=tf.float32)
-            mut_error_factor = tf.math.log(10.0 + mut_error_factor)'''
 
         if len(output_tokens) > 0:
             o_tokens = output_tokens[:, t+1:t+2]
@@ -587,10 +576,6 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
 
             u_var = np.unique(pos_variations[str(t)])
             u_var = np.reshape(u_var, (len(u_var), 1))
-            #print(u_var, u_var.shape)
-            #print(t, o_tokens, pos_variations[str(t)])
-            #pos_variations[str(t)] = np.unique(pos_variations[str(t)])
-            #print(t, o_tokens, pos_variations[str(t)])
 
             #exp_o_tokens = tf.repeat(o_tokens, repeats=tf.repeat(batch_size, repeats=tf.constant(batch_size)))
             #exp_logits = tf.concat([dec_result, dec_result, dec_result, dec_result], axis=0)
@@ -640,7 +625,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     #loss = loss + enc_pw_norm + enc_state_norm + dec_loop_norm # + residual_norm + dec_loop_norm
     #loss = loss + enc_state_norm + dec_loop_norm + enc_mean_dist + dec_loop_mean_dist
     loss = loss + enc_state_norm + dec_loop_norm + enc_pw_norm
-    return gen_logits, gen_encoder, gen_decoder, loss
+    return gen_logits, gen_encoder, gen_decoder, loss, pos_variations
 
 
 def loop_encode_decode_predict(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful, mut_freq): 
@@ -648,8 +633,8 @@ def loop_encode_decode_predict(seq_len, batch_size, vocab_size, input_tokens, ou
     enc_output, enc_state = gen_encoder(input_tokens)
     enc_norm = tf.norm(enc_state)
     dec_state = enc_state
-    print(dec_state)
-    print()
+    #print(dec_state)
+    #print()
     dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
     #print(dec_state[:show, :])
     loss = tf.constant(0.0)
@@ -661,9 +646,10 @@ def loop_encode_decode_predict(seq_len, batch_size, vocab_size, input_tokens, ou
         gen_logits.append(dec_result)
         o_state_norm.append(tf.norm(dec_state))
         #dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
-        o_tokens = output_tokens[:, t+1:t+2]
-        step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
-        loss += step_loss
+        if len(output_tokens) > 0:
+            o_tokens = output_tokens[:, t+1:t+2]
+            step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
+            loss += step_loss
         i_tokens = tf.argmax(dec_result, axis=-1)
     gen_logits = tf.concat(gen_logits, axis=-2)
     loss = loss / seq_len
