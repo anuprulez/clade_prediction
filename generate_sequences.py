@@ -120,7 +120,7 @@ def load_model_generated_sequences(file_path):
         te_y.to_csv(true_y_df_path, index=None)
 
         with tf.device('/device:cpu:0'):
-            predict_multiple(te_X, te_y, LEN_AA, vocab_size, encoded_wuhan_seq, kmer_f_dict, kmer_r_dict)
+            predict_multiple(te_y, te_y, LEN_AA, vocab_size, encoded_wuhan_seq, kmer_f_dict, kmer_r_dict)
 
 
 def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq, kmer_f_dict, kmer_r_dict):
