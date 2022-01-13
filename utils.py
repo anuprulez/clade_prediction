@@ -513,7 +513,7 @@ def pairwise_dist(A, B):
     return D_mean, D_norm, D
 
 
-def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful, mut_freq, pos_variations):
+def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful, mut_freq, pos_variations, pos_variations_count):
     show = 2
     
     enc_output, enc_state = gen_encoder(input_tokens)
@@ -570,19 +570,31 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
 
             #print(pos_variations[str(t)])
 
+            # collect different variations at each POS
             u_var = np.unique(pos_variations[str(t)])
             u_var = np.reshape(u_var, (len(u_var), 1))
+
+            # collect distribution of variations at different POS
+            u_var_distribution = np.array(list(pos_variations_count[str(t)].values()))
+            
+
+            norm_u_var_distribution = u_var_distribution / np.sum(u_var_distribution)
+
+            exp_norm_u_var_distribution = tf.repeat(norm_u_var_distribution, repeats=batch_size)
+
+            #print(t, pos_variations_count[str(t)], norm_u_var_distribution, exp_norm_u_var_distribution)
 
             #exp_o_tokens = tf.repeat(o_tokens, repeats=tf.repeat(batch_size, repeats=tf.constant(batch_size)))
             #exp_logits = tf.concat([dec_result, dec_result, dec_result, dec_result], axis=0)
             exp_o_tokens = tf.repeat(u_var, repeats=batch_size) #repeats=tf.repeat(batch_size, repeats=tf.constant(batch_size))
             exp_o_tokens = tf.reshape(exp_o_tokens, (batch_size * len(u_var), 1))
+            #print(exp_o_tokens)
             #print(t, u_var, exp_o_tokens)
             exp_logits = dec_result #tf.concat([dec_result, dec_result, dec_result, dec_result], axis=0)
             for i in range(len(u_var) - 1):
                 exp_logits = tf.concat([exp_logits, dec_result], axis=0)
             #print(exp_o_tokens.shape, exp_o_tokens, exp_logits.shape)
-            step_loss = tf.reduce_mean(cross_entropy_loss(exp_o_tokens, exp_logits))
+            step_loss = tf.reduce_mean(cross_entropy_loss(exp_o_tokens, exp_logits, sample_weight=exp_norm_u_var_distribution))
             #print("---------------")
             #print(dec_result.shape, exp_logits.shape)
             #print(exp_logits[0], exp_logits[1], exp_logits[2], exp_logits[3])
@@ -597,7 +609,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             i_tokens = o_tokens'''
         #print(dec_result, o_tokens, tf.argmax(dec_result, axis=-1))
         #print()
-        i_tokens = tf.argmax(dec_result, axis=-1) #o_tokens #tf.argmax(dec_result, axis=-1) #o_tokens
+        i_tokens = o_tokens #o_tokens #tf.argmax(dec_result, axis=-1) #o_tokens
     #import sys
     #sys.exit()
     gen_logits = tf.concat(gen_logits, axis=-2)
@@ -870,7 +882,7 @@ def save_batch(batch_x, batch_y, batch_mut_distribution):
     return batch_mut_distribution
 
 
-def get_mutation_tr_indices(train_in, train_out, kmer_f_dict, kmer_r_dict, f_dict, r_dict, parent_child_pos_vars=dict()):
+def get_mutation_tr_indices(train_in, train_out, kmer_f_dict, kmer_r_dict, f_dict, r_dict, parent_child_pos_vars=dict(), parent_child_pos_vars_count=dict()):
     parent_child_mut_indices = dict()
     #parent_child_pos_vars = dict()
     for index, (x, y) in enumerate(zip(train_in, train_out)):
@@ -889,10 +901,24 @@ def get_mutation_tr_indices(train_in, train_out, kmer_f_dict, kmer_r_dict, f_dic
             key_pos_var = "{}".format(str(i))
             if key_pos_var not in parent_child_pos_vars:
                 parent_child_pos_vars[key_pos_var] = list()
+                parent_child_pos_vars_count[key_pos_var] = dict()
+
             if int(sec) not in parent_child_pos_vars[key_pos_var]:
                 parent_child_pos_vars[key_pos_var].append(int(sec))
+
+            if int(sec) not in parent_child_pos_vars_count[key_pos_var]:
+                parent_child_pos_vars_count[key_pos_var][int(sec)] = 0
+            parent_child_pos_vars_count[key_pos_var][int(sec)] += 1
+            #print(index, i, sec, parent_child_pos_vars_count[key_pos_var], parent_child_pos_vars_count[key_pos_var][int(sec)])
+        #print("------")    
     print(parent_child_pos_vars)
-    return parent_child_mut_indices, parent_child_pos_vars
+    print()
+    print(parent_child_pos_vars_count)
+    print()
+    '''for key in parent_child_pos_vars_count:
+        print(parent_child_pos_vars_count[key], list(parent_child_pos_vars_count[key].values()))
+    sys.exit()'''
+    return parent_child_mut_indices, parent_child_pos_vars, parent_child_pos_vars_count
 
 
 '''
