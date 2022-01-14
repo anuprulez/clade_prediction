@@ -40,12 +40,12 @@ discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) # learnin
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 n_disc_step = 10
 n_gen_step = 5
-unrolled_steps = 5
+unrolled_steps = 3
 test_log_step = 50
 teacher_forcing_ratio = 0.0
-disc_clip_norm = 10.0
-gen_clip_norm = 10.0
-pretrain_clip_norm = 10.0
+disc_clip_norm = 1.0
+gen_clip_norm = 1.0
+pretrain_clip_norm = 1.0
 
 
 m_loss = neural_network.MaskedLoss()

@@ -27,7 +27,7 @@ cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=F
 mae = tf.keras.losses.MeanAbsoluteError()
 mse = tf.keras.losses.MeanSquaredError()
 test_tf_ratio = 0.0
-enc_stddev = 0.05 # 0.05 for pretraining
+enc_stddev = 1.0 # 0.05 for pretraining
 max_norm = 1.0
 dec_stddev = 0.0001
 #pos_variations = dict()
@@ -594,7 +594,11 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             for i in range(len(u_var) - 1):
                 exp_logits = tf.concat([exp_logits, dec_result], axis=0)
             #print(exp_o_tokens.shape, exp_o_tokens, exp_logits.shape)
-            step_loss = tf.reduce_mean(cross_entropy_loss(exp_o_tokens, exp_logits, sample_weight=exp_norm_u_var_distribution))
+            step_loss_real_targets = tf.reduce_mean(cross_entropy_loss(exp_o_tokens, exp_logits)) #, sample_weight=exp_norm_u_var_distribution
+            step_loss_output_targets = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
+
+            step_loss = step_loss_real_targets #(step_loss_real_targets + step_loss_output_targets) / 2.0
+
             #print("---------------")
             #print(dec_result.shape, exp_logits.shape)
             #print(exp_logits[0], exp_logits[1], exp_logits[2], exp_logits[3])
@@ -631,7 +635,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     #loss = loss + enc_mean_dist + dec_loop_mean_dist + enc_state_norm + dec_loop_norm
     #loss = loss + enc_pw_norm + enc_state_norm + dec_loop_norm # + residual_norm + dec_loop_norm
     #loss = loss + enc_state_norm + dec_loop_norm + enc_mean_dist + dec_loop_mean_dist
-    loss = loss + enc_state_norm + dec_loop_norm + enc_pw_norm
+    #loss = loss + enc_state_norm + dec_loop_norm + enc_pw_norm
     return gen_logits, gen_encoder, gen_decoder, loss
 
 

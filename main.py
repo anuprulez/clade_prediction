@@ -86,8 +86,8 @@ max_l_dist = 11
 test_train_size = 0.85
 pretrain_train_size = 0.5
 random_clade_size = 2000
-to_pretrain = False
-pretrained_model = True
+to_pretrain = True
+pretrained_model = False
 gan_train = True
 start_token = 0
 stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/", "data/pretrain/"]
@@ -183,7 +183,6 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
 
     #verify_ldist(combined_te_X, combined_te_y)
 
-    
     tr_unrelated_files = glob.glob("data/tr_unrelated/*.csv")
     print("Loading unrelated datasets...")
     unrelated_X = list()
@@ -240,7 +239,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
 
     print(combined_X[0])
     print(combined_y[0])'''
- 
+
     kmer_f_dict = utils.read_json(PATH_KMER_F_DICT)
     kmer_r_dict = utils.read_json(PATH_KMER_R_DICT)
 
@@ -406,8 +405,8 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     np.savetxt("data/generated_files/train_gen_batch_test_loss.txt", train_gen_batch_test_loss)
     np.savetxt("data/generated_files/train_gen_batch_test_seq_var.txt", train_gen_batch_test_seq_var)
     np.savetxt("data/generated_files/train_gen_test_seq_var.txt", train_gen_test_seq_var)
-    print(pos_variations)
-    np.savetxt("data/generated_files/pretrain_train_variations_at_POS.txt", pos_variations)
+    #print(pos_variations)
+    #np.savetxt("data/generated_files/pretrain_train_variations_at_POS.txt", pos_variations)
     
     end_time = time.time()
     print("Program finished in {} seconds".format(str(np.round(end_time - start_time, 2))))
