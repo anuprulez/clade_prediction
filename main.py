@@ -298,7 +298,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
 
         print("Pretraining generator...")
         # balance tr data by mutations
-        pretr_parent_child_mut_indices, pos_variations, pos_variations_count = utils.get_mutation_tr_indices(X_pretrain, y_pretrain, kmer_f_dict, kmer_r_dict, forward_dict, rev_dict)
+        pretr_parent_child_mut_indices, pos_variations, pos_variations_count = utils.get_mutation_tr_indices(X_pretrain, y_pretrain, kmer_f_dict, kmer_r_dict, forward_dict, rev_dict, pos_variations, pos_variations_count)
         utils.save_as_json(PRETR_MUT_INDICES, pretr_parent_child_mut_indices)
         # get pretraining dataset as sliced tensors
         n_pretrain_batches = int(X_pretrain.shape[0]/float(batch_size))
@@ -365,7 +365,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     print("Num of train batches: {}".format(str(n_train_batches)))
 
     # balance tr data by mutations
-    tr_parent_child_mut_indices, pos_variations, pos_variations_count = utils.get_mutation_tr_indices(X_train, y_train, kmer_f_dict, kmer_r_dict, forward_dict, rev_dict, pos_variations)
+    tr_parent_child_mut_indices, pos_variations, pos_variations_count = utils.get_mutation_tr_indices(X_train, y_train, kmer_f_dict, kmer_r_dict, forward_dict, rev_dict, pos_variations, pos_variations_count)
     utils.save_as_json(TR_MUT_INDICES, tr_parent_child_mut_indices)
     for n in range(epochs):
         print("Training epoch {}/{}...".format(str(n+1), str(epochs)))
