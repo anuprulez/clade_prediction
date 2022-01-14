@@ -38,14 +38,14 @@ pf_discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5)
 generator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) # learning_rate=1e-3, beta_1=0.5
 discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) # learning_rate=3e-5, beta_1=0.5
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
-n_disc_step = 10
-n_gen_step = 5
-unrolled_steps = 0
-test_log_step = 10
+n_disc_step = 2
+n_gen_step = 1
+unrolled_steps = 1
+test_log_step = 50
 teacher_forcing_ratio = 0.0
-disc_clip_norm = 10.0
-gen_clip_norm = 10.0
-pretrain_clip_norm = 10.0
+disc_clip_norm = 1.0
+gen_clip_norm = 1.0
+pretrain_clip_norm = 1.0
 
 
 m_loss = neural_network.MaskedLoss()
@@ -69,7 +69,7 @@ def generator_loss(fake_output):
     return -tf.math.reduce_mean(fake_output)
 
 
-def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc_model, disc_gen_enc_model, size_stateful, pos_size):
+def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc_model, disc_gen_enc_model, size_stateful, pos_size, pos_variations, pos_variations_count):
     #noise = tf.random.normal((batch_size, 2 * enc_units))
     #transformed_noise = utils.transform_noise(noise)
     #_, enc_state = encoder(unrolled_x, training=True)
@@ -79,7 +79,7 @@ def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, un
     #generated_logits, decoder, gen_t_loss = utils.generator_step(seq_len, batch_size, vocab_size, decoder, transformed_enc_state, unrolled_y, True)
     # compute generated sequence variation
 
-    generated_logits, encoder, decoder, gen_t_loss = utils.loop_encode_decode(seq_len, batch_size, vocab_size, unrolled_x, unrolled_y, encoder, decoder, enc_units, teacher_forcing_ratio, True, size_stateful, pos_size, pos_variations)
+    generated_logits, encoder, decoder, gen_t_loss = utils.loop_encode_decode(seq_len, batch_size, vocab_size, unrolled_x, unrolled_y, encoder, decoder, enc_units, teacher_forcing_ratio, True, size_stateful, pos_size, pos_variations, pos_variations_count)
 
     '''stateful_batches = list()
     n_stateful_batches = int(unrolled_x.shape[1]/float(size_stateful))
@@ -147,10 +147,10 @@ def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, un
     return real_state_x, real_state_y, fake_state_y, unrelated_real_state_x, unrelated_real_state_y, encoder, decoder, disc_par_enc_model, disc_gen_enc_model, gen_t_loss
 
 
-def d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, size_stateful, pos_size, pos_variations):
+def d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, size_stateful, pos_size, pos_variations, pos_variations_count):
     print("Applying gradient update on discriminator...")
     with tf.GradientTape() as disc_tape:
-        real_x, real_y, fake_y, unreal_x, unreal_y, _, _, disc_par_enc, disc_gen_enc, _ = get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, size_stateful, pos_size, pos_variations)
+        real_x, real_y, fake_y, unreal_x, unreal_y, _, _, disc_par_enc, disc_gen_enc, _ = get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, size_stateful, pos_size, pos_variations, pos_variations_count)
         # discriminate pairs of true parent and true child sequences
         real_output = discriminator([real_x, real_y], training=True)
         # discriminate pairs of true parent and generated child sequences
@@ -175,10 +175,10 @@ def d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, u
     return encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, disc_real_loss, disc_fake_loss, total_disc_loss
 
 
-def g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, size_stateful, pos_size, pos_variations):
+def g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, size_stateful, pos_size, pos_variations, pos_variations_count):
     print("Applying gradient update on generator...")
     with tf.GradientTape() as gen_tape:
-        real_x, _, fake_y, _, _, encoder, decoder, _, _, gen_true_loss = get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, size_stateful, pos_size, pos_variations)
+        real_x, _, fake_y, _, _, encoder, decoder, _, _, gen_true_loss = get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, size_stateful, pos_size, pos_variations, pos_variations_count)
         # discriminate pairs of true parent and generated child sequences
         fake_output = discriminator([real_x, fake_y], training=True)
         gen_fake_loss = generator_loss(fake_output)
@@ -202,12 +202,12 @@ def sample_true_x_y(mut_indices, batch_size, X_train, y_train, batch_mut_distrib
     x_batch_train = list()
     y_batch_train = list()
     rand_batch_indices = list()
-    for key in rand_mut_keys:
+    '''for key in rand_mut_keys:
+        #print(key)
         list_mut_rows = mut_indices[key]
         rand_row_index = np.random.randint(0, len(list_mut_rows), 1)[0]
-        rand_batch_indices.append(list_mut_rows[rand_row_index])
-    #rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)
-    #print(rand_mut_keys)
+        rand_batch_indices.append(list_mut_rows[rand_row_index])'''
+    rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)
     x_batch_train = X_train[rand_batch_indices]
     y_batch_train = y_train[rand_batch_indices]
 
@@ -283,7 +283,7 @@ def get_text_data():
     return train_x, train_y, test_x, test_y
 
 
-def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, pf_model, enc_units, vocab_size, n_batches, batch_size, pretr_parent_child_mut_indices, epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, pos_variations):
+def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, pf_model, enc_units, vocab_size, n_batches, batch_size, pretr_parent_child_mut_indices, epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, pos_variations, pos_variations_count):
   X_train, y_train, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches = inputs
   epo_avg_tr_gen_loss = list()
   epo_te_gen_loss = list()
@@ -291,7 +291,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, pf_model, enc
   epo_te_seq_var = list()
   batch_mut_distribution = dict()
 
-  pos_size = get_mut_size(pretr_parent_child_mut_indices)
+  pos_size = dict() #get_mut_size(pretr_parent_child_mut_indices)
   #for step, (unrolled_x, unrolled_y) in enumerate(zip(X_train, y_train)):
   for step in range(n_batches):
       unrolled_x, unrolled_y, batch_mut_distribution = sample_true_x_y(pretr_parent_child_mut_indices, batch_size, X_train, y_train, batch_mut_distribution)
@@ -325,8 +325,11 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, pf_model, enc
       sys.exit()'''
       #print(pos_size)
       with tf.GradientTape() as gen_tape:
-          
-          pred_logits, gen_encoder, gen_decoder, gen_loss = utils.loop_encode_decode(seq_len, batch_size, vocab_size, unrolled_x, unrolled_y, gen_encoder, gen_decoder, enc_units, teacher_forcing_ratio, True, size_stateful, pos_size)
+          print(unrolled_x.shape, unrolled_y.shape)
+          pred_logits, gen_encoder, gen_decoder, gen_loss = utils.loop_encode_decode(seq_len, batch_size, vocab_size, unrolled_x, unrolled_y, gen_encoder, gen_decoder, enc_units, teacher_forcing_ratio, True, size_stateful, pos_size, pos_variations, pos_variations_count)
+          print("Training: true input seq")
+          print(unrolled_x[:5, 1:], unrolled_x.shape)
+          print()
           print("Training: true output seq")
           print(unrolled_y[:5, 1:], unrolled_y.shape)
           print()
@@ -390,7 +393,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, pf_model, enc
   return np.mean(epo_avg_tr_gen_loss), np.mean(epo_te_gen_loss), np.mean(epo_te_seq_var), np.mean(epo_tr_seq_var), gen_encoder, gen_decoder
 
 
-def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, enc_units, vocab_size, n_train_batches, batch_size, parent_child_mut_indices, epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, pos_variations):
+def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, enc_units, vocab_size, n_train_batches, batch_size, parent_child_mut_indices, epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, pos_variations, pos_variations_count):
   """
   Training sequences balanced by mutation type
   """
@@ -414,7 +417,7 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
   epo_te_gen_loss = list()
   epo_te_seq_var = list()
 
-  pos_size = get_mut_size(parent_child_mut_indices)
+  pos_size = dict() #get_mut_size(parent_child_mut_indices)
 
   mut_keys = list(parent_child_mut_indices.keys())
   for step in range(n_train_batches):
@@ -424,7 +427,7 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
       disc_gen = step % n_disc_step
       if disc_gen in list(range(0, n_disc_step - n_gen_step)):
           # train discriminator
-          _, _, disc_par_enc, disc_gen_enc, discriminator, disc_real_loss, disc_fake_loss, total_disc_loss = d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, size_stateful, pos_size, pos_variations)
+          _, _, disc_par_enc, disc_gen_enc, discriminator, disc_real_loss, disc_fake_loss, total_disc_loss = d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, size_stateful, pos_size, pos_variations, pos_variations_count)
           # share weights with generator's encoder
           disc_par_enc.load_weights(GEN_ENC_WEIGHTS)
           disc_gen_enc.load_weights(GEN_ENC_WEIGHTS)
@@ -444,11 +447,11 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
               unroll_x, unroll_y, _ = sample_true_x_y(parent_child_mut_indices, batch_size, X_train, y_train, batch_mut_distribution)
               un_unroll_X, un_unroll_y = [], [] #utils.sample_unrelated_x_y(unrelated_X, unrelated_y, batch_size)
               # train discriminator
-              _, _, disc_par_enc, disc_gen_enc, discriminator, d_r_l, d_f_l, d_t_l = d_loop(seq_len, batch_size, vocab_size, enc_units, unroll_x, unroll_y, un_unroll_X, un_unroll_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, size_stateful, pos_size, pos_variations)
+              _, _, disc_par_enc, disc_gen_enc, discriminator, d_r_l, d_f_l, d_t_l = d_loop(seq_len, batch_size, vocab_size, enc_units, unroll_x, unroll_y, un_unroll_X, un_unroll_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, size_stateful, pos_size, pos_variations, pos_variations_count)
               print("Unrolled disc losses: real {}, fake {}, total {}".format(str(d_r_l.numpy()), str(d_f_l.numpy()), str(d_t_l.numpy())))
           # finish unrolling
           # train generator with unrolled discriminator
-          encoder, decoder, _, _, _, gen_true_loss, gen_fake_loss, total_gen_loss = g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, size_stateful, pos_size, pos_variations)
+          encoder, decoder, _, _, _, gen_true_loss, gen_fake_loss, total_gen_loss = g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, size_stateful, pos_size, pos_variations, pos_variations_count)
           print("Training epoch {}/{}, batch {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_train_batches), str(gen_true_loss.numpy()), str(gen_fake_loss.numpy()), str(total_gen_loss.numpy())))
           encoder.save_weights(GEN_ENC_WEIGHTS)
           # reset weights of discriminator, disc_par_enc and disc_gen_enc after unrolling

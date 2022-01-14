@@ -18,14 +18,14 @@ import preprocess_sequences
 import utils
 
 
-RESULT_PATH = "test_results/17_12_1/"
+RESULT_PATH = "test_results/11_01_22/"
 
 min_diff = 0
 max_diff = 61
 train_size = 1.0
-enc_units = 32
+enc_units = 128
 random_size = 20
-LEN_AA = 31
+LEN_AA = 16
 FUTURE_GEN_TEST = "test/20A_20B.csv"
 
 clade_parent = "20A" # 20A
@@ -34,7 +34,7 @@ clade_childen = ["20B"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"]
 # ["20G", "21C_Epsilon", "21F_Iota"]
 # {"20B": ["20I (Alpha, V1)", "20F", "20D", "21G (Lambda)", "21H"]}
 
-generating_factor = 2
+generating_factor = 50
 
 PATH_PRE = "data/ncov_global/"
 #PATH_SEQ = PATH_PRE + "spikeprot0815.fasta"
@@ -112,20 +112,20 @@ def load_model_generated_sequences(file_path):
     for te_name in te_clade_files:
         te_clade_df = pd.read_csv(te_name, sep="\t")
         te_X = te_clade_df["X"].drop_duplicates()
-        te_y = te_clade_df["Y"].drop_duplicates()
-        print(te_y)
+        te_y = te_clade_df["Y"] #.drop_duplicates()
+        print(te_X)
         child_clades = "_".join(clade_childen)
         #df_true_y = pd.DataFrame(te_y, columns=[child_clades])
         true_y_df_path = "{}generated_seqs_true_y_{}.csv".format(RESULT_PATH, child_clades)
         te_y.to_csv(true_y_df_path, index=None)
 
         with tf.device('/device:cpu:0'):
-            predict_multiple(te_X, te_y, LEN_AA, vocab_size, encoded_wuhan_seq, kmer_f_dict, kmer_r_dict)
+            predict_multiple(te_y, te_y, LEN_AA, vocab_size, encoded_wuhan_seq, kmer_f_dict, kmer_r_dict)
 
 
 def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq, kmer_f_dict, kmer_r_dict):
     batch_size = 1 #test_x.shape[0]
-    print(batch_size)
+    print(batch_size, len(test_x))
     test_dataset_in = tf.data.Dataset.from_tensor_slices((test_x)).batch(batch_size)
     #test_dataset_out = tf.data.Dataset.from_tensor_slices((test_y)).batch(batch_size)
     true_x = list()
@@ -154,7 +154,7 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq, kmer
             l_ld_wuhan = list()
             print("Generating for iter {}/{}".format(str(i+1), str(generating_factor)))
 
-            generated_logits, _, _, loss = utils.loop_encode_decode(LEN_AA, batch_size, vocab_size, batch_x_test, [], loaded_encoder, loaded_decoder, enc_units, test_tf_ratio, False, size_stateful, dict())
+            generated_logits, _, _, loss = utils.loop_encode_decode_predict(LEN_AA, batch_size, vocab_size, batch_x_test, [], loaded_encoder, loaded_decoder, enc_units, test_tf_ratio, False, size_stateful, dict())
             # compute generated sequence variation
             #batch_x_test = batch_x_test[:, 1:]
             variation_score = utils.get_sequence_variation_percentage(batch_x_test, generated_logits)
@@ -186,8 +186,8 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq, kmer
             print("Generation iter {} done".format(str(i+1)))
             print("----------")
         print("Batch {} finished".format(str(step)))
-        if step == num_te_batches - 1:
-            break
+        #if step == num_te_batches - 1:
+        #    break
         print()
     print(len(true_x), len(predicted_y))
     child_clades = "_".join(clade_childen)

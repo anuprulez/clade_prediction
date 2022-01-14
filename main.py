@@ -81,18 +81,29 @@ te_batch_size = batch_size
 n_te_batches = 10
 enc_units = 128
 pretrain_epochs = 10
-epochs = 5
+epochs = 10
 max_l_dist = 11
 test_train_size = 0.85
 pretrain_train_size = 0.5
-random_clade_size = 2500
+random_clade_size = 3000
 to_pretrain = True
 pretrained_model = False
 gan_train = True
 start_token = 0
 stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/", "data/pretrain/"]
 amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"
-pos_variations = dict()
+
+
+def verify_ldist(X, Y):
+    lev_list = list()
+    for index, (x, y) in enumerate(zip(X, Y)):
+        seq_x = x
+        seq_y = y
+        #print(seq_x, seq_y)
+        lev = utils.compute_Levenshtein_dist(x, y)
+        lev_list.append(lev)
+    print(lev_list)
+    print(np.mean(lev_list))
 
 
 def get_samples_clades():
@@ -111,7 +122,7 @@ def read_files():
     encoder = None
     decoder = None
     pf_model = None
-    #kmer_f_dict, kmer_r_dict = utils.get_all_possible_words(amino_acid_codes, s_kmer)
+    kmer_f_dict, kmer_r_dict = utils.get_all_possible_words(amino_acid_codes, s_kmer)
 
     if pretrained_model is False:
         print("Cleaning up stale folders...")
@@ -133,24 +144,14 @@ def read_files():
     start_training(forward_dict, rev_dict, encoder, decoder)
 
 
-def verify_ldist(X, Y):
-    lev_list = list()
-    for index, (x, y) in enumerate(zip(X, Y)):
-        seq_x = x
-        seq_y = y
-        #print(seq_x, seq_y)
-        lev = utils.compute_Levenshtein_dist(x, y)
-        lev_list.append(lev)
-    print(lev_list)
-    print(np.mean(lev_list))
-
 def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
+    pos_variations = dict()
+    pos_variations_count = dict()
     start_time = time.time()
     print("Loading datasets...")
     tr_clade_files = glob.glob('data/train/*.csv')
     te_clade_files = glob.glob('data/test/*.csv')
     
-
     combined_X = list()
     combined_y = list()
     # load train data
@@ -162,7 +163,6 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
         combined_X.extend(X)
         combined_y.extend(y)
         
-
     #verify_ldist(combined_X, combined_y)
 
     #print(combined_X[0])
@@ -183,7 +183,6 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
 
     #verify_ldist(combined_te_X, combined_te_y)
 
-    
     tr_unrelated_files = glob.glob("data/tr_unrelated/*.csv")
     print("Loading unrelated datasets...")
     unrelated_X = list()
@@ -240,7 +239,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
 
     print(combined_X[0])
     print(combined_y[0])'''
- 
+
     kmer_f_dict = utils.read_json(PATH_KMER_F_DICT)
     kmer_r_dict = utils.read_json(PATH_KMER_R_DICT)
 
@@ -299,14 +298,14 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
 
         print("Pretraining generator...")
         # balance tr data by mutations
-        pretr_parent_child_mut_indices = utils.get_mutation_tr_indices(X_pretrain, y_pretrain, kmer_f_dict, kmer_r_dict, forward_dict, rev_dict)
+        pretr_parent_child_mut_indices, pos_variations, pos_variations_count = utils.get_mutation_tr_indices(X_pretrain, y_pretrain, kmer_f_dict, kmer_r_dict, forward_dict, rev_dict, pos_variations, pos_variations_count)
         utils.save_as_json(PRETR_MUT_INDICES, pretr_parent_child_mut_indices)
         # get pretraining dataset as sliced tensors
         n_pretrain_batches = int(X_pretrain.shape[0]/float(batch_size))
         print("Num of pretrain batches: {}".format(str(n_pretrain_batches)))
         for i in range(pretrain_epochs):
             print("Pre training epoch {}/{}...".format(str(i+1), str(pretrain_epochs)))
-            pretrain_gen_tr_loss, bat_te_gen_loss, bat_te_seq_var, bat_tr_seq_var, encoder, decoder, pos_variations = train_model.pretrain_generator([X_pretrain, y_pretrain, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches], i, encoder, decoder, pf_model, enc_units, vocab_size, n_pretrain_batches, batch_size, pretr_parent_child_mut_indices, pretrain_epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, pos_variations)
+            pretrain_gen_tr_loss, bat_te_gen_loss, bat_te_seq_var, bat_tr_seq_var, encoder, decoder = train_model.pretrain_generator([X_pretrain, y_pretrain, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches], i, encoder, decoder, pf_model, enc_units, vocab_size, n_pretrain_batches, batch_size, pretr_parent_child_mut_indices, pretrain_epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, pos_variations, pos_variations_count)
             print("Pre training loss at epoch {}/{}: Generator loss: {}, variation score: {}".format(str(i+1), str(pretrain_epochs), str(pretrain_gen_tr_loss), str(np.mean(bat_tr_seq_var))))
             pretrain_gen_train_loss.append(pretrain_gen_tr_loss)
             pretrain_gen_batch_test_loss.append(bat_te_gen_loss)
@@ -366,12 +365,11 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     print("Num of train batches: {}".format(str(n_train_batches)))
 
     # balance tr data by mutations
-    tr_parent_child_mut_indices = utils.get_mutation_tr_indices(X_train, y_train, kmer_f_dict, kmer_r_dict, forward_dict, rev_dict)
+    tr_parent_child_mut_indices, pos_variations, pos_variations_count = utils.get_mutation_tr_indices(X_train, y_train, kmer_f_dict, kmer_r_dict, forward_dict, rev_dict, pos_variations, pos_variations_count)
     utils.save_as_json(TR_MUT_INDICES, tr_parent_child_mut_indices)
-
     for n in range(epochs):
         print("Training epoch {}/{}...".format(str(n+1), str(epochs)))
-        epo_gen_true_loss, epo_gen_fake_loss, epo_total_gen_loss, epo_disc_true_loss, epo_disc_fake_loss, epo_total_disc_loss, epo_bat_te_loss, epo_bat_gen_seq_var, encoder, decoder, pos_variations = train_model.start_training_mut_balanced([X_train, y_train, unrelated_X, unrelated_y, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches], n, encoder, decoder, disc_parent_encoder_model, disc_gen_encoder_model, discriminator, enc_units, vocab_size, n_train_batches, batch_size, tr_parent_child_mut_indices, epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, pos_variations)
+        epo_gen_true_loss, epo_gen_fake_loss, epo_total_gen_loss, epo_disc_true_loss, epo_disc_fake_loss, epo_total_disc_loss, epo_bat_te_loss, epo_bat_gen_seq_var, encoder, decoder = train_model.start_training_mut_balanced([X_train, y_train, unrelated_X, unrelated_y, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches], n, encoder, decoder, disc_parent_encoder_model, disc_gen_encoder_model, discriminator, enc_units, vocab_size, n_train_batches, batch_size, tr_parent_child_mut_indices, epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, pos_variations, pos_variations_count)
 
         print("Training loss at epoch {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}, D true loss: {}, D fake loss: {}, Total D loss: {}".format(str(n+1), str(epochs), str(epo_gen_true_loss), str(epo_gen_fake_loss), str(epo_total_gen_loss), str(epo_disc_true_loss), str(epo_disc_fake_loss), str(epo_total_disc_loss)))
 
@@ -407,7 +405,8 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     np.savetxt("data/generated_files/train_gen_batch_test_loss.txt", train_gen_batch_test_loss)
     np.savetxt("data/generated_files/train_gen_batch_test_seq_var.txt", train_gen_batch_test_seq_var)
     np.savetxt("data/generated_files/train_gen_test_seq_var.txt", train_gen_test_seq_var)
-    np.savetxt("data/generated_files/pretrain_train_variations_at_POS.txt", pos_variations)
+    #print(pos_variations)
+    #np.savetxt("data/generated_files/pretrain_train_variations_at_POS.txt", pos_variations)
     
     end_time = time.time()
     print("Program finished in {} seconds".format(str(np.round(end_time - start_time, 2))))
