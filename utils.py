@@ -576,10 +576,8 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
 
             # collect distribution of variations at different POS
             u_var_distribution = np.array(list(pos_variations_count[str(t)].values()))
-            
 
             norm_u_var_distribution = u_var_distribution / np.sum(u_var_distribution)
-
             exp_norm_u_var_distribution = tf.repeat(norm_u_var_distribution, repeats=batch_size)
 
             #print(t, pos_variations_count[str(t)], norm_u_var_distribution, exp_norm_u_var_distribution)
@@ -597,7 +595,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             step_loss_real_targets = tf.reduce_mean(cross_entropy_loss(exp_o_tokens, exp_logits)) #, sample_weight=exp_norm_u_var_distribution
             step_loss_output_targets = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
 
-            step_loss = step_loss_real_targets #(step_loss_real_targets + step_loss_output_targets) / 2.0
+            step_loss = 0.75 * step_loss_real_targets + 0.25 * step_loss_output_targets
 
             #print("---------------")
             #print(dec_result.shape, exp_logits.shape)
@@ -916,6 +914,7 @@ def get_mutation_tr_indices(train_in, train_out, kmer_f_dict, kmer_r_dict, f_dic
             #print(index, i, sec, parent_child_pos_vars_count[key_pos_var], parent_child_pos_vars_count[key_pos_var][int(sec)])
         #print("------")    
     print(parent_child_pos_vars)
+    np.savetxt("data/generated_files/parent_child_pos_vars_{}.txt".format(str(np.random.randint(0, 1e10, 1)[0])), parent_child_pos_vars)
     print()
     print(parent_child_pos_vars_count)
     print()
