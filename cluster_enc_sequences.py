@@ -23,7 +23,7 @@ from sklearn.cluster import KMeans
 
 import utils
 
-RESULT_PATH = "test_results/12_01_22/"
+RESULT_PATH = "test_results/14_01_22/"
 PATH_PRE = "data/ncov_global/"
 
 PATH_F_DICT = PATH_PRE + "f_word_dictionaries.json"
@@ -40,20 +40,20 @@ def read_data_model():
 
     loaded_encoder = tf.keras.models.load_model(RESULT_PATH + "pretrain_gen_encoder") #"pretrain_gen_encoder"
     loaded_decoder = tf.keras.models.load_model(RESULT_PATH + "pretrain_gen_decoder") #pretrain_gen_decoder
-    file_path = RESULT_PATH + "test/20A_20B.csv"
+    file_path = RESULT_PATH + "train/20A_20B.csv"
     te_clade_files = glob.glob(file_path)
     r_dict = utils.read_json(RESULT_PATH + "r_word_dictionaries.json")
     vocab_size = len(r_dict) + 1
     total_te_loss = list()
     
-
     for te_name in te_clade_files:
         te_clade_df = pd.read_csv(te_name, sep="\t")
-        te_X = te_clade_df["X"] #.drop_duplicates()
-        te_y = te_clade_df["Y"] #.drop_duplicates()
+        print(te_clade_df)
+        te_X = te_clade_df["X"].drop_duplicates()
+        te_y = te_clade_df["Y"].drop_duplicates()
         print(te_X)
         
-    return loaded_encoder, loaded_decoder, te_y
+    return loaded_encoder, loaded_decoder, te_X
 
 
 def get_encoded_sequences(enc, dec, seq_col):
@@ -67,8 +67,9 @@ def get_encoded_sequences(enc, dec, seq_col):
 
 
 def cluster_enc_seqs(features, orig_seq):
+    print(orig_seq)
     print(features)
-    print(enc_seqs)
+    orig_seq = orig_seq.tolist()
     #Initialize the class object
     kmeans = KMeans(n_clusters=len(color_dict))
     #predict the labels of clusters

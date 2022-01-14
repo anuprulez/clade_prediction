@@ -595,7 +595,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             step_loss_real_targets = tf.reduce_mean(cross_entropy_loss(exp_o_tokens, exp_logits)) #, sample_weight=exp_norm_u_var_distribution
             step_loss_output_targets = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
 
-            step_loss = 0.75 * step_loss_real_targets + 0.25 * step_loss_output_targets
+            step_loss = 0.95 * step_loss_real_targets + 0.05 * step_loss_output_targets
 
             #print("---------------")
             #print(dec_result.shape, exp_logits.shape)
@@ -911,16 +911,8 @@ def get_mutation_tr_indices(train_in, train_out, kmer_f_dict, kmer_r_dict, f_dic
             if int(sec) not in parent_child_pos_vars_count[key_pos_var]:
                 parent_child_pos_vars_count[key_pos_var][int(sec)] = 0
             parent_child_pos_vars_count[key_pos_var][int(sec)] += 1
-            #print(index, i, sec, parent_child_pos_vars_count[key_pos_var], parent_child_pos_vars_count[key_pos_var][int(sec)])
-        #print("------")    
-    print(parent_child_pos_vars)
-    np.savetxt("data/generated_files/parent_child_pos_vars_{}.txt".format(str(np.random.randint(0, 1e10, 1)[0])), parent_child_pos_vars)
-    print()
-    print(parent_child_pos_vars_count)
-    print()
-    '''for key in parent_child_pos_vars_count:
-        print(parent_child_pos_vars_count[key], list(parent_child_pos_vars_count[key].values()))
-    sys.exit()'''
+    save_as_json("data/generated_files/parent_child_pos_vars_{}.txt".format(str(np.random.randint(0, 1e10, 1)[0])), parent_child_pos_vars)
+    save_as_json("data/generated_files/parent_child_pos_vars_count_{}.txt".format(str(np.random.randint(0, 1e10, 1)[0])), parent_child_pos_vars_count)
     return parent_child_mut_indices, parent_child_pos_vars, parent_child_pos_vars_count
 
 
