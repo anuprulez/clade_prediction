@@ -203,6 +203,7 @@ def sample_true_x_y(batch_size, X_train, y_train, cluster_indices):
     random.shuffle(cluster_keys)
     #print(cluster_keys)
     rand_keys = random.sample(cluster_keys, batch_size) #random.sample(cluster_keys, batch_size) #np.array(choices(cluster_keys, k=batch_size)) #
+    #rand_keys = np.array(choices(cluster_keys, k=batch_size))
     x_batch_train = list()
     y_batch_train = list()
     rand_batch_indices = list()

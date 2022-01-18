@@ -13,7 +13,8 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 #import tensorflow_probability as tfp
 from tensorflow.keras import backend as K
-from sklearn.utils.class_weight import compute_class_weight
+from sklearn.utils import class_weight
+from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import RobustScaler
 from sklearn.cluster import OPTICS
 from sklearn.cluster import KMeans
@@ -649,21 +650,55 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
 
             class_var_pos = dict() #pos_variations_count[str(t)]
             #class_var_pos = pos_variations_count[str(t)]
-            pos_v = pos_variations_count[str(t)]
+            #pos_v = pos_variations_count[str(t)]
 
-            for key in pos_v:
-                if len(u_var_distribution) > 1:
-                    class_var_pos[key] = 1.0 - (pos_v[key] / np.sum(u_var_distribution))
-                else:
-                    class_var_pos[key] = pos_v[key] / np.sum(u_var_distribution)
-            print(pos_variations_count[str(t)])
-            print(class_var_pos)
-            print("-----")
+            #for key in pos_v:
+            #    if len(u_var_distribution) > 1:
+            #        class_var_pos[key] = np.sum([pos_v[n] for n in pos_v if n != key]) / np.sum(u_var_distribution)
+            #    else:
+            #        class_var_pos[key] = pos_v[key] / np.sum(u_var_distribution)
+            #print(pos_variations_count[str(t)])
+            #print(np.sum([pos_v[n] for n in pos_v if n != key])
+            #print(class_var_pos)
+            #print("-----")
+            #exp_norm_u_var_distribution = np.zeros((batch_size))
+            #print(exp_norm_u_var_distribution)
+            #for pos_idx, pos in enumerate(np.reshape(o_tokens, (batch_size,))):
+            #    exp_norm_u_var_distribution[pos_idx] = class_var_pos[pos]
+
+            unique_cls = np.array(list(pos_variations_count[str(t)].keys()))
+            #all_classes = list()
+            #for key in pos_variations_count[str(t)]:
+            #    all_classes.extend(np.repeat)
+            #print(pos_variations[str(t)])
+            #print(unique_cls, u_var_distribution)
+            all_cls = tf.repeat(unique_cls, repeats=u_var_distribution).numpy()
+            random.shuffle(all_cls)
+            #print(all_cls) 
+            
+            #class_wt = class_weight.compute_class_weight("balanced", np.unique(all_cls), all_cls)
+            y = all_cls
+            classes = unique_cls #np.unique(all_cls)
+            le = LabelEncoder()
+            y_ind = le.fit_transform(y)
+            recip_freq = len(y) / (len(le.classes_) * np.bincount(y_ind).astype(np.float64))
+            class_wt = recip_freq[le.transform(classes)]
+            #print(class_wt)
+
+            for k_i, key in enumerate(unique_cls):
+                class_var_pos[key] = class_wt[k_i]
+            #print(class_var_pos)
+
             exp_norm_u_var_distribution = np.zeros((batch_size))
             #print(exp_norm_u_var_distribution)
             for pos_idx, pos in enumerate(np.reshape(o_tokens, (batch_size,))):
                 exp_norm_u_var_distribution[pos_idx] = class_var_pos[pos]
-
+            #print("----")
+            step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution)) #, sample_weight=exp_norm_u_var_distribution
+            #print(o_tokens)
+            #print()
+            #print(exp_norm_u_var_distribution)
+            #print("-----")
             #print(o_tokens)
             #print()
             #print(exp_norm_u_var_distribution)
@@ -713,7 +748,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #unique_out_targets = np.unique(np.reshape(o_tokens, (batch_size,)))
             #target_tokens_weights = compute_class_weight("balanced", unique_out_targets, o_tokens)
             #print(target_tokens_weights)
-            step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
+            
             
             loss += step_loss
 
