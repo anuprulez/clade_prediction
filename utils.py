@@ -13,7 +13,11 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 #import tensorflow_probability as tfp
 from tensorflow.keras import backend as K
+from sklearn.utils.class_weight import compute_class_weight
 from sklearn.preprocessing import RobustScaler
+from sklearn.cluster import OPTICS
+from sklearn.cluster import KMeans
+from sklearn import metrics
 from Levenshtein import distance as lev_dist
 
 import neural_network
@@ -460,6 +464,61 @@ def compute_enc_distance(enc_mat):
     #return dist
 
 
+def find_cluster_indices(output_seqs, batch_size):
+    ## Cluster the output set of sequences and chooose sequences randomly from each cluster
+    ### 
+    '''fixed_seq_split = fixed_seq.split(",")
+    diff_index = np.zeros(len(unrolled_x))
+    #print(diff_index)
+    print(fixed_seq_split)
+    print()
+    for index_x, x in enumerate(unrolled_x):
+        x_sp = x.split(",")
+        for i, aa in enumerate(fixed_seq_split):
+            #print(aa, x_sp[i])
+            if aa != x_sp[i]:
+               diff_index[index_x] += 1
+        #if index_x == 5:
+        #    break
+        print(x.split(","))
+        print(diff_index[index_x])
+        print("-------------")'''
+ 
+    
+    features = convert_to_array(output_seqs)
+
+    #print(features, features.shape)
+
+    clustering_type = OPTICS(min_samples=2, min_cluster_size=2)
+    #clustering_type = KMeans(n_clusters=batch_size, random_state=0)
+    cluster_labels = clustering_type.fit_predict(features)
+
+    #print(cluster_labels, len(cluster_labels))
+
+    x = list()
+    y = list()
+    cluster_indices_dict = dict()
+    for i, l in enumerate(cluster_labels):
+        x.append(output_seqs[i])
+        y.append(l)
+        if l not in cluster_indices_dict:
+            cluster_indices_dict[l] = list()
+        cluster_indices_dict[l].append(i)
+
+    #print(cluster_indices_dict)
+
+    scatter_df = pd.DataFrame(list(zip(x, y)), columns=["output_seqs", "clusters"])
+
+    #print(scatter_df)
+
+    scatter_df.to_csv("data/generated_files/clustered_output_seqs_data.csv")
+    
+    #import sys
+    #sys.exit()
+
+    return cluster_labels, cluster_indices_dict
+
+
 def pairwise_dist(A, B):
     # https://gist.github.com/mbsariyildiz/34cdc26afb630e8cae079048eef91865
     # squared norms of each row in A and B
@@ -560,6 +619,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
 
         if len(output_tokens) > 0:
             o_tokens = output_tokens[:, t+1:t+2]
+            
             #step_loss = mut_error_factor * tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
             #print(o_tokens)
             #print(tf.repeat(batch_size, repeats=tf.constant(batch_size)))
@@ -568,41 +628,93 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
                 pos_variations[str(t)] = list()
             pos_variations[str(t)].extend(o_tokens)'''
 
+            
+
             #print(pos_variations[str(t)])
 
             # collect different variations at each POS
-            u_var = np.unique(pos_variations[str(t)])
-            u_var = np.reshape(u_var, (len(u_var), 1))
+            #u_var = np.unique(pos_variations[str(t)])
+            #u_var = np.reshape(u_var, (len(u_var), 1))
 
             # collect distribution of variations at different POS
+            #print(pos_variations_count[str(t)])
             u_var_distribution = np.array(list(pos_variations_count[str(t)].values()))
+            #print(u_var_distribution)
 
-            norm_u_var_distribution = u_var_distribution / np.sum(u_var_distribution)
-            exp_norm_u_var_distribution = tf.repeat(norm_u_var_distribution, repeats=batch_size)
+            #norm_u_var_distribution = u_var_distribution / np.sum(u_var_distribution)
+            #print(norm_u_var_distribution)
+
+            #rev_norm_u_var_distribution = 1.0 - (u_var_distribution / np.sum(u_var_distribution))
+            #print(rev_norm_u_var_distribution)
+
+            class_var_pos = dict() #pos_variations_count[str(t)]
+            #class_var_pos = pos_variations_count[str(t)]
+            pos_v = pos_variations_count[str(t)]
+
+            for key in pos_v:
+                if len(u_var_distribution) > 1:
+                    class_var_pos[key] = 1.0 - (pos_v[key] / np.sum(u_var_distribution))
+                else:
+                    class_var_pos[key] = pos_v[key] / np.sum(u_var_distribution)
+            print(pos_variations_count[str(t)])
+            print(class_var_pos)
+            print("-----")
+            exp_norm_u_var_distribution = np.zeros((batch_size))
+            #print(exp_norm_u_var_distribution)
+            for pos_idx, pos in enumerate(np.reshape(o_tokens, (batch_size,))):
+                exp_norm_u_var_distribution[pos_idx] = class_var_pos[pos]
+
+            #print(o_tokens)
+            #print()
+            #print(exp_norm_u_var_distribution)
+            #final_rev_dist = dict()
+            #for key in pos_variations_count[str(t)]:
+                
+            #print("-------------")
+            #norm_u_var_distribution = u_var_distribution / np.sum(u_var_distribution)
+            #exp_norm_u_var_distribution = tf.repeat(norm_u_var_distribution, repeats=batch_size)
 
             #print(t, pos_variations_count[str(t)], norm_u_var_distribution, exp_norm_u_var_distribution)
 
             #exp_o_tokens = tf.repeat(o_tokens, repeats=tf.repeat(batch_size, repeats=tf.constant(batch_size)))
             #exp_logits = tf.concat([dec_result, dec_result, dec_result, dec_result], axis=0)
-            exp_o_tokens = tf.repeat(u_var, repeats=batch_size) #repeats=tf.repeat(batch_size, repeats=tf.constant(batch_size))
-            exp_o_tokens = tf.reshape(exp_o_tokens, (batch_size * len(u_var), 1))
+            #exp_o_tokens = tf.repeat(u_var, repeats=batch_size) #repeats=tf.repeat(batch_size, repeats=tf.constant(batch_size))
+            #exp_o_tokens = tf.reshape(exp_o_tokens, (batch_size * len(u_var), 1))
             #print(exp_o_tokens)
             #print(t, u_var, exp_o_tokens)
-            exp_logits = dec_result #tf.concat([dec_result, dec_result, dec_result, dec_result], axis=0)
-            for i in range(len(u_var) - 1):
-                exp_logits = tf.concat([exp_logits, dec_result], axis=0)
+            #exp_logits = dec_result #tf.concat([dec_result, dec_result, dec_result, dec_result], axis=0)
+            #for i in range(len(u_var) - 1):
+            #    exp_logits = tf.concat([exp_logits, dec_result], axis=0)
             #print(exp_o_tokens.shape, exp_o_tokens, exp_logits.shape)
-            step_loss_real_targets = tf.reduce_mean(cross_entropy_loss(exp_o_tokens, exp_logits)) #, sample_weight=exp_norm_u_var_distribution
-            step_loss_output_targets = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
-
-            step_loss = 0.95 * step_loss_real_targets + 0.05 * step_loss_output_targets
-
+            #step_loss_real_targets = tf.reduce_mean(cross_entropy_loss(exp_o_tokens, exp_logits)) #, sample_weight=exp_norm_u_var_distribution
+            #step_loss_output_targets = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
+            #print(o_tokens)
+            #print()
+            #unique_out_targets = np.unique(np.reshape(o_tokens, (batch_size,)))
+            #print(unique_out_targets)
+            #random.shuffle(unique_out_targets)
+            #print(unique_out_targets)
+            #random_target_key = choices(unique_out_targets, k=1)
+            #exp_o_tokens = tf.repeat(choices(unique_out_targets, k=1), repeats=batch_size)
+            #exp_o_tokens = np.reshape(exp_o_tokens, (batch_size, 1))
+            #if t == 7:
+            #    print(exp_o_tokens)
+            #print(exp_o_tokens)
+            #step_loss = tf.reduce_mean(cross_entropy_loss(exp_o_tokens, dec_result)) #step_loss_output_targets #0.95 * step_loss_real_targets + 0.05 * step_loss_output_targets
+            #print(step_loss)
+            #print("-------------")
             #print("---------------")
             #print(dec_result.shape, exp_logits.shape)
             #print(exp_logits[0], exp_logits[1], exp_logits[2], exp_logits[3])
             #print("---")
             #print(exp_logits[0], exp_logits[4], exp_logits[8], exp_logits[12])
             #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
+
+            #unique_out_targets = np.unique(np.reshape(o_tokens, (batch_size,)))
+            #target_tokens_weights = compute_class_weight("balanced", unique_out_targets, o_tokens)
+            #print(target_tokens_weights)
+            step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
+            
             loss += step_loss
 
         '''if t in list(range(free_run_s_index, free_run_s_index + free_run_loops)):
@@ -689,9 +801,9 @@ def predict_sequence(tr_epoch, tr_batch, test_dataset_in, test_dataset_out, te_b
         #print("Generating sequences for each input sequence...")
         # generate_per_seq(tr_epoch, tr_batch, seq_len, te_batch_size, vocab_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units):
         #generate_per_seq(tr_epoch, tr_batch, seq_len, te_batch_size, vocab_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units)
-        print("Test: true input seq:")
-        print(batch_x_test[:5, 1:])
-        print()
+        #print("Test: true input seq:")
+        #print(batch_x_test[:5, 1:])
+        #print()
         print("Test: true output seq:")
         print(batch_y_test[:5, 1:])
         # generate seqs stepwise - teacher forcing
