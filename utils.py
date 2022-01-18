@@ -606,7 +606,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     free_run_loops = int(0.5 * seq_len)
     free_run_s_index = np.random.randint(0, seq_len - free_run_loops, 1)[0]
     i_tokens = tf.fill([batch_size, 1], 0)
-
+    print(pos_variations_count)
     for t in range(seq_len - 1):
         dec_result, dec_state = gen_decoder([i_tokens, dec_state])
         dec_state_mean_dist, dec_state_loop_pw_norm, _ = pairwise_dist(dec_state, dec_state)
@@ -628,8 +628,6 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             '''if str(t) not in pos_variations:
                 pos_variations[str(t)] = list()
             pos_variations[str(t)].extend(o_tokens)'''
-
-            
 
             #print(pos_variations[str(t)])
 
@@ -672,10 +670,12 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #    all_classes.extend(np.repeat)
             #print(pos_variations[str(t)])
             #print(unique_cls, u_var_distribution)
+            #log_u_var_distribution = np.log(u_var_distribution)
+            #print(log_u_var_distribution)
             all_cls = tf.repeat(unique_cls, repeats=u_var_distribution).numpy()
             random.shuffle(all_cls)
-            #print(all_cls) 
-            
+            #print(all_cls)
+
             #class_wt = class_weight.compute_class_weight("balanced", np.unique(all_cls), all_cls)
             y = all_cls
             classes = unique_cls #np.unique(all_cls)
@@ -693,6 +693,8 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #print(exp_norm_u_var_distribution)
             for pos_idx, pos in enumerate(np.reshape(o_tokens, (batch_size,))):
                 exp_norm_u_var_distribution[pos_idx] = class_var_pos[pos]
+            #print(o_tokens)
+            #print(exp_norm_u_var_distribution)
             #print("----")
             step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution)) #, sample_weight=exp_norm_u_var_distribution
             #print(o_tokens)
@@ -704,7 +706,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #print(exp_norm_u_var_distribution)
             #final_rev_dist = dict()
             #for key in pos_variations_count[str(t)]:
-                
+
             #print("-------------")
             #norm_u_var_distribution = u_var_distribution / np.sum(u_var_distribution)
             #exp_norm_u_var_distribution = tf.repeat(norm_u_var_distribution, repeats=batch_size)
