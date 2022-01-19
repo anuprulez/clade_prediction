@@ -704,12 +704,13 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #print(o_tokens)
             #print(exp_norm_u_var_distribution)
             #print("----")
-            if batch_step % 2 == 0:
+            if batch_step % 4 == 0:
+                #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
+                step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
+                #, sample_weight=exp_norm_u_var_distribution
+            else:  
                 step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
                 #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
-                #, sample_weight=exp_norm_u_var_distribution
-            else:
-                step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
             #print(o_tokens)
             #print()
             #print(exp_norm_u_var_distribution)
