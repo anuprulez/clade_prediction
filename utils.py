@@ -32,8 +32,8 @@ cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=F
 mae = tf.keras.losses.MeanAbsoluteError()
 mse = tf.keras.losses.MeanSquaredError()
 test_tf_ratio = 0.0
-enc_stddev = 0.05 # 0.05 for pretraining
-max_norm = 1.0
+enc_stddev = 1.0 # 0.05 for pretraining
+max_norm = 10.0
 dec_stddev = 0.0001
 #pos_variations = dict()
 amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"
@@ -549,10 +549,10 @@ def pairwise_dist(A, B):
 
     #D = tf.math.abs(D)
     
-    #D_min = tf.math.reduce_min(D)
-    #D_max = tf.math.reduce_max(D)
+    D_min = tf.math.reduce_min(D)
+    D_max = tf.math.reduce_max(D)
 
-    #D = (D - D_min) / ((D_max - D_min) + 1e-10)
+    D = (D - D_min) / ((D_max - D_min) + 1e-10)
 
     #print(D)
 
@@ -577,9 +577,9 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     show = 2
     
     enc_output, enc_state = gen_encoder(input_tokens)
-    '''print(enc_state)
+    print(enc_state[:, :5])
     print()
-    print("---------")'''
+    #print("---------")
     #print(tf.linalg.normalize(enc_state, ord=np.inf)[0])
     dec_state = enc_state
     #print(dec_state)
@@ -782,7 +782,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     #loss = loss + enc_mean_dist + dec_loop_mean_dist + enc_state_norm + dec_loop_norm
     #loss = loss + enc_pw_norm + enc_state_norm + dec_loop_norm # + residual_norm + dec_loop_norm
     #loss = loss + enc_state_norm + dec_loop_norm + enc_mean_dist + dec_loop_mean_dist
-    loss = loss + enc_state_norm + dec_loop_norm
+    loss = loss + enc_mean_dist + dec_loop_mean_dist # dec_loop_norm
     return gen_logits, gen_encoder, gen_decoder, loss
 
 
