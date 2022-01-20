@@ -18,12 +18,12 @@ import preprocess_sequences
 import utils
 
 
-RESULT_PATH = "test_results/11_01_22/"
+RESULT_PATH = "test_results/20_01_22/"
 
 min_diff = 0
 max_diff = 61
 train_size = 1.0
-enc_units = 128
+enc_units = 64
 random_size = 20
 LEN_AA = 16
 FUTURE_GEN_TEST = "test/20A_20B.csv"
@@ -34,7 +34,7 @@ clade_childen = ["20B"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"]
 # ["20G", "21C_Epsilon", "21F_Iota"]
 # {"20B": ["20I (Alpha, V1)", "20F", "20D", "21G (Lambda)", "21H"]}
 
-generating_factor = 50
+generating_factor = 5
 
 PATH_PRE = "data/ncov_global/"
 #PATH_SEQ = PATH_PRE + "spikeprot0815.fasta"
@@ -120,7 +120,7 @@ def load_model_generated_sequences(file_path):
         te_y.to_csv(true_y_df_path, index=None)
 
         with tf.device('/device:cpu:0'):
-            predict_multiple(te_y, te_y, LEN_AA, vocab_size, encoded_wuhan_seq, kmer_f_dict, kmer_r_dict)
+            predict_multiple(te_X, te_y, LEN_AA, vocab_size, encoded_wuhan_seq, kmer_f_dict, kmer_r_dict)
 
 
 def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq, kmer_f_dict, kmer_r_dict):

@@ -704,7 +704,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #print(o_tokens)
             #print(exp_norm_u_var_distribution)
             #print("----")
-            if batch_step % 4 == 0:
+            if batch_step % 3 == 0:
                 #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
                 step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
                 #, sample_weight=exp_norm_u_var_distribution
@@ -765,13 +765,13 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #target_tokens_weights = compute_class_weight("balanced", unique_out_targets, o_tokens)
             #print(target_tokens_weights)
             loss += step_loss
-        if t in list(range(free_run_s_index, free_run_s_index + free_run_loops)):
+        '''if t in list(range(free_run_s_index, free_run_s_index + free_run_loops)):
             i_tokens = tf.argmax(dec_result, axis=-1)
         else:
-            i_tokens = o_tokens
+            i_tokens = o_tokens'''
         #print(dec_result, o_tokens, tf.argmax(dec_result, axis=-1))
         #print()
-        #i_tokens = o_tokens #o_tokens #tf.argmax(dec_result, axis=-1) #o_tokens
+        i_tokens = o_tokens #o_tokens #tf.argmax(dec_result, axis=-1) #o_tokens
     #import sys
     #sys.exit()
     gen_logits = tf.concat(gen_logits, axis=-2)
