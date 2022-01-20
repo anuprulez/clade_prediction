@@ -291,6 +291,8 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
 
     # pretrain generator
     if to_pretrain is True:
+
+        utils.create_dirs("data/generated_files/pre_train")
         pretrain_gen_train_loss = list()
         pretrain_gen_test_loss = list()
 
@@ -343,6 +345,8 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
         sys.exit()
     # GAN training
     # create discriminator model
+
+    utils.create_dirs("data/generated_files/gan_train")
     disc_parent_encoder_model, disc_gen_encoder_model = neural_network.make_disc_par_gen_model(len_final_aa_padding, vocab_size, embedding_dim, enc_units, batch_size, size_stateful)
 
     '''for lr in disc_parent_encoder_model.layers:

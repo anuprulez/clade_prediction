@@ -582,11 +582,16 @@ def get_pearson_coeff(enc_matr):
     return np.mean(np.array(pearson_coeff))
 
 
+def create_dirs(folder_path):
+    if not os.path.isdir(folder_path):
+        os.mkdir(folder_path)
+
+
 def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful, mut_freq, pos_variations, pos_variations_count, batch_step):
     show = 2
     enc_output, enc_state = gen_encoder(input_tokens)
-    print(enc_state[:, :5])
-    print()
+    #print(enc_state[:, :5])
+    #print()
     enc_corr = get_pearson_coeff(enc_state)
     #print(corr)
     #print()
@@ -771,7 +776,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             i_tokens = o_tokens'''
         #print(dec_result, o_tokens, tf.argmax(dec_result, axis=-1))
         #print()
-        i_tokens = o_tokens #o_tokens #tf.argmax(dec_result, axis=-1) #o_tokens
+        i_tokens = tf.argmax(dec_result, axis=-1) #o_tokens #tf.argmax(dec_result, axis=-1) #o_tokens
     #import sys
     #sys.exit()
     gen_logits = tf.concat(gen_logits, axis=-2)
@@ -797,7 +802,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     #loss = loss + enc_pw_norm + enc_state_norm + dec_loop_norm # + residual_norm + dec_loop_norm
     #loss = loss + enc_state_norm + dec_loop_norm + enc_mean_dist + dec_loop_mean_dist
     #loss = loss + enc_mean_dist + dec_loop_mean_dist # dec_loop_norm
-    loss = loss + enc_corr + dec_loop_corr
+    #loss = loss + enc_corr + dec_loop_corr
     return gen_logits, gen_encoder, gen_decoder, loss
 
 

@@ -288,7 +288,18 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, pf_model, enc
   #pos_variations_count = dict()
   pos_size = dict() #get_mut_size(pretr_parent_child_mut_indices)
   #for step, (unrolled_x, unrolled_y) in enumerate(zip(X_train, y_train)):
+
+  epo_pre_train_save_folder = "data/generated_files/pre_train/{}".format(str(epo_step+1))
+  enc_pre_train_save_folder = "data/generated_files/pre_train/{}/enc".format(str(epo_step+1))
+  dec_pre_train_save_folder = "data/generated_files/pre_train/{}/dec".format(str(epo_step+1))
+
+  utils.create_dirs(epo_pre_train_save_folder)
+  utils.create_dirs(enc_pre_train_save_folder)
+  utils.create_dirs(dec_pre_train_save_folder)
+
   for step in range(n_batches):
+      if step == 3:
+          break
       unrolled_x, unrolled_y = sample_true_x_y(batch_size, X_train, y_train, cluster_indices)
 
       '''print("Batch {} x and y:".format(str(step+1)))
@@ -380,10 +391,16 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, pf_model, enc
   # save model
 
   gen_encoder.save_weights(GEN_ENC_WEIGHTS)
+
   tf.keras.models.save_model(gen_encoder, PRETRAIN_GEN_ENC_MODEL)
   tf.keras.models.save_model(gen_decoder, PRETRAIN_GEN_DEC_MODEL)
+
   gen_encoder.save_weights(PRE_TR_GEN_ENC_WEIGHTS)
   gen_decoder.save_weights(PRE_TR_GEN_DEC_WEIGHTS)
+
+  tf.keras.models.save_model(gen_encoder, enc_pre_train_save_folder)
+  tf.keras.models.save_model(gen_decoder, dec_pre_train_save_folder)
+
   utils.save_as_json("data/generated_files/pretr_ave_batch_x_y_mut_epo_{}.json".format(str(epo_step)), batch_mut_distribution)
   return np.mean(epo_avg_tr_gen_loss), np.mean(epo_te_gen_loss), np.mean(epo_te_seq_var), np.mean(epo_tr_seq_var), gen_encoder, gen_decoder
 
@@ -415,6 +432,14 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
   pos_size = dict() #get_mut_size(parent_child_mut_indices)
 
   mut_keys = list(parent_child_mut_indices.keys())
+
+  epo_train_save_folder = "data/generated_files/gan_train/{}".format(str(epo_step+1))
+  enc_train_save_folder = "data/generated_files/gan_train/{}/enc".format(str(epo_step+1))
+  dec_train_save_folder = "data/generated_files/gan_train/{}/dec".format(str(epo_step+1))
+  utils.create_dirs(epo_train_save_folder)
+  utils.create_dirs(enc_train_save_folder)
+  utils.create_dirs(dec_train_save_folder)
+
   for step in range(n_train_batches):
       #unrolled_x, unrolled_y, batch_mut_distribution = sample_true_x_y(parent_child_mut_indices, batch_size, X_train, y_train, batch_mut_distribution)
       unrolled_x, unrolled_y = sample_true_x_y(batch_size, X_train, y_train, train_cluster_indices_dict)
@@ -460,6 +485,7 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
           print("Training: prediction on test data...")
           with tf.device('/device:cpu:0'):
               _, _ = utils.predict_sequence(epo_step, step, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, encoder, decoder, size_stateful)
+      
       print("Training epoch {}/{}, batch {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}, D true loss: {}, D fake loss: {}, Total D loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_train_batches), str(gen_true_loss.numpy()), str(gen_fake_loss.numpy()), str(total_gen_loss.numpy()), str(disc_real_loss.numpy()), str(disc_fake_loss.numpy()), str(total_disc_loss.numpy())))
       # write off results
       epo_ave_gen_true_loss.append(gen_true_loss.numpy())
@@ -471,8 +497,14 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
   # save model
   print("Training epoch {} finished, Saving model...".format(str(epo_step+1)))
   print()
+
   tf.keras.models.save_model(encoder, TRAIN_GEN_ENC_MODEL)
   tf.keras.models.save_model(decoder, TRAIN_GEN_DEC_MODEL)
+ 
+  # save trained models per epoch
+  tf.keras.models.save_model(encoder, enc_train_save_folder)
+  tf.keras.models.save_model(decoder, dec_train_save_folder)
+
   encoder.save_weights(GEN_ENC_WEIGHTS)
   decoder.save_weights(GEN_DEC_WEIGHTS)
   utils.save_as_json("data/generated_files/ave_batch_x_y_mut_epo_{}.json".format(str(epo_step)), batch_mut_distribution)
