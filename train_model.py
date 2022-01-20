@@ -40,7 +40,7 @@ discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) # learnin
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 n_disc_step = 10
 n_gen_step = 5
-unrolled_steps = 3
+unrolled_steps = 0
 test_log_step = 20
 teacher_forcing_ratio = 0.0
 disc_clip_norm = 10.0
@@ -182,7 +182,7 @@ def g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, u
         # discriminate pairs of true parent and generated child sequences
         fake_output = discriminator([real_x, fake_y], training=True)
         gen_fake_loss = generator_loss(fake_output)
-        total_gen_loss = gen_true_loss + gen_fake_loss
+        total_gen_loss = gen_true_loss #+ gen_fake_loss
     print()
     # get all trainable vars for generator
     gen_trainable_vars = encoder.trainable_variables + decoder.trainable_variables
