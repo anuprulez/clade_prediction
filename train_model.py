@@ -298,8 +298,6 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, pf_model, enc
   utils.create_dirs(dec_pre_train_save_folder)
 
   for step in range(n_batches):
-      if step == 3:
-          break
       unrolled_x, unrolled_y = sample_true_x_y(batch_size, X_train, y_train, cluster_indices)
 
       '''print("Batch {} x and y:".format(str(step+1)))
