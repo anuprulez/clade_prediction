@@ -611,30 +611,30 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     #print(dec_state[:show, :])
     loss = tf.constant(0.0)
     gen_logits = list()
-    o_state_norm = list()
-    dec_state_mean_dist = tf.constant(0.0)
-    dec_state_loop_pw_norm = tf.constant(0.0)
-    dec_step_norm = tf.constant(0.0)
-    dec_loop_norm = tf.constant(0.0)
-    dec_loop_pw_norm = tf.constant(0.0)
-    dec_loop_mean_dist = tf.constant(0.0)
-    dec_loop_corr = tf.constant(0.0)
-    mut_error_factor = tf.constant(1.0)
-    free_run_loops = int(0.5 * seq_len)
-    free_run_s_index = np.random.randint(0, seq_len - free_run_loops, 1)[0]
+    #o_state_norm = list()
+    #dec_state_mean_dist = tf.constant(0.0)
+    #dec_state_loop_pw_norm = tf.constant(0.0)
+    #dec_step_norm = tf.constant(0.0)
+    #dec_loop_norm = tf.constant(0.0)
+    #dec_loop_pw_norm = tf.constant(0.0)
+    #dec_loop_mean_dist = tf.constant(0.0)
+    #dec_loop_corr = tf.constant(0.0)
+    #mut_error_factor = tf.constant(1.0)
+    #free_run_loops = int(0.5 * seq_len)
+    #free_run_s_index = np.random.randint(0, seq_len - free_run_loops, 1)[0]
     i_tokens = tf.fill([batch_size, 1], 0)
     #print(pos_variations_count)
     gamma_nos = np.random.gamma(1, size=seq_len)
     #rand_pos = random.sample(range(0, seq_len - 1), (seq_len - 1) // 2) #np.random.randint(0, seq_len - 1, (seq_len - 1) // 4)
     for t in range(seq_len - 1):
         dec_result, dec_state = gen_decoder([i_tokens, dec_state])
-        dec_state_mean_dist, dec_state_loop_pw_norm, _ = pairwise_dist(dec_state, dec_state)
-        dec_loop_mean_dist += dec_state_mean_dist
-        dec_state_step_norm = tf.math.abs(max_norm - tf.norm(dec_state))
-        dec_loop_norm += dec_state_step_norm
-        dec_loop_pw_norm += dec_state_loop_pw_norm
+        #dec_state_mean_dist, dec_state_loop_pw_norm, _ = pairwise_dist(dec_state, dec_state)
+        #dec_loop_mean_dist += dec_state_mean_dist
+        #dec_state_step_norm = tf.math.abs(max_norm - tf.norm(dec_state))
+        #dec_loop_norm += dec_state_step_norm
+        #dec_loop_pw_norm += dec_state_loop_pw_norm
         gen_logits.append(dec_result)
-        dec_loop_corr += get_pearson_coeff(dec_state)
+        #dec_loop_corr += get_pearson_coeff(dec_state)
         if len(output_tokens) > 0:
             o_tokens = output_tokens[:, t+1:t+2]
             #step_loss = mut_error_factor * tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
@@ -805,20 +805,20 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     #sys.exit()
     gen_logits = tf.concat(gen_logits, axis=-2)
     loss = loss / seq_len
-    dec_loop_mean_dist = dec_loop_mean_dist / seq_len
-    dec_loop_norm = dec_loop_norm / seq_len
-    dec_loop_pw_norm = dec_loop_pw_norm / seq_len
-    dec_loop_corr = dec_loop_corr / seq_len
+    #dec_loop_mean_dist = dec_loop_mean_dist / seq_len
+    #dec_loop_norm = dec_loop_norm / seq_len
+    #dec_loop_pw_norm = dec_loop_pw_norm / seq_len
+    #dec_loop_corr = dec_loop_corr / seq_len
     #dec_step_norm = dec_step_norm / seq_len
     print("True loss: ", loss) # , enc_mean_dist, dec_loop_mean_dist, enc_state_norm, dec_loop_norm
-    print("Enc state mean dist:", enc_mean_dist)
-    print("Dec state mean dist:", dec_loop_mean_dist)
-    print("Encoder norm: {}".format(str(enc_state_norm)))
+    #print("Enc state mean dist:", enc_mean_dist)
+    #print("Dec state mean dist:", dec_loop_mean_dist)
+    #print("Encoder norm: {}".format(str(enc_state_norm)))
     #print("Encoder pairwise dist norm: {}".format(str(enc_pw_norm)))
-    print("Encoder norm with noise: {}".format(str(enc_state_norm_noise)))
-    print("Decoder norm: {}".format(str(dec_loop_norm)))
-    print("Encoder mean correlation: {}".format(str(enc_corr)))
-    print("Decoder mean correlation: {}".format(str(dec_loop_corr)))
+    #print("Encoder norm with noise: {}".format(str(enc_state_norm_noise)))
+    #print("Decoder norm: {}".format(str(dec_loop_norm)))
+    #print("Encoder mean correlation: {}".format(str(enc_corr)))
+    #print("Decoder mean correlation: {}".format(str(dec_loop_corr)))
     #print("Decoder pairwise dist norm: {}".format(str(dec_loop_pw_norm)))
     #print("--------------")
     #loss = loss + enc_mean_dist + dec_loop_mean_dist + enc_state_norm + dec_loop_norm #+ enc_pw_norm #+ dec_loop_pw_norm
