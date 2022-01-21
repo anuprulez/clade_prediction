@@ -624,6 +624,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     free_run_s_index = np.random.randint(0, seq_len - free_run_loops, 1)[0]
     i_tokens = tf.fill([batch_size, 1], 0)
     print(pos_variations_count)
+    gamma_nos = np.random.gamma(1, size=seq_len)
     for t in range(seq_len - 1):
         dec_result, dec_state = gen_decoder([i_tokens, dec_state])
         dec_state_mean_dist, dec_state_loop_pw_norm, _ = pairwise_dist(dec_state, dec_state)
@@ -709,9 +710,12 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #print(o_tokens)
             #print(exp_norm_u_var_distribution)
             #print("----")
-            rand_int = np.random.randint(0, 256, 1)[0]
-            #print(t + rand_int, (t + rand_int) % 2)
-            if (t + rand_int) % 2 == 0:
+            #rand_int = np.random.randint(0, 256, 1)[0]
+            #print(rand_int, rand_int % 3)
+            
+            #if rand_int % 2 == 0:
+            if gamma_nos[t] > 1.0:
+                #print("greater than 1")
                 #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
                 step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
                 #, sample_weight=exp_norm_u_var_distribution
@@ -778,7 +782,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             i_tokens = o_tokens'''
         #print(dec_result, o_tokens, tf.argmax(dec_result, axis=-1))
         #print()
-        i_tokens = tf.argmax(dec_result, axis=-1) #o_tokens #tf.argmax(dec_result, axis=-1) #o_tokens
+        i_tokens = o_tokens #tf.argmax(dec_result, axis=-1) #o_tokens
     #import sys
     #sys.exit()
     gen_logits = tf.concat(gen_logits, axis=-2)
