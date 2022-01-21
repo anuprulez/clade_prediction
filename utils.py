@@ -625,6 +625,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     i_tokens = tf.fill([batch_size, 1], 0)
     print(pos_variations_count)
     gamma_nos = np.random.gamma(1, size=seq_len)
+    #rand_pos = random.sample(range(0, seq_len - 1), (seq_len - 1) // 2) #np.random.randint(0, seq_len - 1, (seq_len - 1) // 4)
     for t in range(seq_len - 1):
         dec_result, dec_state = gen_decoder([i_tokens, dec_state])
         dec_state_mean_dist, dec_state_loop_pw_norm, _ = pairwise_dist(dec_state, dec_state)
@@ -712,10 +713,27 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #print("----")
             #rand_int = np.random.randint(0, 256, 1)[0]
             #print(rand_int, rand_int % 3)
+
+            '''
+            # yields good results and across the 
+            rand_int = np.random.randint(0, 256, 1)[0]
+            #print(t + rand_int, (t + rand_int) % 2)
+            if (t + rand_int) % 2 == 0:
+                #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
+                step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
+                #, sample_weight=exp_norm_u_var_distribution
+            else:
+                step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
+            '''
             
             #if rand_int % 2 == 0:
             if gamma_nos[t] > 1.0:
-                #print("greater than 1")
+            #unweighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
+            #weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
+            #lambda_fac = 0.25
+            #step_loss = (1.0 - unweighted_loss) * unweighted_loss + lambda_fac * weighted_loss
+            #if t in rand_pos:
+                #print("Randpos", t, rand_pos)
                 #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
                 step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
                 #, sample_weight=exp_norm_u_var_distribution
