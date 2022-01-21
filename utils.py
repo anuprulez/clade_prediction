@@ -623,7 +623,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     free_run_loops = int(0.5 * seq_len)
     free_run_s_index = np.random.randint(0, seq_len - free_run_loops, 1)[0]
     i_tokens = tf.fill([batch_size, 1], 0)
-    print(pos_variations_count)
+    #print(pos_variations_count)
     gamma_nos = np.random.gamma(1, size=seq_len)
     #rand_pos = random.sample(range(0, seq_len - 1), (seq_len - 1) // 2) #np.random.randint(0, seq_len - 1, (seq_len - 1) // 4)
     for t in range(seq_len - 1):
