@@ -38,10 +38,10 @@ pf_discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5)
 generator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) # learning_rate=1e-3, beta_1=0.5
 discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) # learning_rate=3e-5, beta_1=0.5
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
-n_disc_step = 10
-n_gen_step = 5
+n_disc_step = 2
+n_gen_step = 1
 unrolled_steps = 0
-test_log_step = 100
+test_log_step = 10
 teacher_forcing_ratio = 0.0
 disc_clip_norm = 10.0
 gen_clip_norm = 10.0
@@ -329,7 +329,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, pf_model, enc
       sys.exit()'''
       #print(pos_size)
       with tf.GradientTape() as gen_tape:
-          print(unrolled_x.shape, unrolled_y.shape)
+          #print(unrolled_x.shape, unrolled_y.shape)
           pred_logits, gen_encoder, gen_decoder, gen_loss = utils.loop_encode_decode(seq_len, batch_size, vocab_size, unrolled_x, unrolled_y, gen_encoder, gen_decoder, enc_units, teacher_forcing_ratio, True, size_stateful, pos_size, pos_variations, pos_variations_count, step)
           #print("Training: true input seq")
           #print(unrolled_x[:5, 1:], unrolled_x.shape)
@@ -380,7 +380,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, pf_model, enc
           print("-------")
           print("Pretr: Prediction on test data at epoch {}/{}, batch {}/{}...".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches)))
           print()
-          gen_te_loss, gen_te_seq_var = utils.predict_sequence(epo_step, step, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, gen_encoder, gen_decoder, size_stateful)
+          gen_te_loss, gen_te_seq_var = utils.predict_sequence(epo_step, step, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, gen_encoder, gen_decoder, size_stateful, "pretrain", True)
           epo_te_gen_loss.append(gen_te_loss)
           epo_te_seq_var.append(gen_te_seq_var)
           print("-------")
@@ -482,7 +482,7 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
       if (step + 1) % test_log_step == 0 and step > 0:
           print("Training: prediction on test data...")
           with tf.device('/device:cpu:0'):
-              _, _ = utils.predict_sequence(epo_step, step, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, encoder, decoder, size_stateful)
+              _, _ = utils.predict_sequence(epo_step, step, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, encoder, decoder, size_stateful, "gan_train", True)
       
       print("Training epoch {}/{}, batch {}/{}, G true loss: {}, G fake loss: {}, Total G loss: {}, D true loss: {}, D fake loss: {}, Total D loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_train_batches), str(gen_true_loss.numpy()), str(gen_fake_loss.numpy()), str(total_gen_loss.numpy()), str(disc_real_loss.numpy()), str(disc_fake_loss.numpy()), str(total_disc_loss.numpy())))
       # write off results

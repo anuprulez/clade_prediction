@@ -69,23 +69,23 @@ enc_units = 128
 '''
 
 s_kmer = 3
-LEN_AA = 1273 # 1273 for considering entire seq length
+LEN_AA = 16 # 1273 for considering entire seq length
 len_aa_subseq = LEN_AA
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 2 # write 2 here when there is padding of zero in in and out sequences
 size_stateful = 10
 # Neural network parameters
-embedding_dim = 64
+embedding_dim = 32
 batch_size = 4
 te_batch_size = batch_size
 n_te_batches = 10
-enc_units = 256
-pretrain_epochs = 5
-epochs = 10
+enc_units = 64
+pretrain_epochs = 2
+epochs = 2
 max_l_dist = 11
 test_train_size = 0.85
 pretrain_train_size = 0.5
-random_clade_size = 500
+random_clade_size = 150
 to_pretrain = True
 pretrained_model = False
 gan_train = True
@@ -320,16 +320,17 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
             pretrain_gen_batch_test_seq_var.append(bat_te_seq_var)
             pretrain_gen_train_seq_var.append(bat_tr_seq_var)
             print()
-            '''print("Pretrain: predicting on test datasets...")
-            #with tf.device('/device:cpu:0'):
-            
-            pretrain_gen_te_loss, pretrain_gen_te_seq_var = utils.predict_sequence(i, 0, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, len_final_aa_padding, vocab_size, enc_units, encoder, decoder, size_stateful)
-            pretrain_gen_test_loss.append(pretrain_gen_te_loss)
-            pretrain_gen_test_seq_var.append(pretrain_gen_te_seq_var)
+            print("Pretrain: predicting on test datasets...")
+            with tf.device('/device:cpu:0'):
+                pretrain_gen_te_loss, pretrain_gen_te_seq_var = utils.predict_sequence(i, 0, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, len_final_aa_padding, vocab_size, enc_units, encoder, decoder, size_stateful, "pretrain")
+                pretrain_gen_test_loss.append(pretrain_gen_te_loss)
+                pretrain_gen_test_seq_var.append(pretrain_gen_te_seq_var)
             print("Pre-training epoch {} finished".format(str(i+1)))
             print()
             epoch_type_name = "pretrain_epoch_{}".format(str(i+1))
-            utils.save_predicted_test_data(test_dataset_in, test_dataset_out, te_batch_size, enc_units, vocab_size, epoch_type_name)'''
+            #PRETRAIN_GEN_ENC_MODEL = "data/generated_files/pretrain_gen_encoder"
+            #PRETRAIN_GEN_DEC_MODEL = "data/generated_files/pretrain_gen_decoder"
+            utils.save_predicted_test_data(test_dataset_in, test_dataset_out, te_batch_size, enc_units, vocab_size, epoch_type_name, PRETRAIN_GEN_ENC_MODEL, PRETRAIN_GEN_DEC_MODEL)
         np.savetxt(PRETRAIN_GEN_LOSS, pretrain_gen_train_loss)
         np.savetxt(PRETRAIN_GEN_TEST_LOSS, pretrain_gen_test_loss)
         np.savetxt("data/generated_files/pretrain_gen_test_seq_var.txt", pretrain_gen_test_seq_var)
@@ -343,18 +344,13 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
 
     if gan_train is False:
         sys.exit()
+
     # GAN training
     # create discriminator model
 
     utils.create_dirs("data/generated_files/gan_train")
     disc_parent_encoder_model, disc_gen_encoder_model = neural_network.make_disc_par_gen_model(len_final_aa_padding, vocab_size, embedding_dim, enc_units, batch_size, size_stateful)
 
-    '''for lr in disc_parent_encoder_model.layers:
-        print(lr)
-    print()
-    for lr in disc_gen_encoder_model.layers:
-        print(lr)'''
-    #sys.exit()
     discriminator = neural_network.make_discriminator_model(enc_units)
 
     # use the pretrained generator and train it along with discriminator
@@ -400,12 +396,14 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
         # predict seq on test data
         print("Prediction on test data...")
         with tf.device('/device:cpu:0'):
-            epo_tr_gen_te_loss, epo_tr_gen_seq_var = utils.predict_sequence(n, 0, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, len_final_aa_padding, vocab_size, enc_units, encoder, decoder, size_stateful)
+            epo_tr_gen_te_loss, epo_tr_gen_seq_var = utils.predict_sequence(n, 0, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, len_final_aa_padding, vocab_size, enc_units, encoder, decoder, size_stateful, "gan_train")
             train_te_loss.append(epo_tr_gen_te_loss)
             train_gen_test_seq_var.append(epo_tr_gen_seq_var)
         print()
-        epoch_type_name = "train_epoch_{}".format(str(n+1))
-        utils.save_predicted_test_data(test_dataset_in, test_dataset_out, te_batch_size, enc_units, vocab_size, epoch_type_name)
+        epoch_type_name = "gan_train_epoch_{}".format(str(n+1))
+        #TRAIN_GEN_ENC_MODEL = "data/generated_files/gen_enc_model"
+        #TRAIN_GEN_DEC_MODEL = "data/generated_files/gen_dec_model"
+        utils.save_predicted_test_data(test_dataset_in, test_dataset_out, te_batch_size, enc_units, vocab_size, epoch_type_name, TRAIN_GEN_ENC_MODEL, TRAIN_GEN_DEC_MODEL)
     print("Training finished")
     # save loss files
     np.savetxt(TRAIN_GEN_TOTAL_LOSS, train_gen_total_loss)

@@ -860,7 +860,7 @@ def loop_encode_decode_predict(seq_len, batch_size, vocab_size, input_tokens, ou
     #print("--------------")
     return gen_logits, gen_encoder, gen_decoder, loss
 
-def predict_sequence(tr_epoch, tr_batch, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, loaded_encoder, loaded_generator, s_stateful):
+def predict_sequence(tr_epoch, tr_batch, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, loaded_encoder, loaded_generator, s_stateful, train_type, save=False):
     avg_test_loss = []
     avg_test_seq_var = []
     train_mode = False
@@ -910,9 +910,10 @@ def predict_sequence(tr_epoch, tr_batch, test_dataset_in, test_dataset_out, te_b
     print("Total test loss in {} batches: {}".format(str(n_te_batches), str(np.mean(avg_test_loss))))
     print("---")
 
-    true_predicted_multiple = pd.DataFrame(list(zip(batch_x, batch_y, batch_pred)), columns=["X", "Y", "Generated"])
-    df_path = "{}true_predicted_multiple_tr_epoch_{}_tr_batch_{}_n_te_batches_{}.csv".format("data/generated_files/", str(tr_epoch), str(tr_batch), str(step), str(n_te_batches))
-    true_predicted_multiple.to_csv(df_path, index=None)
+    if save is True:
+        true_predicted_multiple = pd.DataFrame(list(zip(batch_x, batch_y, batch_pred)), columns=["X", "Y", "Generated"])
+        df_path = "{}{}_intermediate_training_prediction_tr_epoch_{}_tr_batch_{}_n_te_batches_{}.csv".format("data/generated_files/", train_type, str(tr_epoch), str(tr_batch), str(step), str(n_te_batches))
+        true_predicted_multiple.to_csv(df_path, index=None)
     return np.mean(avg_test_loss), np.mean(avg_test_seq_var)
 
 
@@ -940,9 +941,10 @@ def generate_per_seq(tr_epoch, tr_batch, seq_len, te_batch_size, vocab_size, bat
     df_path = "{}true_predicted_multiple_tr_epoch_{}_tr_batch_{}_te_batch_{}_gen_fac_{}.csv".format("data/generated_files/", str(tr_epoch), str(tr_batch), str(step), str(generating_fac))
     true_predicted_multiple.to_csv(df_path, index=None)
 
-def save_predicted_test_data(test_data_in, test_data_out, te_batch_size, enc_units, vocab_size, epoch_type_name):
-    te_encoder = tf.keras.models.load_model("data/generated_files/pretrain_gen_encoder")
-    te_decoder = tf.keras.models.load_model("data/generated_files/pretrain_gen_decoder")
+
+def save_predicted_test_data(test_data_in, test_data_out, te_batch_size, enc_units, vocab_size, epoch_type_name, enc_model_path, dec_model_path):
+    te_encoder = tf.keras.models.load_model(enc_model_path)
+    te_decoder = tf.keras.models.load_model(dec_model_path)
     test_data_in, test_data_out = convert_to_array(test_data_in), convert_to_array(test_data_out)
     seq_len = test_data_in.shape[1]
     n_te_batches = int(test_data_in.shape[0] / te_batch_size)
