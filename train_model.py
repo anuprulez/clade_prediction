@@ -211,17 +211,17 @@ def sample_true_x_y(batch_size, X_train, y_train, cluster_indices):
     print()
     print(rand_keys)
     print()'''
-    print(rand_keys)
-    print()
+    #print(rand_keys)
+    #print()
     for key in rand_keys:
         rows_indices = cluster_indices[key]
         #print(rows_indices)
         random.shuffle(rows_indices)
         #print(rows_indices)
         #rand_row_index = np.random.randint(0, len(rows_indices), 1)[0]
-        rand_batch_indices.append(rows_indices[0])
+        #rand_batch_indices.append(rows_indices[0])
         #print("---")
-    #rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)
+    rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)
     #print(rand_batch_indices)
     #print()
     x_batch_train = X_train[rand_batch_indices]
