@@ -699,35 +699,49 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             recip_freq = len(y) / (len(le.classes_) * np.bincount(y_ind).astype(np.float64))
             class_wt = recip_freq[le.transform(classes)]
             #print(class_wt)
-
+            beta = 0.99
+            #print(pos_variations_count[str(t)])
+            #class_wt = [x / float(np.sum(x)) for x in class_wt]
+            #print(class_wt)
             for k_i, key in enumerate(unique_cls):
-                class_var_pos[key] = class_wt[k_i]
+                class_var_pos[key] = class_wt[k_i] #(1 - beta) / (1 - beta ** pos_variations_count[str(t)][key]) #class_wt[k_i]
             #print(class_var_pos)
+
+            s_wts = np.sum(list(class_var_pos.values()))
+            for k_i, key in enumerate(unique_cls):
+                class_var_pos[key] = class_wt[k_i] / s_wts #(1 - beta) / (1 - beta ** pos_variations_count[str(t)][key]) #class_wt[k_i]
+            #print(class_var_pos)
+                
             #print()
             exp_norm_u_var_distribution = np.zeros((batch_size))
             #print(exp_norm_u_var_distribution)
             for pos_idx, pos in enumerate(np.reshape(o_tokens, (batch_size,))):
-                exp_norm_u_var_distribution[pos_idx] = class_var_pos[pos]
+                exp_norm_u_var_distribution[pos_idx] =  class_var_pos[pos]
             #print(o_tokens)
             #print(exp_norm_u_var_distribution)
             #print("----")
             #rand_int = np.random.randint(0, 256, 1)[0]
             #print(rand_int, rand_int % 3)
-
-            '''
+            
+            #print(exp_norm_u_var_distribution)
+            #print(o_tokens)
+            #print(exp_norm_u_var_distribution)
+            #print("----")
+            
+            #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
+            
             # yields good results and across the 
             rand_int = np.random.randint(0, 256, 1)[0]
             #print(t + rand_int, (t + rand_int) % 2)
-            if (t + rand_int) % 2 == 0:
+            if (t + batch_step) % 2 == 0:
                 #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
                 step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
                 #, sample_weight=exp_norm_u_var_distribution
             else:
                 step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
-            '''
-            
+
             #if rand_int % 2 == 0:
-            if gamma_nos[t] > 1.0:
+            #if gamma_nos[t] > 1.0:
             #unweighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
             #weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
             #lambda_fac = 0.25
@@ -735,11 +749,12 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #if t in rand_pos:
                 #print("Randpos", t, rand_pos)
                 #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
-                step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
-                #, sample_weight=exp_norm_u_var_distribution
-            else:  
-                step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
                 #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
+                #, sample_weight=exp_norm_u_var_distribution
+            #else:  
+                #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
+                #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
+            
             #print(o_tokens)
             #print()
             #print(exp_norm_u_var_distribution)

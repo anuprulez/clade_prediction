@@ -18,14 +18,14 @@ import preprocess_sequences
 import utils
 
 
-RESULT_PATH = "test_results/20_01_22/"
+RESULT_PATH = "test_results/24_01_22_GPU/"
 
 min_diff = 0
 max_diff = 61
 train_size = 1.0
-enc_units = 64
+enc_units = 256
 random_size = 20
-LEN_AA = 16
+LEN_AA = 301
 FUTURE_GEN_TEST = "test/20A_20B.csv"
 
 clade_parent = "20A" # 20A
@@ -42,8 +42,8 @@ PATH_PRE = "data/ncov_global/"
 PATH_SAMPLES_CLADES = PATH_PRE + "sample_clade_sequence_df.csv"
 PATH_F_DICT = PATH_PRE + "f_word_dictionaries.json"
 PATH_R_DICT = PATH_PRE + "r_word_dictionaries.json"
-PATH_KMER_F_DICT = PATH_PRE + "kmer_f_word_dictionaries.json"
-PATH_KMER_R_DICT = PATH_PRE + "kmer_r_word_dictionaries.json"
+PATH_KMER_F_DICT = RESULT_PATH + "kmer_f_word_dictionaries.json"
+PATH_KMER_R_DICT = RESULT_PATH + "kmer_r_word_dictionaries.json"
 PATH_CLADES = "data/generating_clades.json"
 COMBINED_FILE = RESULT_PATH + "combined_dataframe.csv"
 WUHAN_SEQ = PATH_PRE + "wuhan-hu-1-spike-prot.txt"
@@ -112,8 +112,8 @@ def load_model_generated_sequences(file_path):
     for te_name in te_clade_files:
         te_clade_df = pd.read_csv(te_name, sep="\t")
         te_X = te_clade_df["X"].drop_duplicates()
-        te_y = te_clade_df["Y"] #.drop_duplicates()
-        print(te_X)
+        te_y = te_clade_df["Y"].drop_duplicates()
+        print(te_y)
         child_clades = "_".join(clade_childen)
         #df_true_y = pd.DataFrame(te_y, columns=[child_clades])
         true_y_df_path = "{}generated_seqs_true_y_{}.csv".format(RESULT_PATH, child_clades)
@@ -134,14 +134,16 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq, kmer
     test_tf_ratio = 0.0
     size_stateful = 100
     num_te_batches = int(len(test_x) / float(batch_size))
-    #num_te_batches = 50
+    #num_te_batches = 5
     
     print("Num test batches: {}".format(str(num_te_batches)))
     print("Loading trained model from {}...".format(RESULT_PATH))
-    loaded_encoder = tf.keras.models.load_model(RESULT_PATH + "pretrain_gen_encoder") #"pretrain_gen_encoder"
+    loaded_encoder = tf.keras.models.load_model(RESULT_PATH + "gen_enc_model") #"pretrain_gen_encoder" #gen_enc_model
     #loaded_encoder.load_weights(RESULT_PATH + GEN_ENC_WEIGHTS)
-    loaded_decoder = tf.keras.models.load_model(RESULT_PATH + "pretrain_gen_decoder") #pretrain_gen_decoder
+    loaded_decoder = tf.keras.models.load_model(RESULT_PATH + "gen_dec_model") #pretrain_gen_decoder #gen_dec_model
     #loaded_decoder.load_weights(RESULT_PATH + GEN_DEC_WEIGHTS)
+    #import sys
+    #sys.exit()
     for step, x in enumerate(test_dataset_in):
         batch_x_test = utils.pred_convert_to_array(x)
         #batch_y_test = utils.pred_convert_to_array(y)
@@ -153,14 +155,13 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq, kmer
             l_b_wu_score = list()
             l_ld_wuhan = list()
             print("Generating for iter {}/{}".format(str(i+1), str(generating_factor)))
-
             generated_logits, _, _, loss = utils.loop_encode_decode_predict(LEN_AA, batch_size, vocab_size, batch_x_test, [], loaded_encoder, loaded_decoder, enc_units, test_tf_ratio, False, size_stateful, dict())
             # compute generated sequence variation
             #batch_x_test = batch_x_test[:, 1:]
             variation_score = utils.get_sequence_variation_percentage(batch_x_test, generated_logits)
             print("Generated sequence variation score: {}".format(str(variation_score)))
             p_y = tf.math.argmax(generated_logits, axis=-1)
-            
+
             one_x = utils.convert_to_string_list(batch_x_test)
             pred_y = utils.convert_to_string_list(p_y)
             for k in range(0, len(one_x)):

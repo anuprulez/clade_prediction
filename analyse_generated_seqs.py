@@ -77,8 +77,8 @@ def read_dataframe(file_path, sep, cols, gen=False):
             if aa_x != aa_y: #and aa_x not in [0, "0"] and aa_y not in ["0", 0]:
                 #print(i, aa_x, aa_y)
                 #key = "{}>{}>{}".format(kmer_f_dict[aa_x], str(i+1), kmer_f_dict[aa_y])
-                key = "{}>{}>{}".format(aa_x, str(i+1), aa_y) 
-                #key = "{}>{}".format(aa_x, aa_y)
+                #key = "{}>{}>{}".format(aa_x, str(i+1), aa_y) 
+                key = "{}>{}".format(aa_x, aa_y)
                 #key = "{}".format(str(i+1))
                 if key not in mut:
                     mut[key] = 0
@@ -92,22 +92,27 @@ def read_dataframe(file_path, sep, cols, gen=False):
 
 def get_mat(aa_list, ct_dict, size):
     mat = np.zeros((len(aa_list), len(aa_list)))
+    freq = list(ct_dict.values())
+    max_freq = max(freq)
     for i, mut_y in enumerate(aa_list):
         for j, mut_x in enumerate(aa_list):
             key = "{}>{}".format(mut_y, mut_x)
             if key in ct_dict:
-                mat[i, j] = ct_dict[key]
+                norm_val = ct_dict[key] / max_freq
+                print(norm_val, ct_dict[key], max_freq)
+                #if norm_val < 1.0:
+                mat[i, j] = norm_val #ct_dict[key] / size
                 #print(i, j, key, ct_dict[key])
-    return mat / size    
+    return mat    
 
 
-def compute_common_muts(true_par_child, gen_par_child):
+def compute_common_muts(true_par_child, gen_par_child, te_size, gen_size):
     muts_true = len(true_par_child)
     pred_true_muts = 0
     for key in true_par_child:
         if key in gen_par_child:
             pred_true_muts += 1
-            print(key, true_par_child[key], gen_par_child[key])
+            print(key, true_par_child[key] / float(te_size), gen_par_child[key] / float(gen_size))
     print(pred_true_muts / float(muts_true), pred_true_muts / float(len(gen_par_child)))
     
 
@@ -123,9 +128,9 @@ def plot_true_gen_dist(true_par_child, gen_par_child, te_size, gen_size):
     pearson_corr_te_par_child_mut = pearsonr(par_child_mat, par_gen_mat)
     print("Pearson correlation between train and test par-child mut: {}".format(str(pearson_corr_te_par_child_mut)))
 
-    compute_common_muts(true_par_child, gen_par_child)
+    compute_common_muts(true_par_child, gen_par_child, te_size, gen_size)
 
-    '''cmap = "Blues" #"RdYlBu" Spectral
+    cmap = "Blues" #"RdYlBu" Spectral
     plt.rcParams.update({'font.size': 10})
 
     fig, axs = plt.subplots(2)
@@ -156,7 +161,7 @@ def plot_true_gen_dist(true_par_child, gen_par_child, te_size, gen_size):
     cbar_ax = fig.add_axes([0.92, 0.15, 0.03, 0.7])
     cbar = fig.colorbar(ax0, cax=cbar_ax)
     plt.suptitle("Mutation frequency in test and generated datasets. Pearson correlation of A & B: {}".format(str(np.round(pearson_corr_te_par_child_mut[0], 2))))
-    plt.show()'''
+    plt.show()
 
 
 if __name__ == "__main__":
