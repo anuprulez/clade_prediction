@@ -664,6 +664,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #print(rev_norm_u_var_distribution)
 
             class_var_pos = dict() #pos_variations_count[str(t)]
+            norm_class_var_pos = dict()
             exp_class_var_pos = dict()
             merged_class_var_pos = dict()
             #class_var_pos = pos_variations_count[str(t)]
@@ -707,10 +708,12 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             s_wts = np.sum(class_wt)
             for k_i, key in enumerate(unique_cls):
                 # loss input taken from paper: https://arxiv.org/pdf/1901.05555.pdf
-                class_var_pos[key] = class_wt[k_i] / float(s_wts)
+                class_var_pos[key] = class_wt[k_i] #/ float(s_wts)
+                norm_class_var_pos[key] = class_wt[k_i] / float(s_wts)
                 exp_class_var_pos[key] = (1 - beta) / (1 - beta ** pos_variations_count[str(t)][key])
                 #merged_class_var_pos[key] = 0.05 * class_var_pos[key] + 0.95 * exp_class_var_pos[key]
             #print(class_var_pos)
+            #print(norm_class_var_pos)
             #print(exp_class_var_pos)
             #print(merged_class_var_pos)
             #s_wts = np.sum(list(class_var_pos.values()))
@@ -719,14 +722,19 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #print(class_var_pos)
             #print()
             exp_norm_u_var_distribution = np.zeros((batch_size))
+            uniform_wts = np.zeros((batch_size))
             #print(exp_norm_u_var_distribution)
             for pos_idx, pos in enumerate(np.reshape(o_tokens, (batch_size,))):
                 #if (t + batch_step) % 2 == 0:
-                exp_norm_u_var_distribution[pos_idx] = class_var_pos[pos]
+                exp_norm_u_var_distribution[pos_idx] = norm_class_var_pos[pos]
+                uniform_wts[pos_idx] = 1.0 / float(batch_size)
                 #else:
                 #exp_norm_u_var_distribution[pos_idx] = exp_class_var_pos[pos]
             #print(o_tokens)
             #print(exp_norm_u_var_distribution)
+            exp_norm_u_var_distribution = exp_norm_u_var_distribution / np.sum(exp_norm_u_var_distribution)
+            #print(exp_norm_u_var_distribution)
+            #print(uniform_wts)
             #print("----")
             #rand_int = np.random.randint(0, 256, 1)[0]
             #print(rand_int, rand_int % 3)
@@ -750,11 +758,12 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
                 #print(t, batch_step, "unweighted loss...")
                 #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
             weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
-            unweighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
-            print(o_tokens)
-            print(tf.argmax(dec_result, axis=-1))
-            print(weighted_loss, unweighted_loss, weighted_loss / unweighted_loss)
-            step_loss = 1.0 - (weighted_loss / (unweighted_loss + 1e-10)) #tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
+            uniform_weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=uniform_wts))
+            step_loss = weighted_loss
+            #print(o_tokens)
+            #print(tf.argmax(dec_result, axis=-1))
+            #print(weighted_loss, uniform_weighted_loss)
+            #step_loss = 1.0 - (weighted_loss / (unweighted_loss + 1e-10)) #tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
             #if rand_int % 2 == 0:
             #if gamma_nos[t] > 1.0:
             #unweighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
@@ -773,7 +782,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #print(o_tokens)
             #print()
             #print(exp_norm_u_var_distribution)
-            print("-----")
+            #print("-----")
             #print(o_tokens)
             #print()
             #print(exp_norm_u_var_distribution)
