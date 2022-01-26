@@ -663,6 +663,8 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #print(rev_norm_u_var_distribution)
 
             class_var_pos = dict() #pos_variations_count[str(t)]
+            exp_class_var_pos = dict()
+            merged_class_var_pos = dict()
             #class_var_pos = pos_variations_count[str(t)]
             #pos_v = pos_variations_count[str(t)]
 
@@ -688,37 +690,37 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #print(unique_cls, u_var_distribution)
             #log_u_var_distribution = np.log(u_var_distribution)
             #print(log_u_var_distribution)
-            #all_cls = tf.repeat(unique_cls, repeats=u_var_distribution).numpy()
-            #random.shuffle(all_cls)
+            all_cls = tf.repeat(unique_cls, repeats=u_var_distribution).numpy()
+            random.shuffle(all_cls)
             #print(all_cls)
             #class_wt = class_weight.compute_class_weight("balanced", np.unique(all_cls), all_cls)
-            #y = all_cls
-            #classes = unique_cls #np.unique(all_cls)
-            #le = LabelEncoder()
-            #y_ind = le.fit_transform(y)
-            #recip_freq = len(y) / (len(le.classes_) * np.bincount(y_ind).astype(np.float64))
-            #class_wt = recip_freq[le.transform(classes)]
+            y = all_cls
+            classes = unique_cls #np.unique(all_cls)
+            le = LabelEncoder()
+            y_ind = le.fit_transform(y)
+            recip_freq = len(y) / (len(le.classes_) * np.bincount(y_ind).astype(np.float64))
+            class_wt = recip_freq[le.transform(classes)]
             #print(class_wt)
-            beta = 0.9999
+            beta = 0.99
             #print(pos_variations_count[str(t)])
-            #class_wt = [x / float(np.sum(x)) for x in class_wt]
-            #print(class_wt)
-
+            s_wts = np.sum(class_wt)
             for k_i, key in enumerate(unique_cls):
                 # loss input taken from paper: https://arxiv.org/pdf/1901.05555.pdf
-                class_var_pos[key] = (1 - beta) / (1 - beta ** pos_variations_count[str(t)][key]) #class_wt[k_i]
+                class_var_pos[key] = class_wt[k_i] / float(s_wts)
+                exp_class_var_pos[key] = (1 - beta) / (1 - beta ** pos_variations_count[str(t)][key])
+                merged_class_var_pos[key] = 0.05 * class_var_pos[key] + 0.95 * exp_class_var_pos[key]
             #print(class_var_pos)
-
+            #print(exp_class_var_pos)
+            #print(merged_class_var_pos)
             #s_wts = np.sum(list(class_var_pos.values()))
             #for k_i, key in enumerate(unique_cls):
             #    class_var_pos[key] = class_wt[k_i] / s_wts #(1 - beta) / (1 - beta ** pos_variations_count[str(t)][key]) #class_wt[k_i]
             #print(class_var_pos)
-                
             #print()
             exp_norm_u_var_distribution = np.zeros((batch_size))
             #print(exp_norm_u_var_distribution)
             for pos_idx, pos in enumerate(np.reshape(o_tokens, (batch_size,))):
-                exp_norm_u_var_distribution[pos_idx] = class_var_pos[pos]
+                exp_norm_u_var_distribution[pos_idx] = merged_class_var_pos[pos]
             #print(o_tokens)
             #print(exp_norm_u_var_distribution)
             #print("----")

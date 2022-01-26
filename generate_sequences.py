@@ -18,14 +18,14 @@ import preprocess_sequences
 import utils
 
 
-RESULT_PATH = "test_results/24_01_22_GPU/"
+RESULT_PATH = "test_results/26_01_22_GPU_BCE/"
 
 min_diff = 0
 max_diff = 61
 train_size = 1.0
-enc_units = 256
+enc_units = 64
 random_size = 20
-LEN_AA = 301
+LEN_AA = 15
 FUTURE_GEN_TEST = "test/20A_20B.csv"
 
 clade_parent = "20A" # 20A
@@ -34,7 +34,7 @@ clade_childen = ["20B"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"]
 # ["20G", "21C_Epsilon", "21F_Iota"]
 # {"20B": ["20I (Alpha, V1)", "20F", "20D", "21G (Lambda)", "21H"]}
 
-generating_factor = 5
+generating_factor = 50
 
 PATH_PRE = "data/ncov_global/"
 #PATH_SEQ = PATH_PRE + "spikeprot0815.fasta"
@@ -138,9 +138,9 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq, kmer
     
     print("Num test batches: {}".format(str(num_te_batches)))
     print("Loading trained model from {}...".format(RESULT_PATH))
-    loaded_encoder = tf.keras.models.load_model(RESULT_PATH + "gen_enc_model") #"pretrain_gen_encoder" #gen_enc_model
+    loaded_encoder = tf.keras.models.load_model(RESULT_PATH + "gan_train/6/enc") #"pretrain_gen_encoder" #gen_enc_model
     #loaded_encoder.load_weights(RESULT_PATH + GEN_ENC_WEIGHTS)
-    loaded_decoder = tf.keras.models.load_model(RESULT_PATH + "gen_dec_model") #pretrain_gen_decoder #gen_dec_model
+    loaded_decoder = tf.keras.models.load_model(RESULT_PATH + "gan_train/6/dec") #pretrain_gen_decoder #gen_dec_model
     #loaded_decoder.load_weights(RESULT_PATH + GEN_DEC_WEIGHTS)
     #import sys
     #sys.exit()
