@@ -36,6 +36,7 @@ test_tf_ratio = 0.0
 enc_stddev = 1.0 # 0.05 for pretraining
 max_norm = 10.0
 dec_stddev = 0.0001
+max_batch_turn = 50
 #pos_variations = dict()
 amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"
 
@@ -701,14 +702,14 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             recip_freq = len(y) / (len(le.classes_) * np.bincount(y_ind).astype(np.float64))
             class_wt = recip_freq[le.transform(classes)]
             #print(class_wt)
-            beta = 0.99
+            beta = 0.9999
             #print(pos_variations_count[str(t)])
             s_wts = np.sum(class_wt)
             for k_i, key in enumerate(unique_cls):
                 # loss input taken from paper: https://arxiv.org/pdf/1901.05555.pdf
                 class_var_pos[key] = class_wt[k_i] / float(s_wts)
                 exp_class_var_pos[key] = (1 - beta) / (1 - beta ** pos_variations_count[str(t)][key])
-                merged_class_var_pos[key] = 0.05 * class_var_pos[key] + 0.95 * exp_class_var_pos[key]
+                #merged_class_var_pos[key] = 0.05 * class_var_pos[key] + 0.95 * exp_class_var_pos[key]
             #print(class_var_pos)
             #print(exp_class_var_pos)
             #print(merged_class_var_pos)
@@ -720,7 +721,10 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             exp_norm_u_var_distribution = np.zeros((batch_size))
             #print(exp_norm_u_var_distribution)
             for pos_idx, pos in enumerate(np.reshape(o_tokens, (batch_size,))):
-                exp_norm_u_var_distribution[pos_idx] = merged_class_var_pos[pos]
+                #if (t + batch_step) % 2 == 0:
+                exp_norm_u_var_distribution[pos_idx] = class_var_pos[pos]
+                #else:
+                #exp_norm_u_var_distribution[pos_idx] = exp_class_var_pos[pos]
             #print(o_tokens)
             #print(exp_norm_u_var_distribution)
             #print("----")
@@ -745,7 +749,12 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #else:
                 #print(t, batch_step, "unweighted loss...")
                 #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
-            step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
+            weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
+            unweighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
+            print(o_tokens)
+            print(tf.argmax(dec_result, axis=-1))
+            print(weighted_loss, unweighted_loss, weighted_loss / unweighted_loss)
+            step_loss = 1.0 - (weighted_loss / (unweighted_loss + 1e-10)) #tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
             #if rand_int % 2 == 0:
             #if gamma_nos[t] > 1.0:
             #unweighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
@@ -764,7 +773,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #print(o_tokens)
             #print()
             #print(exp_norm_u_var_distribution)
-            #print("-----")
+            print("-----")
             #print(o_tokens)
             #print()
             #print(exp_norm_u_var_distribution)
