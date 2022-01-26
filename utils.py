@@ -12,8 +12,14 @@ from scipy.spatial import distance
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 #import tensorflow_probability as tfp
+from scipy.stats.stats import pearsonr
 from tensorflow.keras import backend as K
+from sklearn.utils import class_weight
+from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import RobustScaler
+from sklearn.cluster import OPTICS
+from sklearn.cluster import KMeans
+from sklearn import metrics
 from Levenshtein import distance as lev_dist
 
 import neural_network
@@ -28,8 +34,9 @@ mae = tf.keras.losses.MeanAbsoluteError()
 mse = tf.keras.losses.MeanSquaredError()
 test_tf_ratio = 0.0
 enc_stddev = 1.0 # 0.05 for pretraining
-max_norm = 1.0
+max_norm = 10.0
 dec_stddev = 0.0001
+max_batch_turn = 50
 #pos_variations = dict()
 amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"
 
@@ -460,6 +467,61 @@ def compute_enc_distance(enc_mat):
     #return dist
 
 
+def find_cluster_indices(output_seqs, batch_size):
+    ## Cluster the output set of sequences and chooose sequences randomly from each cluster
+    ### 
+    '''fixed_seq_split = fixed_seq.split(",")
+    diff_index = np.zeros(len(unrolled_x))
+    #print(diff_index)
+    print(fixed_seq_split)
+    print()
+    for index_x, x in enumerate(unrolled_x):
+        x_sp = x.split(",")
+        for i, aa in enumerate(fixed_seq_split):
+            #print(aa, x_sp[i])
+            if aa != x_sp[i]:
+               diff_index[index_x] += 1
+        #if index_x == 5:
+        #    break
+        print(x.split(","))
+        print(diff_index[index_x])
+        print("-------------")'''
+ 
+    
+    features = convert_to_array(output_seqs)
+
+    #print(features, features.shape)
+
+    clustering_type = OPTICS(min_samples=2, min_cluster_size=2)
+    #clustering_type = KMeans(n_clusters=batch_size, random_state=0)
+    cluster_labels = clustering_type.fit_predict(features)
+
+    #print(cluster_labels, len(cluster_labels))
+
+    x = list()
+    y = list()
+    cluster_indices_dict = dict()
+    for i, l in enumerate(cluster_labels):
+        x.append(output_seqs[i])
+        y.append(l)
+        if l not in cluster_indices_dict:
+            cluster_indices_dict[l] = list()
+        cluster_indices_dict[l].append(i)
+
+    #print(cluster_indices_dict)
+
+    scatter_df = pd.DataFrame(list(zip(x, y)), columns=["output_seqs", "clusters"])
+
+    #print(scatter_df)
+
+    scatter_df.to_csv("data/generated_files/clustered_output_seqs_data.csv")
+    
+    #import sys
+    #sys.exit()
+
+    return cluster_labels, cluster_indices_dict
+
+
 def pairwise_dist(A, B):
     # https://gist.github.com/mbsariyildiz/34cdc26afb630e8cae079048eef91865
     # squared norms of each row in A and B
@@ -489,10 +551,10 @@ def pairwise_dist(A, B):
 
     #D = tf.math.abs(D)
     
-    #D_min = tf.math.reduce_min(D)
-    #D_max = tf.math.reduce_max(D)
+    D_min = tf.math.reduce_min(D)
+    D_max = tf.math.reduce_max(D)
 
-    #D = (D - D_min) / ((D_max - D_min) + 1e-10)
+    D = (D - D_min) / ((D_max - D_min) + 1e-10)
 
     #print(D)
 
@@ -513,13 +575,28 @@ def pairwise_dist(A, B):
     return D_mean, D_norm, D
 
 
-def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful, mut_freq, pos_variations, pos_variations_count):
+def get_pearson_coeff(enc_matr):
+    pearson_coeff = list()
+    for i, x in enumerate(enc_matr):
+        for j, y in enumerate(enc_matr):
+            pearson_coeff.append(pearsonr(x, y)[0])
+    return np.mean(np.array(pearson_coeff))
+
+
+def create_dirs(folder_path):
+    if not os.path.isdir(folder_path):
+        os.mkdir(folder_path)
+
+
+def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful, mut_freq, pos_variations, pos_variations_count, batch_step):
     show = 2
-    
     enc_output, enc_state = gen_encoder(input_tokens)
-    '''print(enc_state)
-    print()
-    print("---------")'''
+    #print(enc_state[:, :5])
+    #print()
+    enc_corr = get_pearson_coeff(enc_state)
+    #print(corr)
+    #print()
+    #print("---------")
     #print(tf.linalg.normalize(enc_state, ord=np.inf)[0])
     dec_state = enc_state
     #print(dec_state)
@@ -535,29 +612,30 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     #print(dec_state[:show, :])
     loss = tf.constant(0.0)
     gen_logits = list()
-    o_state_norm = list()
-    dec_state_mean_dist = tf.constant(0.0)
-    dec_state_loop_pw_norm = tf.constant(0.0)
-    dec_step_norm = tf.constant(0.0)
-    dec_loop_norm = tf.constant(0.0)
-    dec_loop_pw_norm = tf.constant(0.0)
-    dec_loop_mean_dist = tf.constant(0.0)
-    mut_error_factor = tf.constant(1.0)
-    free_run_loops = int(0.5 * seq_len)
-    free_run_s_index = np.random.randint(0, seq_len - free_run_loops, 1)[0]
+    #o_state_norm = list()
+    #dec_state_mean_dist = tf.constant(0.0)
+    #dec_state_loop_pw_norm = tf.constant(0.0)
+    #dec_step_norm = tf.constant(0.0)
+    #dec_loop_norm = tf.constant(0.0)
+    #dec_loop_pw_norm = tf.constant(0.0)
+    #dec_loop_mean_dist = tf.constant(0.0)
+    #dec_loop_corr = tf.constant(0.0)
+    #mut_error_factor = tf.constant(1.0)
+    #free_run_loops = int(0.5 * seq_len)
+    #free_run_s_index = np.random.randint(0, seq_len - free_run_loops, 1)[0]
     i_tokens = tf.fill([batch_size, 1], 0)
-
+    print(pos_variations_count)
+    gamma_nos = np.random.gamma(1, size=seq_len)
+    #rand_pos = random.sample(range(0, seq_len - 1), (seq_len - 1) // 2) #np.random.randint(0, seq_len - 1, (seq_len - 1) // 4)
     for t in range(seq_len - 1):
         dec_result, dec_state = gen_decoder([i_tokens, dec_state])
-        dec_state_mean_dist, dec_state_loop_pw_norm, _ = pairwise_dist(dec_state, dec_state)
-        dec_loop_mean_dist += dec_state_mean_dist
-        dec_state_step_norm = tf.math.abs(max_norm - tf.norm(dec_state))
-        dec_loop_norm += dec_state_step_norm
-
-        dec_loop_pw_norm += dec_state_loop_pw_norm
-
+        #dec_state_mean_dist, dec_state_loop_pw_norm, _ = pairwise_dist(dec_state, dec_state)
+        #dec_loop_mean_dist += dec_state_mean_dist
+        #dec_state_step_norm = tf.math.abs(max_norm - tf.norm(dec_state))
+        #dec_loop_norm += dec_state_step_norm
+        #dec_loop_pw_norm += dec_state_loop_pw_norm
         gen_logits.append(dec_result)
-
+        #dec_loop_corr += get_pearson_coeff(dec_state)
         if len(output_tokens) > 0:
             o_tokens = output_tokens[:, t+1:t+2]
             #step_loss = mut_error_factor * tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
@@ -571,69 +649,223 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #print(pos_variations[str(t)])
 
             # collect different variations at each POS
-            u_var = np.unique(pos_variations[str(t)])
-            u_var = np.reshape(u_var, (len(u_var), 1))
+            #u_var = np.unique(pos_variations[str(t)])
+            #u_var = np.reshape(u_var, (len(u_var), 1))
 
             # collect distribution of variations at different POS
+            #print(pos_variations_count[str(t)])
             u_var_distribution = np.array(list(pos_variations_count[str(t)].values()))
+            #print(u_var_distribution)
 
-            norm_u_var_distribution = u_var_distribution / np.sum(u_var_distribution)
-            exp_norm_u_var_distribution = tf.repeat(norm_u_var_distribution, repeats=batch_size)
+            #norm_u_var_distribution = u_var_distribution / np.sum(u_var_distribution)
+            #print(norm_u_var_distribution)
+
+            #rev_norm_u_var_distribution = 1.0 - (u_var_distribution / np.sum(u_var_distribution))
+            #print(rev_norm_u_var_distribution)
+
+            class_var_pos = dict() #pos_variations_count[str(t)]
+            norm_class_var_pos = dict()
+            exp_class_var_pos = dict()
+            merged_class_var_pos = dict()
+            #class_var_pos = pos_variations_count[str(t)]
+            #pos_v = pos_variations_count[str(t)]
+
+            #for key in pos_v:
+            #    if len(u_var_distribution) > 1:
+            #        class_var_pos[key] = np.sum([pos_v[n] for n in pos_v if n != key]) / np.sum(u_var_distribution)
+            #    else:
+            #        class_var_pos[key] = pos_v[key] / np.sum(u_var_distribution)
+            #print(pos_variations_count[str(t)])
+            #print(np.sum([pos_v[n] for n in pos_v if n != key])
+            #print(class_var_pos)
+            #print("-----")
+            #exp_norm_u_var_distribution = np.zeros((batch_size))
+            #print(exp_norm_u_var_distribution)
+            #for pos_idx, pos in enumerate(np.reshape(o_tokens, (batch_size,))):
+            #    exp_norm_u_var_distribution[pos_idx] = class_var_pos[pos]
+
+            unique_cls = np.array(list(pos_variations_count[str(t)].keys()))
+            #all_classes = list()
+            #for key in pos_variations_count[str(t)]:
+            #    all_classes.extend(np.repeat)
+            #print(pos_variations[str(t)])
+            #print(unique_cls, u_var_distribution)
+            #log_u_var_distribution = np.log(u_var_distribution)
+            #print(log_u_var_distribution)
+            all_cls = tf.repeat(unique_cls, repeats=u_var_distribution).numpy()
+            random.shuffle(all_cls)
+            #print(all_cls)
+            #class_wt = class_weight.compute_class_weight("balanced", np.unique(all_cls), all_cls)
+            y = all_cls
+            classes = unique_cls #np.unique(all_cls)
+            le = LabelEncoder()
+            y_ind = le.fit_transform(y)
+            recip_freq = len(y) / (len(le.classes_) * np.bincount(y_ind).astype(np.float64))
+            class_wt = recip_freq[le.transform(classes)]
+            #print(class_wt)
+            beta = 0.9999
+            #print(pos_variations_count[str(t)])
+            s_wts = np.sum(class_wt)
+            for k_i, key in enumerate(unique_cls):
+                # loss input taken from paper: https://arxiv.org/pdf/1901.05555.pdf
+                class_var_pos[key] = class_wt[k_i] #/ float(s_wts)
+                norm_class_var_pos[key] = class_wt[k_i] / float(s_wts)
+                exp_class_var_pos[key] = (1 - beta) / (1 - beta ** pos_variations_count[str(t)][key])
+                #merged_class_var_pos[key] = 0.05 * class_var_pos[key] + 0.95 * exp_class_var_pos[key]
+            #print(class_var_pos)
+            #print(norm_class_var_pos)
+            #print(exp_class_var_pos)
+            #print(merged_class_var_pos)
+            #s_wts = np.sum(list(class_var_pos.values()))
+            #for k_i, key in enumerate(unique_cls):
+            #    class_var_pos[key] = class_wt[k_i] / s_wts #(1 - beta) / (1 - beta ** pos_variations_count[str(t)][key]) #class_wt[k_i]
+            #print(class_var_pos)
+            #print()
+            exp_norm_u_var_distribution = np.zeros((batch_size))
+            uniform_wts = np.zeros((batch_size))
+            #print(exp_norm_u_var_distribution)
+            for pos_idx, pos in enumerate(np.reshape(o_tokens, (batch_size,))):
+                #if (t + batch_step) % 2 == 0:
+                exp_norm_u_var_distribution[pos_idx] = norm_class_var_pos[pos]
+                uniform_wts[pos_idx] = 1.0 / float(batch_size)
+                #else:
+                #exp_norm_u_var_distribution[pos_idx] = exp_class_var_pos[pos]
+            #print(o_tokens)
+            #print(exp_norm_u_var_distribution)
+            exp_norm_u_var_distribution = exp_norm_u_var_distribution / np.sum(exp_norm_u_var_distribution)
+            #print(exp_norm_u_var_distribution)
+            #print(uniform_wts)
+            #print("----")
+            #rand_int = np.random.randint(0, 256, 1)[0]
+            #print(rand_int, rand_int % 3)
+            
+            #print(exp_norm_u_var_distribution)
+            #print(o_tokens)
+            #print(exp_norm_u_var_distribution)
+            #print("----")
+            
+            #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
+            
+            # yields good results and across the 
+            #rand_int = np.random.randint(0, 256, 1)[0]
+            #print(t + rand_int, (t + rand_int) % 2)
+            #if (t + batch_step) % 2 == 0:
+                #print(t, batch_step, "weighted loss")
+                #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
+                #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
+                #, sample_weight=exp_norm_u_var_distribution
+            #else:
+                #print(t, batch_step, "unweighted loss...")
+                #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
+            weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
+            uniform_weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=uniform_wts))
+            step_loss = weighted_loss
+            #print(o_tokens)
+            #print(tf.argmax(dec_result, axis=-1))
+            #print(weighted_loss, uniform_weighted_loss)
+            #step_loss = 1.0 - (weighted_loss / (unweighted_loss + 1e-10)) #tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
+            #if rand_int % 2 == 0:
+            #if gamma_nos[t] > 1.0:
+            #unweighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
+            #weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
+            #lambda_fac = 0.25
+            #step_loss = (1.0 - unweighted_loss) * unweighted_loss + lambda_fac * weighted_loss
+            #if t in rand_pos:
+                #print("Randpos", t, rand_pos)
+                #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
+                #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
+                #, sample_weight=exp_norm_u_var_distribution
+            #else:  
+                #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
+                #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
+            
+            #print(o_tokens)
+            #print()
+            #print(exp_norm_u_var_distribution)
+            #print("-----")
+            #print(o_tokens)
+            #print()
+            #print(exp_norm_u_var_distribution)
+            #final_rev_dist = dict()
+            #for key in pos_variations_count[str(t)]:
+
+            #print("-------------")
+            #norm_u_var_distribution = u_var_distribution / np.sum(u_var_distribution)
+            #exp_norm_u_var_distribution = tf.repeat(norm_u_var_distribution, repeats=batch_size)
 
             #print(t, pos_variations_count[str(t)], norm_u_var_distribution, exp_norm_u_var_distribution)
 
             #exp_o_tokens = tf.repeat(o_tokens, repeats=tf.repeat(batch_size, repeats=tf.constant(batch_size)))
             #exp_logits = tf.concat([dec_result, dec_result, dec_result, dec_result], axis=0)
-            exp_o_tokens = tf.repeat(u_var, repeats=batch_size) #repeats=tf.repeat(batch_size, repeats=tf.constant(batch_size))
-            exp_o_tokens = tf.reshape(exp_o_tokens, (batch_size * len(u_var), 1))
+            #exp_o_tokens = tf.repeat(u_var, repeats=batch_size) #repeats=tf.repeat(batch_size, repeats=tf.constant(batch_size))
+            #exp_o_tokens = tf.reshape(exp_o_tokens, (batch_size * len(u_var), 1))
             #print(exp_o_tokens)
             #print(t, u_var, exp_o_tokens)
-            exp_logits = dec_result #tf.concat([dec_result, dec_result, dec_result, dec_result], axis=0)
-            for i in range(len(u_var) - 1):
-                exp_logits = tf.concat([exp_logits, dec_result], axis=0)
+            #exp_logits = dec_result #tf.concat([dec_result, dec_result, dec_result, dec_result], axis=0)
+            #for i in range(len(u_var) - 1):
+            #    exp_logits = tf.concat([exp_logits, dec_result], axis=0)
             #print(exp_o_tokens.shape, exp_o_tokens, exp_logits.shape)
-            step_loss_real_targets = tf.reduce_mean(cross_entropy_loss(exp_o_tokens, exp_logits)) #, sample_weight=exp_norm_u_var_distribution
-            step_loss_output_targets = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
-
-            step_loss = 0.95 * step_loss_real_targets + 0.05 * step_loss_output_targets
-
+            #step_loss_real_targets = tf.reduce_mean(cross_entropy_loss(exp_o_tokens, exp_logits)) #, sample_weight=exp_norm_u_var_distribution
+            #step_loss_output_targets = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
+            #print(o_tokens)
+            #print()
+            #unique_out_targets = np.unique(np.reshape(o_tokens, (batch_size,)))
+            #print(unique_out_targets)
+            #random.shuffle(unique_out_targets)
+            #print(unique_out_targets)
+            #random_target_key = choices(unique_out_targets, k=1)
+            #exp_o_tokens = tf.repeat(choices(unique_out_targets, k=1), repeats=batch_size)
+            #exp_o_tokens = np.reshape(exp_o_tokens, (batch_size, 1))
+            #if t == 7:
+            #    print(exp_o_tokens)
+            #print(exp_o_tokens)
+            #step_loss = tf.reduce_mean(cross_entropy_loss(exp_o_tokens, dec_result)) #step_loss_output_targets #0.95 * step_loss_real_targets + 0.05 * step_loss_output_targets
+            #print(step_loss)
+            #print("-------------")
             #print("---------------")
             #print(dec_result.shape, exp_logits.shape)
             #print(exp_logits[0], exp_logits[1], exp_logits[2], exp_logits[3])
             #print("---")
             #print(exp_logits[0], exp_logits[4], exp_logits[8], exp_logits[12])
             #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
-            loss += step_loss
 
+            #unique_out_targets = np.unique(np.reshape(o_tokens, (batch_size,)))
+            #target_tokens_weights = compute_class_weight("balanced", unique_out_targets, o_tokens)
+            #print(target_tokens_weights)
+            loss += step_loss
         '''if t in list(range(free_run_s_index, free_run_s_index + free_run_loops)):
             i_tokens = tf.argmax(dec_result, axis=-1)
         else:
             i_tokens = o_tokens'''
         #print(dec_result, o_tokens, tf.argmax(dec_result, axis=-1))
         #print()
-        i_tokens = o_tokens #o_tokens #tf.argmax(dec_result, axis=-1) #o_tokens
+        i_tokens = o_tokens #tf.argmax(dec_result, axis=-1) #o_tokens
     #import sys
     #sys.exit()
     gen_logits = tf.concat(gen_logits, axis=-2)
     loss = loss / seq_len
-    dec_loop_mean_dist = dec_loop_mean_dist / seq_len
-    dec_loop_norm = dec_loop_norm / seq_len
-    dec_loop_pw_norm = dec_loop_pw_norm / seq_len
+    #dec_loop_mean_dist = dec_loop_mean_dist / seq_len
+    #dec_loop_norm = dec_loop_norm / seq_len
+    #dec_loop_pw_norm = dec_loop_pw_norm / seq_len
+    #dec_loop_corr = dec_loop_corr / seq_len
     #dec_step_norm = dec_step_norm / seq_len
     print("True loss: ", loss) # , enc_mean_dist, dec_loop_mean_dist, enc_state_norm, dec_loop_norm
-    print("Enc state mean dist:", enc_mean_dist)
-    print("Dec state mean dist:", dec_loop_mean_dist)
-    print("Encoder norm: {}".format(str(enc_state_norm)))
+    #print("Enc state mean dist:", enc_mean_dist)
+    #print("Dec state mean dist:", dec_loop_mean_dist)
+    #print("Encoder norm: {}".format(str(enc_state_norm)))
     #print("Encoder pairwise dist norm: {}".format(str(enc_pw_norm)))
-    print("Encoder norm with noise: {}".format(str(enc_state_norm_noise)))
-    print("Decoder norm: {}".format(str(dec_loop_norm)))
+    #print("Encoder norm with noise: {}".format(str(enc_state_norm_noise)))
+    #print("Decoder norm: {}".format(str(dec_loop_norm)))
+    #print("Encoder mean correlation: {}".format(str(enc_corr)))
+    #print("Decoder mean correlation: {}".format(str(dec_loop_corr)))
     #print("Decoder pairwise dist norm: {}".format(str(dec_loop_pw_norm)))
     #print("--------------")
     #loss = loss + enc_mean_dist + dec_loop_mean_dist + enc_state_norm + dec_loop_norm #+ enc_pw_norm #+ dec_loop_pw_norm
     #loss = loss + enc_mean_dist + dec_loop_mean_dist + enc_state_norm + dec_loop_norm
     #loss = loss + enc_pw_norm + enc_state_norm + dec_loop_norm # + residual_norm + dec_loop_norm
     #loss = loss + enc_state_norm + dec_loop_norm + enc_mean_dist + dec_loop_mean_dist
-    #loss = loss + enc_state_norm + dec_loop_norm + enc_pw_norm
+    #loss = loss + enc_mean_dist + dec_loop_mean_dist # dec_loop_norm
+    #loss = loss + enc_corr + dec_loop_corr
     return gen_logits, gen_encoder, gen_decoder, loss
 
 
@@ -667,7 +899,7 @@ def loop_encode_decode_predict(seq_len, batch_size, vocab_size, input_tokens, ou
     #print("--------------")
     return gen_logits, gen_encoder, gen_decoder, loss
 
-def predict_sequence(tr_epoch, tr_batch, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, loaded_encoder, loaded_generator, s_stateful):
+def predict_sequence(tr_epoch, tr_batch, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, loaded_encoder, loaded_generator, s_stateful, train_type, save=False):
     avg_test_loss = []
     avg_test_seq_var = []
     train_mode = False
@@ -689,15 +921,15 @@ def predict_sequence(tr_epoch, tr_batch, test_dataset_in, test_dataset_out, te_b
         #print("Generating sequences for each input sequence...")
         # generate_per_seq(tr_epoch, tr_batch, seq_len, te_batch_size, vocab_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units):
         #generate_per_seq(tr_epoch, tr_batch, seq_len, te_batch_size, vocab_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units)
-        print("Test: true input seq:")
-        print(batch_x_test[:5, 1:])
-        print()
+        #print("Test: true input seq:")
+        #print(batch_x_test[:5, 1:])
+        #print()
         print("Test: true output seq:")
-        print(batch_y_test[:5, 1:])
+        print(batch_y_test[:te_batch_size, 1:])
         # generate seqs stepwise - teacher forcing
         #generated_logits, loss = _loop_pred_step(seq_len, te_batch_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units)
         generated_logits, _, _, loss = loop_encode_decode_predict(seq_len, te_batch_size, vocab_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units, test_tf_ratio, train_mode, s_stateful, dict())
-        print(tf.argmax(generated_logits, axis=-1)[:5, :])
+        print(tf.argmax(generated_logits, axis=-1)[:te_batch_size, :])
         one_x = convert_to_string_list(batch_x_test)
         one_y = convert_to_string_list(batch_y_test)
         pred_y = convert_to_string_list(tf.math.argmax(generated_logits, axis=-1))
@@ -717,9 +949,10 @@ def predict_sequence(tr_epoch, tr_batch, test_dataset_in, test_dataset_out, te_b
     print("Total test loss in {} batches: {}".format(str(n_te_batches), str(np.mean(avg_test_loss))))
     print("---")
 
-    true_predicted_multiple = pd.DataFrame(list(zip(batch_x, batch_y, batch_pred)), columns=["X", "Y", "Generated"])
-    df_path = "{}true_predicted_multiple_tr_epoch_{}_tr_batch_{}_n_te_batches_{}.csv".format("data/generated_files/", str(tr_epoch), str(tr_batch), str(step), str(n_te_batches))
-    true_predicted_multiple.to_csv(df_path, index=None)
+    if save is True:
+        true_predicted_multiple = pd.DataFrame(list(zip(batch_x, batch_y, batch_pred)), columns=["X", "Y", "Generated"])
+        df_path = "{}{}_intermediate_training_prediction_tr_epoch_{}_tr_batch_{}_n_te_batches_{}.csv".format("data/generated_files/", train_type, str(tr_epoch), str(tr_batch), str(step), str(n_te_batches))
+        true_predicted_multiple.to_csv(df_path, index=None)
     return np.mean(avg_test_loss), np.mean(avg_test_seq_var)
 
 
@@ -747,9 +980,10 @@ def generate_per_seq(tr_epoch, tr_batch, seq_len, te_batch_size, vocab_size, bat
     df_path = "{}true_predicted_multiple_tr_epoch_{}_tr_batch_{}_te_batch_{}_gen_fac_{}.csv".format("data/generated_files/", str(tr_epoch), str(tr_batch), str(step), str(generating_fac))
     true_predicted_multiple.to_csv(df_path, index=None)
 
-def save_predicted_test_data(test_data_in, test_data_out, te_batch_size, enc_units, vocab_size, epoch_type_name):
-    te_encoder = tf.keras.models.load_model("data/generated_files/pretrain_gen_encoder")
-    te_decoder = tf.keras.models.load_model("data/generated_files/pretrain_gen_decoder")
+
+def save_predicted_test_data(test_data_in, test_data_out, te_batch_size, enc_units, vocab_size, epoch_type_name, enc_model_path, dec_model_path):
+    te_encoder = tf.keras.models.load_model(enc_model_path)
+    te_decoder = tf.keras.models.load_model(dec_model_path)
     test_data_in, test_data_out = convert_to_array(test_data_in), convert_to_array(test_data_out)
     seq_len = test_data_in.shape[1]
     n_te_batches = int(test_data_in.shape[0] / te_batch_size)
