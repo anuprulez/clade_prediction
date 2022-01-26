@@ -759,7 +759,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
                 #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
             weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
             uniform_weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=uniform_wts))
-            step_loss = weighted_loss
+            step_loss = 0.75 * weighted_loss + 0.25 * uniform_weighted_loss
             #print(o_tokens)
             #print(tf.argmax(dec_result, axis=-1))
             #print(weighted_loss, uniform_weighted_loss)
