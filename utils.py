@@ -22,14 +22,18 @@ from sklearn.cluster import KMeans
 from sklearn import metrics
 from Levenshtein import distance as lev_dist
 
+from focal_loss import SparseCategoricalFocalLoss
+
 import neural_network
 
 PATH_KMER_F_DICT = "data/ncov_global/kmer_f_word_dictionaries.json"
 PATH_KMER_R_DICT = "data/ncov_global/kmer_r_word_dictionaries.json"
 
 m_loss = neural_network.MaskedLoss()
+bce = tf.keras.losses.BinaryCrossentropy(from_logits=False)
+focal_loss_func = SparseCategoricalFocalLoss(gamma=2)
 
-cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False, reduction='none')
+cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 mae = tf.keras.losses.MeanAbsoluteError()
 mse = tf.keras.losses.MeanSquaredError()
 test_tf_ratio = 0.0
@@ -764,9 +768,17 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
                 #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
             weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
             uniform_weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=uniform_wts))
-            step_loss = 0.3 * weighted_loss + 0.7 * uniform_weighted_loss
+            #step_loss = weighted_loss #0.3 * weighted_loss + 0.7 * uniform_weighted_loss
+            
+            pred_tokens = tf.argmax(dec_result, axis=-1)
             #print(o_tokens)
-            #print(tf.argmax(dec_result, axis=-1))
+            #print(pred_tokens)
+            # tf.one_hot(o_tokens, depth=dec_result.shape[-1], axis=-1)
+            #bce_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
+            #print(weighted_loss, uniform_weighted_loss, focal_loss_func(o_tokens, dec_result))
+           
+            #print("----")
+            step_loss = focal_loss_func(o_tokens, dec_result)
             #print(weighted_loss, uniform_weighted_loss)
             #step_loss = 1.0 - (weighted_loss / (unweighted_loss + 1e-10)) #tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
             #if rand_int % 2 == 0:

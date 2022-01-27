@@ -38,8 +38,8 @@ pf_discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5)
 generator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) # learning_rate=1e-3, beta_1=0.5
 discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) # learning_rate=3e-5, beta_1=0.5
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
-n_disc_step = 6
-n_gen_step = 3
+n_disc_step = 10
+n_gen_step = 5
 unrolled_steps = 0
 test_log_step = 50
 teacher_forcing_ratio = 0.0
