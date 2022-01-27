@@ -201,24 +201,17 @@ def sample_true_x_y(batch_size, X_train, y_train, cluster_indices):
     cluster_keys = list(cluster_indices.keys())
     cluster_keys = list(np.unique(cluster_keys))
     random.shuffle(cluster_keys)
-    #print(cluster_keys)
-    #rand_keys = random.sample(cluster_keys, batch_size) #random.sample(cluster_keys, batch_size) #np.array(choices(cluster_keys, k=batch_size)) #
-    rand_keys = np.array(choices(cluster_keys, k=batch_size))
+    if len(cluster_keys) >= batch_size:
+        rand_keys = random.sample(cluster_keys, batch_size)
+    else:
+        rand_keys = np.array(choices(cluster_keys, k=batch_size))
     x_batch_train = list()
     y_batch_train = list()
     rand_batch_indices = list()
-    '''print(cluster_indices)
-    print()
     print(rand_keys)
-    print()'''
-    print(rand_keys)
-    #print()
     for key in rand_keys:
         rows_indices = cluster_indices[key]
-        #print(rows_indices)
         random.shuffle(rows_indices)
-        #print(rows_indices)
-        #rand_row_index = np.random.randint(0, len(rows_indices), 1)[0]
         rand_batch_indices.append(rows_indices[0])
         #print("---")
     #rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)

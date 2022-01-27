@@ -21,6 +21,7 @@ from sklearn.cluster import OPTICS
 from sklearn.cluster import KMeans
 from sklearn import metrics
 from Levenshtein import distance as lev_dist
+from focal_loss import sparse_categorical_focal_loss
 
 from focal_loss import SparseCategoricalFocalLoss
 
@@ -31,7 +32,7 @@ PATH_KMER_R_DICT = "data/ncov_global/kmer_r_word_dictionaries.json"
 
 m_loss = neural_network.MaskedLoss()
 bce = tf.keras.losses.BinaryCrossentropy(from_logits=False)
-focal_loss_func = SparseCategoricalFocalLoss(gamma=2)
+#focal_loss_func = SparseCategoricalFocalLoss(gamma=2)
 
 cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 mae = tf.keras.losses.MeanAbsoluteError()
@@ -735,13 +736,13 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #print(exp_norm_u_var_distribution)
             for pos_idx, pos in enumerate(np.reshape(o_tokens, (batch_size,))):
                 #if (t + batch_step) % 2 == 0:
-                exp_norm_u_var_distribution[pos_idx] = exp_class_var_pos[pos]
+                exp_norm_u_var_distribution[pos_idx] = class_var_pos[pos]
                 uniform_wts[pos_idx] = 1.0 / float(batch_size)
                 #else:
                 #exp_norm_u_var_distribution[pos_idx] = exp_class_var_pos[pos]
             #print(o_tokens)
             #print(exp_norm_u_var_distribution)
-            exp_norm_u_var_distribution = exp_norm_u_var_distribution / np.sum(exp_norm_u_var_distribution)
+            #exp_norm_u_var_distribution = exp_norm_u_var_distribution / np.sum(exp_norm_u_var_distribution)
             #print(exp_norm_u_var_distribution)
             #print(uniform_wts)
             #print("----")
@@ -751,7 +752,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #print(exp_norm_u_var_distribution)
             #print(o_tokens)
             #print(exp_norm_u_var_distribution)
-            #print("----")
+            
             
             #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
             
@@ -766,19 +767,23 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #else:
                 #print(t, batch_step, "unweighted loss...")
                 #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
-            weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
-            uniform_weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=uniform_wts))
+            #weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
+            #uniform_weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=uniform_wts))
             #step_loss = weighted_loss #0.3 * weighted_loss + 0.7 * uniform_weighted_loss
             
-            pred_tokens = tf.argmax(dec_result, axis=-1)
+            #pred_tokens = tf.argmax(dec_result, axis=-1)
             #print(o_tokens)
+            
             #print(pred_tokens)
             # tf.one_hot(o_tokens, depth=dec_result.shape[-1], axis=-1)
             #bce_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
             #print(weighted_loss, uniform_weighted_loss, focal_loss_func(o_tokens, dec_result))
            
             #print("----")
-            step_loss = focal_loss_func(o_tokens, dec_result)
+            #focal_loss_func = SparseCategoricalFocalLoss(gamma=10, class_weight=exp_norm_u_var_distribution)
+            step_loss = sparse_categorical_focal_loss(o_tokens, dec_result, gamma=30) #focal_loss_func(o_tokens, dec_result)
+            
+            #print("----")
             #print(weighted_loss, uniform_weighted_loss)
             #step_loss = 1.0 - (weighted_loss / (unweighted_loss + 1e-10)) #tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
             #if rand_int % 2 == 0:
