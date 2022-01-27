@@ -34,7 +34,7 @@ clade_childen = ["20B"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"]
 # ["20G", "21C_Epsilon", "21F_Iota"]
 # {"20B": ["20I (Alpha, V1)", "20F", "20D", "21G (Lambda)", "21H"]}
 
-generating_factor = 10
+generating_factor = 1
 
 PATH_PRE = "data/ncov_global/"
 #PATH_SEQ = PATH_PRE + "spikeprot0815.fasta"
@@ -161,7 +161,16 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq, kmer
             variation_score = utils.get_sequence_variation_percentage(batch_x_test, generated_logits)
             print("Generated sequence variation score: {}".format(str(variation_score)))
             p_y = tf.math.argmax(generated_logits, axis=-1)
-
+            # tf.math.top_k([1, 2, 98, 1, 1, 99, 3, 1, 3, 96, 4, 1], k=3)
+            '''print(generated_logits.shape)
+            for j in range(generated_logits.shape[1]):
+                print(generated_logits[:, j, :])
+                print(tf.math.top_k(generated_logits[:, j, :], k=2))
+                print()
+            p_y = tf.math.argmax(generated_logits, axis=-1)
+            print(p_y)
+            import sys
+            sys.exit()'''
             one_x = utils.convert_to_string_list(batch_x_test)
             pred_y = utils.convert_to_string_list(p_y)
             for k in range(0, len(one_x)):
@@ -187,8 +196,8 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq, kmer
             print("Generation iter {} done".format(str(i+1)))
             print("----------")
         print("Batch {} finished".format(str(step)))
-        #if step == num_te_batches - 1:
-        #    break
+        if step == num_te_batches - 1:
+            break
         print()
     print(len(true_x), len(predicted_y))
     child_clades = "_".join(clade_childen)

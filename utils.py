@@ -703,7 +703,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             recip_freq = len(y) / (len(le.classes_) * np.bincount(y_ind).astype(np.float64))
             class_wt = recip_freq[le.transform(classes)]
             #print(class_wt)
-            beta = 0.9999
+            beta = 0.99
             #print(pos_variations_count[str(t)])
             s_wts = np.sum(class_wt)
             for k_i, key in enumerate(unique_cls):
@@ -721,12 +721,17 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #    class_var_pos[key] = class_wt[k_i] / s_wts #(1 - beta) / (1 - beta ** pos_variations_count[str(t)][key]) #class_wt[k_i]
             #print(class_var_pos)
             #print()
+            exp_s_wts = np.sum(list(exp_class_var_pos.values()))
+            for key in exp_class_var_pos:
+                exp_class_var_pos[key] = exp_class_var_pos[key] / exp_s_wts
+            #print(exp_class_var_pos)
+
             exp_norm_u_var_distribution = np.zeros((batch_size))
             uniform_wts = np.zeros((batch_size))
             #print(exp_norm_u_var_distribution)
             for pos_idx, pos in enumerate(np.reshape(o_tokens, (batch_size,))):
                 #if (t + batch_step) % 2 == 0:
-                exp_norm_u_var_distribution[pos_idx] = norm_class_var_pos[pos]
+                exp_norm_u_var_distribution[pos_idx] = exp_class_var_pos[pos]
                 uniform_wts[pos_idx] = 1.0 / float(batch_size)
                 #else:
                 #exp_norm_u_var_distribution[pos_idx] = exp_class_var_pos[pos]
@@ -759,7 +764,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
                 #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
             weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
             uniform_weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=uniform_wts))
-            step_loss = 0.75 * weighted_loss + 0.25 * uniform_weighted_loss
+            step_loss = 0.3 * weighted_loss + 0.7 * uniform_weighted_loss
             #print(o_tokens)
             #print(tf.argmax(dec_result, axis=-1))
             #print(weighted_loss, uniform_weighted_loss)
