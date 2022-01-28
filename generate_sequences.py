@@ -18,7 +18,7 @@ import preprocess_sequences
 import utils
 
 
-RESULT_PATH = "test_results/26_01_22_local_machine_norm_bal_cls_wts/"
+RESULT_PATH = "test_results/28_01_22_CPU_1/"
 
 min_diff = 0
 max_diff = 61
@@ -34,7 +34,7 @@ clade_childen = ["20B"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"]
 # ["20G", "21C_Epsilon", "21F_Iota"]
 # {"20B": ["20I (Alpha, V1)", "20F", "20D", "21G (Lambda)", "21H"]}
 
-generating_factor = 1
+generating_factor = 10
 
 PATH_PRE = "data/ncov_global/"
 #PATH_SEQ = PATH_PRE + "spikeprot0815.fasta"
@@ -134,13 +134,13 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq, kmer
     test_tf_ratio = 0.0
     size_stateful = 100
     num_te_batches = int(len(test_x) / float(batch_size))
-    #num_te_batches = 5
+    #num_te_batches = 1
     
     print("Num test batches: {}".format(str(num_te_batches)))
     print("Loading trained model from {}...".format(RESULT_PATH))
-    loaded_encoder = tf.keras.models.load_model(RESULT_PATH + "gan_train/10/enc") #"pretrain_gen_encoder" #gen_enc_model
+    loaded_encoder = tf.keras.models.load_model(RESULT_PATH + "gan_train/9/enc") #"pretrain_gen_encoder" #gen_enc_model
     #loaded_encoder.load_weights(RESULT_PATH + GEN_ENC_WEIGHTS)
-    loaded_decoder = tf.keras.models.load_model(RESULT_PATH + "gan_train/10/dec") #pretrain_gen_decoder #gen_dec_model
+    loaded_decoder = tf.keras.models.load_model(RESULT_PATH + "gan_train/9/dec") #pretrain_gen_decoder #gen_dec_model
     #loaded_decoder.load_weights(RESULT_PATH + GEN_DEC_WEIGHTS)
     #import sys
     #sys.exit()
@@ -202,7 +202,8 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq, kmer
     print(len(true_x), len(predicted_y))
     child_clades = "_".join(clade_childen)
     true_predicted_multiple = pd.DataFrame(list(zip(true_x, predicted_y)), columns=[clade_parent, "Generated"])
-    df_path = "{}generated_seqs_{}_{}_{}_times_max_LD_{}.csv".format(RESULT_PATH, clade_parent, child_clades, str(generating_factor), str(max_diff))
+    
+    df_path = "{}/model_generated_sequences/generated_seqs_{}_{}_{}.csv".format(RESULT_PATH, clade_parent, child_clades, str(np.random.randint(0, 2000000, 1)[0]))
     true_predicted_multiple.to_csv(df_path, index=None)
     
 

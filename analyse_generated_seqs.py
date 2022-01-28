@@ -99,7 +99,7 @@ def get_mat(aa_list, ct_dict, size):
             key = "{}>{}".format(mut_y, mut_x)
             if key in ct_dict:
                 norm_val = ct_dict[key] / max_freq
-                print(norm_val, ct_dict[key], max_freq)
+                #print(norm_val, ct_dict[key], max_freq)
                 #if norm_val < 1.0:
                 mat[i, j] = norm_val #ct_dict[key] / size
                 #print(i, j, key, ct_dict[key])
