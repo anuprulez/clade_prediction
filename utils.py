@@ -781,7 +781,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
            
             #print("----")
             #focal_loss_func = SparseCategoricalFocalLoss(gamma=10, class_weight=exp_norm_u_var_distribution)
-            step_loss = sparse_categorical_focal_loss(o_tokens, dec_result, gamma=30) #focal_loss_func(o_tokens, dec_result)
+            step_loss = tf.reduce_mean(sparse_categorical_focal_loss(o_tokens, dec_result, gamma=30)) #focal_loss_func(o_tokens, dec_result)
             
             #print("----")
             #print(weighted_loss, uniform_weighted_loss)
