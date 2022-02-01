@@ -72,15 +72,15 @@ s_kmer = 3
 LEN_AA = 16 # 1273 for considering entire seq length
 len_aa_subseq = LEN_AA
 #len_final_aa_padding = len_aa_subseq + 1
-len_final_aa_padding = len_aa_subseq - s_kmer + 2 # write 2 here when there is padding of zero in in and out sequences
+len_final_aa_padding = LEN_AA + 1 #len_aa_subseq - s_kmer + 2 # write 2 here when there is padding of zero in in and out sequences
 size_stateful = 10
 # Neural network parameters
 embedding_dim = 32
-batch_size = 4
+batch_size = 8
 te_batch_size = batch_size
 n_te_batches = 10
 enc_units = 64
-pretrain_epochs = 1
+pretrain_epochs = 20
 epochs = 10
 max_l_dist = 11
 test_train_size = 0.85
@@ -122,7 +122,7 @@ def read_files():
     encoder = None
     decoder = None
     pf_model = None
-    kmer_f_dict, kmer_r_dict = utils.get_all_possible_words(amino_acid_codes, s_kmer)
+    #kmer_f_dict, kmer_r_dict = utils.get_all_possible_words(amino_acid_codes, s_kmer)
 
     if pretrained_model is False:
         print("Cleaning up stale folders...")
@@ -238,7 +238,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     combined_te_X, combined_te_y = utils.encode_sequences_kmers(forward_dict, kmer_r_dict, combined_te_X, combined_te_y, s_kmer)
 
     print(combined_X[0])
-    print(combined_y[0])'''
+    print(combined_y[0])
 
     kmer_f_dict = utils.read_json(PATH_KMER_F_DICT)
     kmer_r_dict = utils.read_json(PATH_KMER_R_DICT)
@@ -248,7 +248,12 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     vocab_size = len(kmer_f_dict) + 1
 
     print("Number of kmers: {}".format(str(len(kmer_f_dict))))
-    print("Vocab size: {}".format(str(len(kmer_f_dict) + 1)))
+    print("Vocab size: {}".format(str(len(kmer_f_dict) + 1)))'''
+
+    kmer_f_dict = dict()
+    kmer_r_dict = dict()
+
+    vocab_size = len(forward_dict) + 1
 
     combined_X = np.array(combined_X)
     combined_y = np.array(combined_y)

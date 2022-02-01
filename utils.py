@@ -139,7 +139,7 @@ def split_test_train(x, y, split_size):
     return x_1, x_2, y_1, y_2 
 
 
-def generate_cross_product(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict, start_token, cols=["X", "Y"], unrelated=False, unrelated_threshold=15):
+def generate_cross_product(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict, rev_dict, start_token, cols=["X", "Y"], unrelated=False, unrelated_threshold=15):
     print(len(x_seq), len(y_seq))
     x_y = list(itertools.product(x_seq, y_seq))
     print(len(x_y))
@@ -149,9 +149,13 @@ def generate_cross_product(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict
     filtered_x = list()
     filtered_y = list()
 
-    filtered_x, filtered_y, kmer_f_dict, kmer_r_dict = get_u_kmers(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict, start_token)
+    kmer_f_dict = dict()
+    kmer_r_dict = dict()
+
+    #print(forward_dict)
+    #filtered_x, filtered_y, kmer_f_dict, kmer_r_dict = get_u_kmers(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict, start_token)
     
-    '''for i, x_i in enumerate(x_seq):
+    for i, x_i in enumerate(x_seq):
         for j, y_j in enumerate(y_seq):
             # cut sequences of specific length
             
@@ -163,21 +167,26 @@ def generate_cross_product(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict
             sub_y_j = ",".join(sub_y_j)
             #print(len(y_j.split(",")), len(sub_y_j.split(",")))
 
+            re_x = reconstruct_seq([forward_dict[pos] for pos in sub_x_i.split(",")])
+            re_y = reconstruct_seq([forward_dict[pos] for pos in sub_y_j.split(",")])
+
+            #print(sub_x_i, re_x)
+            #print(sub_y_j, re_y)
             l_dist = compute_Levenshtein_dist(sub_x_i, sub_y_j)
+            #print(l_dist)
+            #print("-----")
+            
             l_distance.append(l_dist)
             if unrelated is False:
                 if l_dist > 0 and l_dist < max_l_dist:
-
-                    filtered_x.append(add_padding_to_seq(sub_x_i))
-
-                    filtered_y.append(add_padding_to_seq(sub_y_j))
-
+                    filtered_x.append(add_padding_to_seq(sub_x_i, start_token))
+                    filtered_y.append(add_padding_to_seq(sub_y_j, start_token))
                     filtered_l_distance.append(l_dist)
             else:
                 if l_dist > max_l_dist:
-                    filtered_x.append(add_padding_to_seq(sub_x_i))
-                    filtered_y.append(add_padding_to_seq(sub_y_j))
-                    filtered_l_distance.append(l_dist)'''
+                    filtered_x.append(add_padding_to_seq(sub_x_i, start_token))
+                    filtered_y.append(add_padding_to_seq(sub_y_j, start_token))
+                    filtered_l_distance.append(l_dist)
 
     print(len(filtered_l_distance), np.mean(filtered_l_distance))
     filtered_dataframe = pd.DataFrame(list(zip(filtered_x, filtered_y)), columns=["X", "Y"])
@@ -370,6 +379,10 @@ def read_wuhan_seq(wu_path, rev_dict):
 def get_words_indices(word_list):
     forward_dictionary = {i + 1: word_list[i] for i in range(0, len(word_list))}
     reverse_dictionary = {word_list[i]: i + 1  for i in range(0, len(word_list))}
+
+    forward_dictionary["0"] = "<start>"
+    reverse_dictionary["<start>"] = "0"
+
     return forward_dictionary, reverse_dictionary
 
 
@@ -781,7 +794,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
            
             #print("----")
             #focal_loss_func = SparseCategoricalFocalLoss(gamma=10, class_weight=exp_norm_u_var_distribution)
-            step_loss = tf.reduce_mean(sparse_categorical_focal_loss(o_tokens, dec_result, gamma=30)) #focal_loss_func(o_tokens, dec_result)
+            step_loss = tf.reduce_mean(sparse_categorical_focal_loss(o_tokens, dec_result, gamma=5)) #focal_loss_func(o_tokens, dec_result)
             
             #print("----")
             #print(weighted_loss, uniform_weighted_loss)
