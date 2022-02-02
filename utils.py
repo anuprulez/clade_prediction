@@ -674,8 +674,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             y_ind = le.fit_transform(y)
             recip_freq = len(y) / (len(le.classes_) * np.bincount(y_ind).astype(np.float64))
             class_wt = recip_freq[le.transform(classes)]
-            #print(class_wt)
-            beta = 0.999
+            beta = 0.99
             #print(pos_variations_count[str(t)])
             s_wts = np.sum(class_wt)
 
@@ -699,7 +698,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
                 exp_norm_u_var_distribution[pos_idx] = exp_class_var_pos[pos] #/ float(np.sum(real_class_wts))
                 #uniform_wts[pos_idx] = 1.0 #/ float(batch_size)
             #print(exp_norm_u_var_distribution)
-            exp_norm_u_var_distribution = exp_norm_u_var_distribution / np.sum(exp_norm_u_var_distribution)
+            #exp_norm_u_var_distribution = exp_norm_u_var_distribution / np.sum(exp_norm_u_var_distribution)
             #print(o_tokens)
             #print(exp_norm_u_var_distribution)
             #print(uniform_wts)
@@ -712,7 +711,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #-------------------------------
 
             weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
-            uniform_weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
+            #uniform_weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
             #focal_loss = tf.reduce_mean(sparse_categorical_focal_loss(o_tokens, dec_result, gamma=2))
             step_loss = weighted_loss #+ uniform_weighted_loss #+ 0.5 * uniform_weighted_loss + 0.5 * focal_loss
 
