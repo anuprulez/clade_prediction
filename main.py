@@ -75,8 +75,8 @@ len_aa_subseq = LEN_AA
 len_final_aa_padding = len_aa_subseq - s_kmer + 2 # write 2 here when there is padding of zero in in and out sequences
 size_stateful = 10
 # Neural network parameters
-embedding_dim = 32
-batch_size = 4
+embedding_dim = 128
+batch_size = 8
 te_batch_size = batch_size
 n_te_batches = 10
 enc_units = 64

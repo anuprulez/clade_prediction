@@ -639,8 +639,8 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     #dec_loop_mean_dist = tf.constant(0.0)
     #dec_loop_corr = tf.constant(0.0)
     #mut_error_factor = tf.constant(1.0)
-    #free_run_loops = int(0.5 * seq_len)
-    #free_run_s_index = np.random.randint(0, seq_len - free_run_loops, 1)[0]
+    free_run_loops = int(0.5 * seq_len)
+    free_run_s_index = np.random.randint(0, seq_len - free_run_loops, 1)[0]
     i_tokens = tf.fill([batch_size, 1], 0)
     #print(pos_variations_count)
     gamma_nos = np.random.gamma(1, size=seq_len)
@@ -660,221 +660,63 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #print(o_tokens)
             #print(tf.repeat(batch_size, repeats=tf.constant(batch_size)))
             #print(tf.repeat(o_tokens, repeats=tf.repeat(batch_size, repeats=tf.constant(batch_size))))
-            '''if str(t) not in pos_variations:
-                pos_variations[str(t)] = list()
-            pos_variations[str(t)].extend(o_tokens)'''
-
             #print(pos_variations[str(t)])
 
             # collect different variations at each POS
-            #u_var = np.unique(pos_variations[str(t)])
-            #u_var = np.reshape(u_var, (len(u_var), 1))
+            u_var_distribution = np.array(list(pos_variations_count[str(t)].values()))
+            unique_cls = np.array(list(pos_variations_count[str(t)].keys()))
 
-            # collect distribution of variations at different POS
-            #print(pos_variations_count[str(t)])
-            #u_var_distribution = np.array(list(pos_variations_count[str(t)].values()))
-            #print(u_var_distribution)
-
-            #norm_u_var_distribution = u_var_distribution / np.sum(u_var_distribution)
-            #print(norm_u_var_distribution)
-
-            #rev_norm_u_var_distribution = 1.0 - (u_var_distribution / np.sum(u_var_distribution))
-            #print(rev_norm_u_var_distribution)
-
-            #class_var_pos = dict() #pos_variations_count[str(t)]
-            #norm_class_var_pos = dict()
-            #exp_class_var_pos = dict()
-            #merged_class_var_pos = dict()
-            #class_var_pos = pos_variations_count[str(t)]
-            #pos_v = pos_variations_count[str(t)]
-
-            #for key in pos_v:
-            #    if len(u_var_distribution) > 1:
-            #        class_var_pos[key] = np.sum([pos_v[n] for n in pos_v if n != key]) / np.sum(u_var_distribution)
-            #    else:
-            #        class_var_pos[key] = pos_v[key] / np.sum(u_var_distribution)
-            #print(pos_variations_count[str(t)])
-            #print(np.sum([pos_v[n] for n in pos_v if n != key])
-            #print(class_var_pos)
-            #print("-----")
-            #exp_norm_u_var_distribution = np.zeros((batch_size))
-            #print(exp_norm_u_var_distribution)
-            #for pos_idx, pos in enumerate(np.reshape(o_tokens, (batch_size,))):
-            #    exp_norm_u_var_distribution[pos_idx] = class_var_pos[pos]
-
-            #unique_cls = np.array(list(pos_variations_count[str(t)].keys()))
-            #all_classes = list()
-            #for key in pos_variations_count[str(t)]:
-            #    all_classes.extend(np.repeat)
-            #print(pos_variations[str(t)])
-            #print(unique_cls, u_var_distribution)
-            #log_u_var_distribution = np.log(u_var_distribution)
-            #print(log_u_var_distribution)
-            #all_cls = tf.repeat(unique_cls, repeats=u_var_distribution).numpy()
-            #random.shuffle(all_cls)
-            #print(all_cls)
-            #class_wt = class_weight.compute_class_weight("balanced", np.unique(all_cls), all_cls)
-            #y = all_cls
-            #classes = unique_cls #np.unique(all_cls)
-            #le = LabelEncoder()
-            #y_ind = le.fit_transform(y)
-            #recip_freq = len(y) / (len(le.classes_) * np.bincount(y_ind).astype(np.float64))
-            #class_wt = recip_freq[le.transform(classes)]
+            all_cls = tf.repeat(unique_cls, repeats=u_var_distribution).numpy()
+            random.shuffle(all_cls)
+            y = all_cls
+            classes = unique_cls
+            le = LabelEncoder()
+            y_ind = le.fit_transform(y)
+            recip_freq = len(y) / (len(le.classes_) * np.bincount(y_ind).astype(np.float64))
+            class_wt = recip_freq[le.transform(classes)]
             #print(class_wt)
-            #beta = 0.99
+            beta = 0.99
             #print(pos_variations_count[str(t)])
-            #s_wts = np.sum(class_wt)
-            #for k_i, key in enumerate(unique_cls):
+            s_wts = np.sum(class_wt)
+
+            class_var_pos = dict()
+            norm_class_var_pos = dict()
+            exp_class_var_pos = dict()
+            real_class_wts = list()
+            for k_i, key in enumerate(unique_cls):
             #    # loss input taken from paper: https://arxiv.org/pdf/1901.05555.pdf
-            #    class_var_pos[key] = class_wt[k_i] #/ float(s_wts)
-            #    norm_class_var_pos[key] = class_wt[k_i] / float(s_wts)
-            #    exp_class_var_pos[key] = (1 - beta) / (1 - beta ** pos_variations_count[str(t)][key])
-                #merged_class_var_pos[key] = 0.05 * class_var_pos[key] + 0.95 * exp_class_var_pos[key]
+                class_var_pos[key] = class_wt[k_i] #/ float(s_wts)
+                norm_class_var_pos[key] = class_wt[k_i] / float(s_wts)
+                exp_class_var_pos[key] = (1 - beta) / (1 - beta ** pos_variations_count[str(t)][key])
+                real_class_wts.append(exp_class_var_pos[key])
             #print(class_var_pos)
             #print(norm_class_var_pos)
             #print(exp_class_var_pos)
-            #print(merged_class_var_pos)
-            #s_wts = np.sum(list(class_var_pos.values()))
-            #for k_i, key in enumerate(unique_cls):
-            #    class_var_pos[key] = class_wt[k_i] / s_wts #(1 - beta) / (1 - beta ** pos_variations_count[str(t)][key]) #class_wt[k_i]
-            #print(class_var_pos)
-            #print()
-            #exp_s_wts = np.sum(list(exp_class_var_pos.values()))
-            #for key in exp_class_var_pos:
-            #    exp_class_var_pos[key] = exp_class_var_pos[key] / exp_s_wts
-            #print(exp_class_var_pos)
 
-            #exp_norm_u_var_distribution = np.zeros((batch_size))
-            #uniform_wts = np.zeros((batch_size))
-            #print(exp_norm_u_var_distribution)
-            #for pos_idx, pos in enumerate(np.reshape(o_tokens, (batch_size,))):
-                #if (t + batch_step) % 2 == 0:
-            #    exp_norm_u_var_distribution[pos_idx] = class_var_pos[pos]
-            #    uniform_wts[pos_idx] = 1.0 / float(batch_size)
-                #else:
-                #exp_norm_u_var_distribution[pos_idx] = exp_class_var_pos[pos]
-            #print(o_tokens)
-            #print(exp_norm_u_var_distribution)
+            exp_norm_u_var_distribution = np.zeros((batch_size))
+            uniform_wts = np.zeros((batch_size))
+            for pos_idx, pos in enumerate(np.reshape(o_tokens, (batch_size,))):
+                exp_norm_u_var_distribution[pos_idx] = exp_class_var_pos[pos] #/ float(np.sum(real_class_wts))
+                #uniform_wts[pos_idx] = 1.0 #/ float(batch_size)
             #exp_norm_u_var_distribution = exp_norm_u_var_distribution / np.sum(exp_norm_u_var_distribution)
+            #print(o_tokens)
             #print(exp_norm_u_var_distribution)
             #print(uniform_wts)
-            #print("----")
-            #rand_int = np.random.randint(0, 256, 1)[0]
-            #print(rand_int, rand_int % 3)
-            
-            #print(exp_norm_u_var_distribution)
-            #print(o_tokens)
-            #print(exp_norm_u_var_distribution)
-            
-            
-            #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
-            
-            # yields good results and across the 
-            #rand_int = np.random.randint(0, 256, 1)[0]
-            #print(t + rand_int, (t + rand_int) % 2)
-            #if (t + batch_step) % 2 == 0:
-                #print(t, batch_step, "weighted loss")
-                #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
-                #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
-                #, sample_weight=exp_norm_u_var_distribution
-            #else:
-                #print(t, batch_step, "unweighted loss...")
-                #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
-            #weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
+            weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
             #uniform_weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=uniform_wts))
-            #step_loss = weighted_loss #0.3 * weighted_loss + 0.7 * uniform_weighted_loss
-            
-            #pred_tokens = tf.argmax(dec_result, axis=-1)
-            #print(o_tokens)
-            
-            #print(pred_tokens)
-            # tf.one_hot(o_tokens, depth=dec_result.shape[-1], axis=-1)
-            #bce_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
-            #print(weighted_loss, uniform_weighted_loss, focal_loss_func(o_tokens, dec_result))
-           
+            focal_loss = tf.reduce_mean(sparse_categorical_focal_loss(o_tokens, dec_result, gamma=2))
+            step_loss = weighted_loss #+ focal_loss #+ 0.5 * uniform_weighted_loss + 0.5 * focal_loss
+
+            #print(weighted_loss, focal_loss)
             #print("----")
             #focal_loss_func = SparseCategoricalFocalLoss(gamma=10, class_weight=exp_norm_u_var_distribution)
-            step_loss = tf.reduce_mean(sparse_categorical_focal_loss(o_tokens, dec_result, gamma=20)) #focal_loss_func(o_tokens, dec_result)
-            
-            #print("----")
-            #print(weighted_loss, uniform_weighted_loss)
-            #step_loss = 1.0 - (weighted_loss / (unweighted_loss + 1e-10)) #tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
-            #if rand_int % 2 == 0:
-            #if gamma_nos[t] > 1.0:
-            #unweighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
-            #weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
-            #lambda_fac = 0.25
-            #step_loss = (1.0 - unweighted_loss) * unweighted_loss + lambda_fac * weighted_loss
-            #if t in rand_pos:
-                #print("Randpos", t, rand_pos)
-                #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
-                #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
-                #, sample_weight=exp_norm_u_var_distribution
-            #else:  
-                #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
-                #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
-            
-            #print(o_tokens)
-            #print()
-            #print(exp_norm_u_var_distribution)
-            #print("-----")
-            #print(o_tokens)
-            #print()
-            #print(exp_norm_u_var_distribution)
-            #final_rev_dist = dict()
-            #for key in pos_variations_count[str(t)]:
-
-            #print("-------------")
-            #norm_u_var_distribution = u_var_distribution / np.sum(u_var_distribution)
-            #exp_norm_u_var_distribution = tf.repeat(norm_u_var_distribution, repeats=batch_size)
-
-            #print(t, pos_variations_count[str(t)], norm_u_var_distribution, exp_norm_u_var_distribution)
-
-            #exp_o_tokens = tf.repeat(o_tokens, repeats=tf.repeat(batch_size, repeats=tf.constant(batch_size)))
-            #exp_logits = tf.concat([dec_result, dec_result, dec_result, dec_result], axis=0)
-            #exp_o_tokens = tf.repeat(u_var, repeats=batch_size) #repeats=tf.repeat(batch_size, repeats=tf.constant(batch_size))
-            #exp_o_tokens = tf.reshape(exp_o_tokens, (batch_size * len(u_var), 1))
-            #print(exp_o_tokens)
-            #print(t, u_var, exp_o_tokens)
-            #exp_logits = dec_result #tf.concat([dec_result, dec_result, dec_result, dec_result], axis=0)
-            #for i in range(len(u_var) - 1):
-            #    exp_logits = tf.concat([exp_logits, dec_result], axis=0)
-            #print(exp_o_tokens.shape, exp_o_tokens, exp_logits.shape)
-            #step_loss_real_targets = tf.reduce_mean(cross_entropy_loss(exp_o_tokens, exp_logits)) #, sample_weight=exp_norm_u_var_distribution
-            #step_loss_output_targets = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
-            #print(o_tokens)
-            #print()
-            #unique_out_targets = np.unique(np.reshape(o_tokens, (batch_size,)))
-            #print(unique_out_targets)
-            #random.shuffle(unique_out_targets)
-            #print(unique_out_targets)
-            #random_target_key = choices(unique_out_targets, k=1)
-            #exp_o_tokens = tf.repeat(choices(unique_out_targets, k=1), repeats=batch_size)
-            #exp_o_tokens = np.reshape(exp_o_tokens, (batch_size, 1))
-            #if t == 7:
-            #    print(exp_o_tokens)
-            #print(exp_o_tokens)
-            #step_loss = tf.reduce_mean(cross_entropy_loss(exp_o_tokens, dec_result)) #step_loss_output_targets #0.95 * step_loss_real_targets + 0.05 * step_loss_output_targets
-            #print(step_loss)
-            #print("-------------")
-            #print("---------------")
-            #print(dec_result.shape, exp_logits.shape)
-            #print(exp_logits[0], exp_logits[1], exp_logits[2], exp_logits[3])
-            #print("---")
-            #print(exp_logits[0], exp_logits[4], exp_logits[8], exp_logits[12])
-            #step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
-
-            #unique_out_targets = np.unique(np.reshape(o_tokens, (batch_size,)))
-            #target_tokens_weights = compute_class_weight("balanced", unique_out_targets, o_tokens)
-            #print(target_tokens_weights)
+            #step_loss = tf.reduce_mean(sparse_categorical_focal_loss(o_tokens, dec_result, gamma=2)) #focal_loss_func(o_tokens, dec_result)
             loss += step_loss
         '''if t in list(range(free_run_s_index, free_run_s_index + free_run_loops)):
             i_tokens = tf.argmax(dec_result, axis=-1)
         else:
             i_tokens = o_tokens'''
-        #print(dec_result, o_tokens, tf.argmax(dec_result, axis=-1))
-        #print()
-        i_tokens = o_tokens #tf.argmax(dec_result, axis=-1) #o_tokens
+        i_tokens = o_tokens #tf.argmax(dec_result, axis=-1)
     #import sys
     #sys.exit()
     gen_logits = tf.concat(gen_logits, axis=-2)
