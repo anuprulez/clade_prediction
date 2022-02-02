@@ -38,8 +38,8 @@ cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=T
 mae = tf.keras.losses.MeanAbsoluteError()
 mse = tf.keras.losses.MeanSquaredError()
 test_tf_ratio = 0.0
-enc_stddev = 1.0 # 0.05 for pretraining
-max_norm = 10.0
+enc_stddev = 0.05 # 0.05 for pretraining
+max_norm = 1.0
 dec_stddev = 0.0001
 max_batch_turn = 50
 #pos_variations = dict()
@@ -611,7 +611,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     enc_output, enc_state = gen_encoder(input_tokens)
     #print(enc_state[:, :5])
     #print()
-    enc_corr = get_pearson_coeff(enc_state)
+    #enc_corr = get_pearson_coeff(enc_state)
     #print(corr)
     #print()
     #print("---------")
@@ -619,13 +619,14 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     dec_state = enc_state
     #print(dec_state)
     #print()
-    enc_mean_dist, enc_pw_norm, eu_dist = pairwise_dist(dec_state, dec_state)
+    #enc_mean_dist, enc_pw_norm, eu_dist = pairwise_dist(dec_state, dec_state)
     #print(eu_dist)
-    enc_state_norm = tf.math.abs(max_norm - tf.norm(dec_state))
+    loss_enc_state_norm = tf.math.abs(max_norm - tf.norm(dec_state))
     dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
+    print(tf.norm(enc_state), tf.norm(dec_state))
     #(dec_state)
     #print("---------")
-    enc_state_norm_noise = tf.math.abs(max_norm - tf.norm(dec_state))
+    #enc_state_norm_noise = tf.math.abs(max_norm - tf.norm(dec_state))
     #print()
     #print(dec_state[:show, :])
     loss = tf.constant(0.0)
@@ -639,11 +640,11 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     #dec_loop_mean_dist = tf.constant(0.0)
     #dec_loop_corr = tf.constant(0.0)
     #mut_error_factor = tf.constant(1.0)
-    free_run_loops = int(0.5 * seq_len)
-    free_run_s_index = np.random.randint(0, seq_len - free_run_loops, 1)[0]
+    #free_run_loops = int(0.2 * seq_len)
+    #free_run_s_index = np.random.randint(0, seq_len - free_run_loops, 1)[0]
     i_tokens = tf.fill([batch_size, 1], 0)
     #print(pos_variations_count)
-    gamma_nos = np.random.gamma(1, size=seq_len)
+    #gamma_nos = np.random.gamma(1, size=seq_len)
     #rand_pos = random.sample(range(0, seq_len - 1), (seq_len - 1) // 2) #np.random.randint(0, seq_len - 1, (seq_len - 1) // 4)
     for t in range(seq_len - 1):
         dec_result, dec_state = gen_decoder([i_tokens, dec_state])
@@ -703,6 +704,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #print(exp_norm_u_var_distribution)
             #print(uniform_wts)
             #print("----")
+
             # introduce randomness
             #-------------------
             '''temp = 0.8
@@ -734,7 +736,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     #dec_loop_pw_norm = dec_loop_pw_norm / seq_len
     #dec_loop_corr = dec_loop_corr / seq_len
     #dec_step_norm = dec_step_norm / seq_len
-    print("True loss: ", loss) # , enc_mean_dist, dec_loop_mean_dist, enc_state_norm, dec_loop_norm
+    print("Losses: ", loss, loss_enc_state_norm) # , enc_mean_dist, dec_loop_mean_dist, enc_state_norm, dec_loop_norm
     #print("Enc state mean dist:", enc_mean_dist)
     #print("Dec state mean dist:", dec_loop_mean_dist)
     #print("Encoder norm: {}".format(str(enc_state_norm)))
@@ -751,6 +753,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     #loss = loss + enc_state_norm + dec_loop_norm + enc_mean_dist + dec_loop_mean_dist
     #loss = loss + enc_mean_dist + dec_loop_mean_dist # dec_loop_norm
     #loss = loss + enc_corr + dec_loop_corr
+    loss = loss + loss_enc_state_norm
     return gen_logits, gen_encoder, gen_decoder, loss
 
 
