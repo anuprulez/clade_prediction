@@ -702,6 +702,14 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #print(o_tokens)
             #print(exp_norm_u_var_distribution)
             #print(uniform_wts)
+
+            # introduce randomness
+            #-------------------
+            temp = 0.8
+            dec_result = tf.math.log(dec_result / temp)
+            dec_result = tf.math.exp(dec_result) / float(dec_result.shape[-1])
+            #-------------------------------
+
             weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
             #uniform_weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=uniform_wts))
             focal_loss = tf.reduce_mean(sparse_categorical_focal_loss(o_tokens, dec_result, gamma=2))
