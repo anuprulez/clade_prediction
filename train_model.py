@@ -33,7 +33,7 @@ TRAIN_GEN_ENC_MODEL = "data/generated_files/gen_enc_model"
 TRAIN_GEN_DEC_MODEL = "data/generated_files/gen_dec_model"
 
 
-pretrain_generator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) #learning_rate=3e-5
+pretrain_generator_optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4) #learning_rate=3e-5
 pf_discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5)
 generator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) # learning_rate=1e-3, beta_1=0.5
 discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) # learning_rate=3e-5, beta_1=0.5
@@ -41,7 +41,7 @@ cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 n_disc_step = 10
 n_gen_step = 5
 unrolled_steps = 0
-test_log_step = 50
+test_log_step = 100
 teacher_forcing_ratio = 0.0
 disc_clip_norm = 10.0
 gen_clip_norm = 10.0
@@ -198,7 +198,7 @@ def g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, u
 
 def sample_true_x_y(batch_size, X_train, y_train, cluster_indices):
     # sample_true_x_y(batch_size, X_train, y_train, cluster_indices)
-    '''cluster_keys = list(cluster_indices.keys())
+    cluster_keys = list(cluster_indices.keys())
     cluster_keys = list(np.unique(cluster_keys))
     random.shuffle(cluster_keys)
     if len(cluster_keys) >= batch_size:
@@ -213,8 +213,8 @@ def sample_true_x_y(batch_size, X_train, y_train, cluster_indices):
         rows_indices = cluster_indices[key]
         random.shuffle(rows_indices)
         rand_batch_indices.append(rows_indices[0])
-        #print("---")'''
-    rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)
+        #print("---")
+    #rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)
     #print(rand_batch_indices)
     #print()
     x_batch_train = X_train[rand_batch_indices]

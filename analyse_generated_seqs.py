@@ -12,11 +12,11 @@ from scipy.stats.mstats import pearsonr
 
 import utils
 
-data_path = "test_results/01_02_22_CPU_1/" #"test_results/19_10_20A_20B_unrolled_GPU/" # 08_10_one_hot_3_CPU_20A_20B
-test_file = "test/20A_20B.csv"
-gen_file = "model_generated_sequences/generated_seqs_20A_20B_1096660.csv" # generated_seqs_20A_20B_1127915 # generated_seqs_20A_20B_302510.csv
+data_path = "test_results/02_02_22_local/" #"test_results/19_10_20A_20B_unrolled_GPU/" # 08_10_one_hot_3_CPU_20A_20B
+test_file = "train/20A_20B.csv"
+gen_file = "model_generated_sequences/generated_seqs_20A_20B_1893649.csv" # generated_seqs_20A_20B_1127915 # generated_seqs_20A_20B_302510.csv
 
-kmer_f_dict = utils.read_json(data_path + "kmer_f_word_dictionaries.json")
+kmer_f_dict = utils.read_json(data_path + "f_word_dictionaries.json")
 #parent_clade = "20B"
 #child_clade = "20I_Alpha_20F_20D_21G_Lambda_21H" #"20B" #"20I_Alpha_20F_20D_21G_Lambda_21H"
 

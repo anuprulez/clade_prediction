@@ -99,11 +99,11 @@ def get_u_kmers(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict, start_tok
             x_list.append(sub_x_i)
             y_list.append(sub_y_j)
 
-    #kmer_f_dict, kmer_r_dict = get_all_possible_words(amino_acid_codes, s_kmer)
-    global_kmers = get_all_kmers(x_list, y_list, forward_dict, s_kmer)
-    global_kmers = list(set(global_kmers))
-    kmer_f_dict = {i + 1: global_kmers[i] for i in range(0, len(global_kmers))}
-    kmer_r_dict = {global_kmers[i]: i + 1  for i in range(0, len(global_kmers))}
+    kmer_f_dict, kmer_r_dict = get_all_possible_words(amino_acid_codes, s_kmer)
+    #global_kmers = get_all_kmers(x_list, y_list, forward_dict, s_kmer)
+    #global_kmers = list(set(global_kmers))
+    #kmer_f_dict = {i + 1: global_kmers[i] for i in range(0, len(global_kmers))}
+    #kmer_r_dict = {global_kmers[i]: i + 1  for i in range(0, len(global_kmers))}
 
     kmer_f_dict[start_token] = "<start>"
     kmer_r_dict["<start>"] = start_token
@@ -153,9 +153,9 @@ def generate_cross_product(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict
     kmer_r_dict = dict()
 
     #print(forward_dict)
-    #filtered_x, filtered_y, kmer_f_dict, kmer_r_dict = get_u_kmers(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict, start_token)
+    filtered_x, filtered_y, kmer_f_dict, kmer_r_dict = get_u_kmers(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict, start_token)
     
-    for i, x_i in enumerate(x_seq):
+    '''for i, x_i in enumerate(x_seq):
         for j, y_j in enumerate(y_seq):
             # cut sequences of specific length
             
@@ -186,7 +186,7 @@ def generate_cross_product(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict
                 if l_dist > max_l_dist:
                     filtered_x.append(add_padding_to_seq(sub_x_i, start_token))
                     filtered_y.append(add_padding_to_seq(sub_y_j, start_token))
-                    filtered_l_distance.append(l_dist)
+                    filtered_l_distance.append(l_dist)'''
 
     print(len(filtered_l_distance), np.mean(filtered_l_distance))
     filtered_dataframe = pd.DataFrame(list(zip(filtered_x, filtered_y)), columns=["X", "Y"])
@@ -794,7 +794,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
            
             #print("----")
             #focal_loss_func = SparseCategoricalFocalLoss(gamma=10, class_weight=exp_norm_u_var_distribution)
-            step_loss = tf.reduce_mean(sparse_categorical_focal_loss(o_tokens, dec_result, gamma=5)) #focal_loss_func(o_tokens, dec_result)
+            step_loss = tf.reduce_mean(sparse_categorical_focal_loss(o_tokens, dec_result, gamma=20)) #focal_loss_func(o_tokens, dec_result)
             
             #print("----")
             #print(weighted_loss, uniform_weighted_loss)

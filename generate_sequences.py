@@ -18,14 +18,14 @@ import preprocess_sequences
 import utils
 
 
-RESULT_PATH = "test_results/sample_ordinal/"
+RESULT_PATH = "test_results/02_02_22_local/"
 
 min_diff = 0
 max_diff = 100
 train_size = 1.0
 enc_units = 64
 random_size = 20
-LEN_AA = 15
+LEN_AA = 17
 FUTURE_GEN_TEST = "test/20A_20B.csv"
 
 clade_parent = "20A" # 20A
@@ -138,9 +138,9 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq, forw
     
     print("Num test batches: {}".format(str(num_te_batches)))
 
-    no_models = 3
-    start_model_index = 1
-    model_type = "gan_train"
+    no_models = 20
+    start_model_index = 30
+    model_type = "pre_train"
 
     for iter_model in range(start_model_index, start_model_index + no_models):
  
@@ -172,13 +172,13 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq, forw
                 pred_y = utils.convert_to_string_list(p_y)
                 for k in range(0, len(one_x)):
                     wu_bleu_score = 0.0
-               
+
                     re_true_x = utils.reconstruct_seq([forward_dict[pos] for pos in one_x[k].split(",")[1:]])
                     re_pred_y = utils.reconstruct_seq([forward_dict[pos] for pos in pred_y[k].split(",")])
 
-                    print(re_true_x)
-                    print(re_pred_y)
-                    print("----------")
+                    #print(re_true_x)
+                    #print(re_pred_y)
+                    #print("----------")
                     l_dist_x_pred = utils.compute_Levenshtein_dist(re_true_x, re_pred_y)
                     #ld_wuhan_gen = utils.compute_Levenshtein_dist(encoded_wuhan_seq, pred_y[k])
                     #wu_bleu_score = sentence_bleu([encoded_wuhan_seq.split(",")], pred_y[k].split(","))
@@ -196,8 +196,6 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq, forw
                 print("Generation iter {} done".format(str(i+1)))
                 print("----------")
             print("Batch {} finished".format(str(step)))
-            if step == num_te_batches - 1:
-                break
             print()
     print(len(true_x), len(predicted_y))
     child_clades = "_".join(clade_childen)
