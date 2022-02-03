@@ -623,7 +623,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     #print(eu_dist)
     loss_enc_state_norm = tf.math.abs(max_norm - tf.norm(dec_state))
     dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
-    print(tf.norm(enc_state), tf.norm(dec_state))
+    #print(tf.norm(enc_state).numpy(), tf.norm(dec_state).numpy())
     #(dec_state)
     #print("---------")
     #enc_state_norm_noise = tf.math.abs(max_norm - tf.norm(dec_state))
@@ -635,7 +635,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     #dec_state_mean_dist = tf.constant(0.0)
     #dec_state_loop_pw_norm = tf.constant(0.0)
     #dec_step_norm = tf.constant(0.0)
-    #dec_loop_norm = tf.constant(0.0)
+    loss_dec_loop_norm = tf.constant(0.0)
     #dec_loop_pw_norm = tf.constant(0.0)
     #dec_loop_mean_dist = tf.constant(0.0)
     #dec_loop_corr = tf.constant(0.0)
@@ -650,8 +650,8 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
         dec_result, dec_state = gen_decoder([i_tokens, dec_state])
         #dec_state_mean_dist, dec_state_loop_pw_norm, _ = pairwise_dist(dec_state, dec_state)
         #dec_loop_mean_dist += dec_state_mean_dist
-        #dec_state_step_norm = tf.math.abs(max_norm - tf.norm(dec_state))
-        #dec_loop_norm += dec_state_step_norm
+        #loss_dec_state_norm = tf.math.abs(max_norm - tf.norm(dec_state))
+        #loss_dec_loop_norm += loss_dec_state_norm
         #dec_loop_pw_norm += dec_state_loop_pw_norm
         gen_logits.append(dec_result)
         #dec_loop_corr += get_pearson_coeff(dec_state)
@@ -693,17 +693,21 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             #print(norm_class_var_pos)
             #print(exp_class_var_pos)
 
+            for key in exp_class_var_pos:
+                exp_class_var_pos[key] = exp_class_var_pos[key] / np.sum(real_class_wts)
+
+            #print(exp_class_var_pos)
             exp_norm_u_var_distribution = np.zeros((batch_size))
             uniform_wts = np.zeros((batch_size))
             for pos_idx, pos in enumerate(np.reshape(o_tokens, (batch_size,))):
                 exp_norm_u_var_distribution[pos_idx] = exp_class_var_pos[pos] #/ float(np.sum(real_class_wts))
                 #uniform_wts[pos_idx] = 1.0 #/ float(batch_size)
             #print(exp_norm_u_var_distribution)
-            #exp_norm_u_var_distribution = exp_norm_u_var_distribution / np.sum(exp_norm_u_var_distribution)
+            exp_norm_u_var_distribution = exp_norm_u_var_distribution / np.sum(exp_norm_u_var_distribution)
             #print(o_tokens)
             #print(exp_norm_u_var_distribution)
             #print(uniform_wts)
-            #print("----")
+            
 
             # introduce randomness
             #-------------------
@@ -712,11 +716,18 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             dec_result = tf.math.exp(dec_result) / float(dec_result.shape[-1])'''
             #-------------------------------
 
-            weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
+            #weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
             #uniform_weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
-            #focal_loss = tf.reduce_mean(sparse_categorical_focal_loss(o_tokens, dec_result, gamma=2))
-            step_loss = weighted_loss #+ uniform_weighted_loss #+ 0.5 * uniform_weighted_loss + 0.5 * focal_loss
-
+            focal_loss = sparse_categorical_focal_loss(o_tokens, dec_result, gamma=2)
+            #print(focal_loss)
+            exp_norm_u_var_distribution = tf.convert_to_tensor(exp_norm_u_var_distribution, dtype=tf.dtypes.float32)
+            exp_norm_u_var_distribution = tf.reshape(exp_norm_u_var_distribution, (batch_size, 1))
+            #print(exp_norm_u_var_distribution)
+            # Class balanced focal loss
+            focal_loss *= exp_norm_u_var_distribution
+            #print(focal_loss)
+            step_loss = tf.reduce_mean(focal_loss) #+ uniform_weighted_loss #+ 0.5 * uniform_weighted_loss + 0.5 * focal_loss
+            #print("----")
             #print(weighted_loss, focal_loss)
             #print("----")
             #focal_loss_func = SparseCategoricalFocalLoss(gamma=10, class_weight=exp_norm_u_var_distribution)
@@ -731,12 +742,13 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     #sys.exit()
     gen_logits = tf.concat(gen_logits, axis=-2)
     loss = loss / seq_len
+    #loss_dec_loop_norm = loss_dec_loop_norm / seq_len
     #dec_loop_mean_dist = dec_loop_mean_dist / seq_len
     #dec_loop_norm = dec_loop_norm / seq_len
     #dec_loop_pw_norm = dec_loop_pw_norm / seq_len
     #dec_loop_corr = dec_loop_corr / seq_len
-    #dec_step_norm = dec_step_norm / seq_len
-    print("Losses: ", loss, loss_enc_state_norm) # , enc_mean_dist, dec_loop_mean_dist, enc_state_norm, dec_loop_norm
+    print("Losses: (true)", loss.numpy())
+    #print("Losses: (true, enc norm, dec norm)", loss.numpy(), loss_enc_state_norm.numpy(), loss_dec_loop_norm.numpy()
     #print("Enc state mean dist:", enc_mean_dist)
     #print("Dec state mean dist:", dec_loop_mean_dist)
     #print("Encoder norm: {}".format(str(enc_state_norm)))
@@ -753,7 +765,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     #loss = loss + enc_state_norm + dec_loop_norm + enc_mean_dist + dec_loop_mean_dist
     #loss = loss + enc_mean_dist + dec_loop_mean_dist # dec_loop_norm
     #loss = loss + enc_corr + dec_loop_corr
-    loss = loss + loss_enc_state_norm
+    #loss = loss + loss_enc_state_norm + loss_dec_loop_norm
     return gen_logits, gen_encoder, gen_decoder, loss
 
 
