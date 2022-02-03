@@ -650,6 +650,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     #rand_pos = random.sample(range(0, seq_len - 1), (seq_len - 1) // 2) #np.random.randint(0, seq_len - 1, (seq_len - 1) // 4)
     for t in range(seq_len - 1):
         dec_result, dec_state = gen_decoder([i_tokens, dec_state])
+        dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
         #dec_state_mean_dist, dec_state_loop_pw_norm, _ = pairwise_dist(dec_state, dec_state)
         #dec_loop_mean_dist += dec_state_mean_dist
         #loss_dec_state_norm = tf.math.abs(max_norm - tf.norm(dec_state))
@@ -705,7 +706,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
                 exp_norm_u_var_distribution[pos_idx] = exp_class_var_pos[pos] #/ float(np.sum(real_class_wts))
                 #uniform_wts[pos_idx] = 1.0 #/ float(batch_size)
             #print(exp_norm_u_var_distribution)
-            exp_norm_u_var_distribution = exp_norm_u_var_distribution / np.sum(exp_norm_u_var_distribution)
+            #exp_norm_u_var_distribution = exp_norm_u_var_distribution / np.sum(exp_norm_u_var_distribution)
             #print(o_tokens)
             #print(exp_norm_u_var_distribution)
             #print(uniform_wts)
@@ -794,7 +795,7 @@ def loop_encode_decode_predict(seq_len, batch_size, vocab_size, input_tokens, ou
         dec_result, dec_state = gen_decoder([i_tokens, dec_state])
         gen_logits.append(dec_result)
         o_state_norm.append(tf.norm(dec_state))
-        #dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
+        dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
         if len(output_tokens) > 0:
             o_tokens = output_tokens[:, t+1:t+2]
             step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
