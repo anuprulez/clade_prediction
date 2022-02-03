@@ -24,6 +24,7 @@ from Levenshtein import distance as lev_dist
 from focal_loss import sparse_categorical_focal_loss
 
 from focal_loss import SparseCategoricalFocalLoss
+tf.keras.metrics.SparseTopKCategoricalAccuracy(k=1)
 
 import neural_network
 
@@ -35,10 +36,11 @@ bce = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 #focal_loss_func = SparseCategoricalFocalLoss(gamma=2)
 
 cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
+
 mae = tf.keras.losses.MeanAbsoluteError()
 mse = tf.keras.losses.MeanSquaredError()
 test_tf_ratio = 0.0
-enc_stddev = 0.05 # 0.05 for pretraining
+enc_stddev = 1.0 # 0.05 for pretraining
 max_norm = 1.0
 dec_stddev = 0.0001
 max_batch_turn = 50
@@ -640,8 +642,8 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     #dec_loop_mean_dist = tf.constant(0.0)
     #dec_loop_corr = tf.constant(0.0)
     #mut_error_factor = tf.constant(1.0)
-    #free_run_loops = int(0.2 * seq_len)
-    #free_run_s_index = np.random.randint(0, seq_len - free_run_loops, 1)[0]
+    free_run_loops = int(0.2 * seq_len)
+    free_run_s_index = np.random.randint(0, seq_len - free_run_loops, 1)[0]
     i_tokens = tf.fill([batch_size, 1], 0)
     #print(pos_variations_count)
     #gamma_nos = np.random.gamma(1, size=seq_len)
@@ -716,28 +718,34 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             dec_result = tf.math.exp(dec_result) / float(dec_result.shape[-1])'''
             #-------------------------------
 
-            #weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
+            weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
             #uniform_weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
-            focal_loss = sparse_categorical_focal_loss(o_tokens, dec_result, gamma=2)
+            focal_loss = sparse_categorical_focal_loss(o_tokens, dec_result, gamma=5)
             #print(focal_loss)
             exp_norm_u_var_distribution = tf.convert_to_tensor(exp_norm_u_var_distribution, dtype=tf.dtypes.float32)
             exp_norm_u_var_distribution = tf.reshape(exp_norm_u_var_distribution, (batch_size, 1))
             #print(exp_norm_u_var_distribution)
             # Class balanced focal loss
             focal_loss *= exp_norm_u_var_distribution
+
+            # topk cross-entropy loss
+            topk_cross_entropy_acc = tf.keras.metrics.SparseTopKCategoricalAccuracy(k=len(unique_cls))
+            topk_acc = topk_cross_entropy_acc(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution)
+            #print(topk_loss)
             #print(focal_loss)
-            step_loss = tf.reduce_mean(focal_loss) #+ uniform_weighted_loss #+ 0.5 * uniform_weighted_loss + 0.5 * focal_loss
+            step_loss = weighted_loss + (1.0 - topk_acc)
+            #tf.reduce_mean(focal_loss) #+ uniform_weighted_loss #+ 0.5 * uniform_weighted_loss + 0.5 * focal_loss
             #print("----")
             #print(weighted_loss, focal_loss)
             #print("----")
             #focal_loss_func = SparseCategoricalFocalLoss(gamma=10, class_weight=exp_norm_u_var_distribution)
             #step_loss = tf.reduce_mean(sparse_categorical_focal_loss(o_tokens, dec_result, gamma=2)) #focal_loss_func(o_tokens, dec_result)
             loss += step_loss
-        '''if t in list(range(free_run_s_index, free_run_s_index + free_run_loops)):
+        if t in list(range(free_run_s_index, free_run_s_index + free_run_loops)):
             i_tokens = tf.argmax(dec_result, axis=-1)
         else:
-            i_tokens = o_tokens'''
-        i_tokens = o_tokens #tf.argmax(dec_result, axis=-1)
+            i_tokens = o_tokens
+        #i_tokens = o_tokens #tf.argmax(dec_result, axis=-1)
     #import sys
     #sys.exit()
     gen_logits = tf.concat(gen_logits, axis=-2)
