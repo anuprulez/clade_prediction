@@ -7,6 +7,8 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import pandas as pd
 import numpy as np
 import tensorflow as tf
+# comment this if running on GPU
+tf.config.set_visible_devices([], 'GPU')
 
 from sklearn.model_selection import train_test_split
 
