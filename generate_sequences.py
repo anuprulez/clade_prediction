@@ -156,7 +156,7 @@ def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq, forw
         loaded_encoder = tf.keras.models.load_model(enc_model_path) #"pretrain_gen_encoder" #gen_enc_model
         loaded_decoder = tf.keras.models.load_model(dec_model_path) #pretrain_gen_decoder #gen_dec_model
 
-        for step, x in enumerate(test_dataset_in):
+        for step, x in enumerate(test_dataset_out):
             batch_x_test = utils.pred_convert_to_array(x)
             #batch_y_test = utils.pred_convert_to_array(y)
             print(batch_x_test.shape)

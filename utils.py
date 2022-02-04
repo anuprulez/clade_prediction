@@ -42,7 +42,7 @@ mse = tf.keras.losses.MeanSquaredError()
 test_tf_ratio = 0.0
 enc_stddev = 1.0 # 0.05 for pretraining
 max_norm = 1.0
-dec_stddev = 0.0001
+dec_stddev = 1.0 #0.0001
 max_batch_turn = 50
 #pos_variations = dict()
 amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"
@@ -733,7 +733,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
             topk_acc = topk_cross_entropy_acc(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution)
             #print(topk_loss)
             #print(focal_loss)
-            step_loss = (1.0 - topk_acc) + tf.reduce_mean(focal_loss)
+            step_loss = tf.reduce_mean(focal_loss) # + (1.0 - topk_acc)
             #tf.reduce_mean(focal_loss) #+ uniform_weighted_loss #+ 0.5 * uniform_weighted_loss + 0.5 * focal_loss
             #print("----")
             #print(weighted_loss, focal_loss)
