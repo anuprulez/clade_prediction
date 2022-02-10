@@ -7,6 +7,8 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import pandas as pd
 import numpy as np
 import tensorflow as tf
+# comment this if running on GPU
+tf.config.set_visible_devices([], 'GPU')
 
 from sklearn.model_selection import train_test_split
 
@@ -75,13 +77,13 @@ len_aa_subseq = LEN_AA
 len_final_aa_padding = len_aa_subseq - s_kmer + 2 # write 2 here when there is padding of zero in in and out sequences
 size_stateful = 10
 # Neural network parameters
-embedding_dim = 32
+embedding_dim = 128
 batch_size = 8
 te_batch_size = batch_size
-n_te_batches = 10
-enc_units = 64
-pretrain_epochs = 10
-epochs = 10
+n_te_batches = 20
+enc_units = 32
+pretrain_epochs = 20
+epochs = 20
 max_l_dist = 11
 test_train_size = 0.85
 pretrain_train_size = 0.5
@@ -122,7 +124,7 @@ def read_files():
     encoder = None
     decoder = None
     pf_model = None
-    kmer_f_dict, kmer_r_dict = utils.get_all_possible_words(amino_acid_codes, s_kmer)
+    #kmer_f_dict, kmer_r_dict = utils.get_all_possible_words(amino_acid_codes, s_kmer)
 
     if pretrained_model is False:
         print("Cleaning up stale folders...")
@@ -249,6 +251,11 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
 
     print("Number of kmers: {}".format(str(len(kmer_f_dict))))
     print("Vocab size: {}".format(str(len(kmer_f_dict) + 1)))
+
+    #kmer_f_dict = dict()
+    #kmer_r_dict = dict()
+
+    #vocab_size = len(forward_dict) + 1
 
     combined_X = np.array(combined_X)
     combined_y = np.array(combined_y)

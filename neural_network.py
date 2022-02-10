@@ -263,7 +263,7 @@ def make_discriminator_model(enc_units):
     x = tf.keras.layers.Dropout(DISC_DROPOUT)(x)
     x = tf.keras.layers.LayerNormalization()(x)
     #x = tf.keras.layers.BatchNormalization()(x)
-    output_class = tf.keras.layers.Dense(1, activation="linear")(x)
+    output_class = tf.keras.layers.Dense(1, activation="softmax")(x)
     disc_model = tf.keras.Model([parent_state, generated_state], [output_class])
     return disc_model
 

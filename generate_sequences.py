@@ -18,14 +18,21 @@ import preprocess_sequences
 import utils
 
 
-RESULT_PATH = "test_results/26_01_22_local_machine_norm_bal_cls_wts/"
-
-min_diff = 0
-max_diff = 61
-train_size = 1.0
-enc_units = 64
-random_size = 20
+RESULT_PATH = "test_results/04_02_22_GPU_2/" # 04_02_22_GPU # 04_02_22_local
+ 
 LEN_AA = 15
+min_diff = 0
+max_diff = LEN_AA #int(LEN_AA/5)
+train_size = 1.0
+enc_units = 32
+random_size = 20
+
+no_models = 4
+start_model_index = 1
+enc_stddev = 1.0
+dec_stddev = 0.0001
+
+model_type = "pre_train"
 FUTURE_GEN_TEST = "test/20A_20B.csv"
 
 clade_parent = "20A" # 20A
@@ -34,7 +41,7 @@ clade_childen = ["20B"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"]
 # ["20G", "21C_Epsilon", "21F_Iota"]
 # {"20B": ["20I (Alpha, V1)", "20F", "20D", "21G (Lambda)", "21H"]}
 
-generating_factor = 10
+generating_factor = 50
 
 PATH_PRE = "data/ncov_global/"
 #PATH_SEQ = PATH_PRE + "spikeprot0815.fasta"
@@ -120,83 +127,125 @@ def load_model_generated_sequences(file_path):
         te_y.to_csv(true_y_df_path, index=None)
 
         with tf.device('/device:cpu:0'):
-            predict_multiple(te_X, te_y, LEN_AA, vocab_size, encoded_wuhan_seq, kmer_f_dict, kmer_r_dict)
+            predict_multiple(te_X, te_y, LEN_AA, vocab_size, encoded_wuhan_seq, forward_dict, kmer_f_dict, kmer_r_dict)
 
 
-def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq, kmer_f_dict, kmer_r_dict):
+def predict_multiple(test_x, test_y, LEN_AA, vocab_size, encoded_wuhan_seq, forward_dict, kmer_f_dict, kmer_r_dict):
     batch_size = 1 #test_x.shape[0]
     print(batch_size, len(test_x))
     test_dataset_in = tf.data.Dataset.from_tensor_slices((test_x)).batch(batch_size)
-    #test_dataset_out = tf.data.Dataset.from_tensor_slices((test_y)).batch(batch_size)
+    test_dataset_out = tf.data.Dataset.from_tensor_slices((test_y)).batch(batch_size)
     true_x = list()
     #true_y = list()
     predicted_y = list()
     test_tf_ratio = 0.0
     size_stateful = 100
     num_te_batches = int(len(test_x) / float(batch_size))
-    #num_te_batches = 5
+    #num_te_batches = 1
     
     print("Num test batches: {}".format(str(num_te_batches)))
-    print("Loading trained model from {}...".format(RESULT_PATH))
-    loaded_encoder = tf.keras.models.load_model(RESULT_PATH + "gan_train/10/enc") #"pretrain_gen_encoder" #gen_enc_model
-    #loaded_encoder.load_weights(RESULT_PATH + GEN_ENC_WEIGHTS)
-    loaded_decoder = tf.keras.models.load_model(RESULT_PATH + "gan_train/10/dec") #pretrain_gen_decoder #gen_dec_model
-    #loaded_decoder.load_weights(RESULT_PATH + GEN_DEC_WEIGHTS)
-    #import sys
-    #sys.exit()
-    for step, x in enumerate(test_dataset_in):
-        batch_x_test = utils.pred_convert_to_array(x)
-        #batch_y_test = utils.pred_convert_to_array(y)
-        print(batch_x_test.shape)
-        print("Generating sequences for the set of test sequence...")
-        for i in range(generating_factor):
-            l_x_gen = list()
-            l_b_score = list()
-            l_b_wu_score = list()
-            l_ld_wuhan = list()
-            print("Generating for iter {}/{}".format(str(i+1), str(generating_factor)))
-            generated_logits, _, _, loss = utils.loop_encode_decode_predict(LEN_AA, batch_size, vocab_size, batch_x_test, [], loaded_encoder, loaded_decoder, enc_units, test_tf_ratio, False, size_stateful, dict())
-            # compute generated sequence variation
-            #batch_x_test = batch_x_test[:, 1:]
-            variation_score = utils.get_sequence_variation_percentage(batch_x_test, generated_logits)
-            print("Generated sequence variation score: {}".format(str(variation_score)))
-            p_y = tf.math.argmax(generated_logits, axis=-1)
 
-            one_x = utils.convert_to_string_list(batch_x_test)
-            pred_y = utils.convert_to_string_list(p_y)
-            for k in range(0, len(one_x)):
-               wu_bleu_score = 0.0
-               
-               re_true_x = utils.reconstruct_seq([kmer_f_dict[pos] for pos in one_x[k].split(",")[1:]])
-               re_pred_y = utils.reconstruct_seq([kmer_f_dict[pos] for pos in pred_y[k].split(",")])
+    for iter_model in range(start_model_index, start_model_index + no_models):
+ 
+        enc_model_path = RESULT_PATH + model_type + "/" + str(iter_model) + "/enc"
+        dec_model_path = RESULT_PATH + model_type + "/" + str(iter_model) + "/dec"
 
-               l_dist_x_pred = utils.compute_Levenshtein_dist(re_true_x, re_pred_y)
-               #ld_wuhan_gen = utils.compute_Levenshtein_dist(encoded_wuhan_seq, pred_y[k])
-               #wu_bleu_score = sentence_bleu([encoded_wuhan_seq.split(",")], pred_y[k].split(","))
-               if l_dist_x_pred > min_diff and l_dist_x_pred < max_diff:
-                   l_x_gen.append(l_dist_x_pred)
-                   true_x.append(one_x[0])
-                   predicted_y.append(pred_y[0])
-                   #l_b_wu_score.append(wu_bleu_score)
-                   #l_ld_wuhan.append(ld_wuhan_gen)
-            print("Step:{}, mean levenshtein distance (x and pred): {}".format(str(i+1), str(np.mean(l_x_gen))))
-            #print("Step:{}, mean levenshtein distance (wuhan and pred): {}".format(str(i+1), str(np.mean(l_ld_wuhan))))
-            print("Step:{}, median levenshtein distance (x and pred): {}".format(str(i+1), str(np.median(l_x_gen))))
-            #print("Step:{}, standard deviation levenshtein distance (x and pred): {}".format(str(i+1), str(np.std(l_x_gen))))
-            #print("Step:{}, variance levenshtein distance (x and pred): {}".format(str(i+1), str(np.var(l_x_gen))))
-            print("Generation iter {} done".format(str(i+1)))
-            print("----------")
-        print("Batch {} finished".format(str(step)))
-        #if step == num_te_batches - 1:
-        #    break
-        print()
+        print("Loading encoder from {}...".format(enc_model_path))
+        print("Loading decoder from {}...".format(dec_model_path))
+
+        loaded_encoder = tf.keras.models.load_model(enc_model_path) #"pretrain_gen_encoder" #gen_enc_model
+        loaded_decoder = tf.keras.models.load_model(dec_model_path) #pretrain_gen_decoder #gen_dec_model
+
+        for step, x in enumerate(test_dataset_out):
+            batch_x_test = utils.pred_convert_to_array(x)
+            #batch_y_test = utils.pred_convert_to_array(y)
+            print(batch_x_test.shape)
+            print("Generating sequences for the set of test sequence...")
+            for i in range(generating_factor):
+                l_x_gen = list()
+                l_b_score = list()
+                l_b_wu_score = list()
+                l_ld_wuhan = list()
+                print("Generating for iter {}/{}".format(str(i+1), str(generating_factor)))
+                generated_logits, _, _, loss = loop_encode_decode_predict(LEN_AA, batch_size, vocab_size, batch_x_test, [], loaded_encoder, loaded_decoder, enc_units, test_tf_ratio, False, size_stateful, dict())
+                variation_score = utils.get_sequence_variation_percentage(batch_x_test, generated_logits)
+                print("Generated sequence variation score: {}".format(str(variation_score)))
+                p_y = tf.math.argmax(generated_logits, axis=-1)
+                
+                one_x = utils.convert_to_string_list(batch_x_test)
+                pred_y = utils.convert_to_string_list(p_y)
+                for k in range(0, len(one_x)):
+                    wu_bleu_score = 0.0
+
+                    re_true_x = utils.reconstruct_seq([kmer_f_dict[pos] for pos in one_x[k].split(",")[1:]])
+                    re_pred_y = utils.reconstruct_seq([kmer_f_dict[pos] for pos in pred_y[k].split(",")])
+
+                    l_dist_x_pred = utils.compute_Levenshtein_dist(re_true_x, re_pred_y)
+                    #ld_wuhan_gen = utils.compute_Levenshtein_dist(encoded_wuhan_seq, pred_y[k])
+                    #wu_bleu_score = sentence_bleu([encoded_wuhan_seq.split(",")], pred_y[k].split(","))
+                    if l_dist_x_pred > min_diff and l_dist_x_pred < max_diff:
+                        l_x_gen.append(l_dist_x_pred)
+                        true_x.append(one_x[0])
+                        predicted_y.append(pred_y[0])
+                        #l_b_wu_score.append(wu_bleu_score)
+                        #l_ld_wuhan.append(ld_wuhan_gen)
+                print("Step:{}, mean levenshtein distance (x and pred): {}".format(str(i+1), str(np.mean(l_x_gen))))
+                #print("Step:{}, mean levenshtein distance (wuhan and pred): {}".format(str(i+1), str(np.mean(l_ld_wuhan))))
+                print("Step:{}, median levenshtein distance (x and pred): {}".format(str(i+1), str(np.median(l_x_gen))))
+                #print("Step:{}, standard deviation levenshtein distance (x and pred): {}".format(str(i+1), str(np.std(l_x_gen))))
+                #print("Step:{}, variance levenshtein distance (x and pred): {}".format(str(i+1), str(np.var(l_x_gen))))
+                print("Generation iter {} done".format(str(i+1)))
+                print("----------")
+            print("Batch {} finished".format(str(step)))
+            print()
     print(len(true_x), len(predicted_y))
     child_clades = "_".join(clade_childen)
     true_predicted_multiple = pd.DataFrame(list(zip(true_x, predicted_y)), columns=[clade_parent, "Generated"])
-    df_path = "{}generated_seqs_{}_{}_{}_times_max_LD_{}.csv".format(RESULT_PATH, clade_parent, child_clades, str(generating_factor), str(max_diff))
+    utils.create_dirs(RESULT_PATH + "model_generated_sequences")
+    df_path = "{}model_generated_sequences/generated_seqs_{}_{}_{}_{}.csv".format(RESULT_PATH, clade_parent, child_clades, str(np.random.randint(0, 2000000, 1)[0]), model_type)
     true_predicted_multiple.to_csv(df_path, index=None)
-    
 
+
+def loop_encode_decode_predict(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful, mut_freq): 
+    show = 2
+    enc_output, enc_state = gen_encoder(input_tokens) #, training=False
+    enc_norm = tf.norm(enc_state)
+    dec_state = enc_state
+    #print(dec_state)
+    #print()
+    dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
+    #print(dec_state[:show, :])
+    loss = tf.constant(0.0)
+    gen_logits = list()
+    o_state_norm = list()
+    i_tokens = tf.fill([batch_size, 1], 0)
+    for t in range(seq_len - 1):
+        dec_result, dec_state = gen_decoder([i_tokens, dec_state]) #, training=False
+        gen_logits.append(dec_result)
+        o_state_norm.append(tf.norm(dec_state))
+        dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
+        if len(output_tokens) > 0:
+            o_tokens = output_tokens[:, t+1:t+2]
+            step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
+            loss += step_loss
+        i_tokens = tf.argmax(dec_result, axis=-1)
+        '''temp = 0.99
+        dec_result_temp = tf.math.log(dec_result / temp)
+        dec_result_temp = tf.math.exp(dec_result_temp) #/ float(dec_result.shape[-1])
+        #topk_sce = tf.keras.metrics.SparseTopKCategoricalAccuracy(k=5)
+        topk_i_tokens = tf.math.top_k(dec_result, k=5)
+        topk_i_tokens_temp = tf.math.top_k(dec_result_temp, k=5)
+        #print(o_tokens)
+        #print(dec_result.shape)
+        print(t, topk_i_tokens)'''
+        #print(t, topk_i_tokens_temp)
+        #print("------------")
+    gen_logits = tf.concat(gen_logits, axis=-2)
+    loss = loss / seq_len
+    print("Encoder norm: {}".format(str(tf.norm(enc_state))))
+    print("Decoder norm: {}".format(str(np.mean(o_state_norm))))
+    #print("--------------")
+    return gen_logits, gen_encoder, gen_decoder, loss
 
 def create_parent_child_true_seq(forward_dict, rev_dict):
     tr_clade_files = glob.glob('data/train/*.csv')

@@ -12,9 +12,10 @@ from scipy.stats.mstats import pearsonr
 
 import utils
 
-data_path = "test_results/24_01_22_GPU/" #"test_results/19_10_20A_20B_unrolled_GPU/" # 08_10_one_hot_3_CPU_20A_20B
-test_file = "test/20A_20B.csv"
-gen_file = "generated_seqs_20A_20B_5_times_max_LD_61.csv"
+data_path = "test_results/04_02_22_GPU_2/" #"test_results/19_10_20A_20B_unrolled_GPU/" # 08_10_one_hot_3_CPU_20A_20B
+test_file = ["test/20A_20B.csv"]
+#gen_file = "model_generated_sequences/generated_seqs_20A_20B_477723_gan_train_20A.csv" # generated_seqs_20A_20B_1127915 # generated_seqs_20A_20B_302510.csv
+combined_gen_files_paths = ["model_generated_sequences/generated_seqs_20A_20B_311714_pre_train_20B.csv"]
 
 kmer_f_dict = utils.read_json(data_path + "kmer_f_word_dictionaries.json")
 #parent_clade = "20B"
@@ -37,10 +38,20 @@ def read_dataframe(file_path, sep, cols, gen=False):
 
     #f_dict = utils.read_json(data_path + "f_word_dictionaries.json")
     #r_dict = utils.read_json(data_path + "r_word_dictionaries.json")
-    dataframe = pd.read_csv(data_path + file_path, sep=sep)
-    #print(dataframe)
-    
-    
+    combined_dataframe = None
+    if len(file_path) == 1:
+        #print(file_path)
+        combined_dataframe = pd.read_csv(data_path + file_path[0], sep=sep)
+    else:
+        for item_path in file_path:
+            if combined_dataframe is None:
+                combined_dataframe = pd.read_csv(data_path + item_path, sep=sep)
+                #print(combined_dataframe)
+            else:
+                new_pd = pd.read_csv(data_path + item_path, sep=sep)
+                #print(new_pd)
+                combined_dataframe = pd.concat([combined_dataframe, new_pd])
+
     '''u_gen_seqs = u_gen_seqs.tolist()
     u_gen_seqs = u_gen_seqs[0].split(",")
     #print(u_gen_seqs)
@@ -50,7 +61,7 @@ def read_dataframe(file_path, sep, cols, gen=False):
     original_wuhan = enc_original_wuhan_seq.split(",")'''
     #print(original_wuhan)
 
-    x, y = dataframe[cols[0]], dataframe[cols[1]]
+    x, y = combined_dataframe[cols[0]], combined_dataframe[cols[1]]
 
     #print(x)
     #print(y)
@@ -99,7 +110,7 @@ def get_mat(aa_list, ct_dict, size):
             key = "{}>{}".format(mut_y, mut_x)
             if key in ct_dict:
                 norm_val = ct_dict[key] / max_freq
-                print(norm_val, ct_dict[key], max_freq)
+                #print(norm_val, ct_dict[key], max_freq)
                 #if norm_val < 1.0:
                 mat[i, j] = norm_val #ct_dict[key] / size
                 #print(i, j, key, ct_dict[key])
@@ -168,7 +179,7 @@ if __name__ == "__main__":
     start_time = time.time()
     
     original_muts, te_size = read_dataframe(test_file, "\t", ["X", "Y"])
-    gen_muts, gen_size = read_dataframe(gen_file, ",", ["20A", "Generated"], True)
+    gen_muts, gen_size = read_dataframe(combined_gen_files_paths, ",", ["20A", "Generated"], True)
     plot_true_gen_dist(original_muts, gen_muts, te_size, gen_size)
     end_time = time.time()
     print("Program finished in {} seconds".format(str(np.round(end_time - start_time, 2))))

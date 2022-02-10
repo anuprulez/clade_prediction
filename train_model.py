@@ -33,19 +33,19 @@ TRAIN_GEN_ENC_MODEL = "data/generated_files/gen_enc_model"
 TRAIN_GEN_DEC_MODEL = "data/generated_files/gen_dec_model"
 
 
-pretrain_generator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) #learning_rate=3e-5
+pretrain_generator_optimizer = tf.keras.optimizers.Adam(learning_rate=1e-2) #learning_rate=3e-5
 pf_discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5)
 generator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) # learning_rate=1e-3, beta_1=0.5
 discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) # learning_rate=3e-5, beta_1=0.5
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
-n_disc_step = 6
-n_gen_step = 3
+n_disc_step = 10
+n_gen_step = 5
 unrolled_steps = 0
-test_log_step = 50
+test_log_step = 100
 teacher_forcing_ratio = 0.0
-disc_clip_norm = 10.0
-gen_clip_norm = 10.0
-pretrain_clip_norm = 10.0
+disc_clip_norm = 1.0
+gen_clip_norm = 1.0
+pretrain_clip_norm = 1.0
 
 
 m_loss = neural_network.MaskedLoss()
@@ -57,16 +57,16 @@ def wasserstein_loss(y_true, y_pred):
 
 
 def discriminator_loss(real_output, fake_output):
-    real_loss = -tf.math.reduce_mean(real_output)
-    fake_loss = tf.math.reduce_mean(fake_output)
-    #real_loss = cross_entropy(tf.ones_like(real_output), real_output)
-    #fake_loss = cross_entropy(tf.zeros_like(fake_output), fake_output)
+    #real_loss = -tf.math.reduce_mean(real_output)
+    #fake_loss = tf.math.reduce_mean(fake_output)
+    real_loss = cross_entropy(tf.ones_like(real_output), real_output)
+    fake_loss = cross_entropy(tf.zeros_like(fake_output), fake_output)
     return real_loss, fake_loss
 
 
 def generator_loss(fake_output):
-    #return cross_entropy(tf.ones_like(fake_output), fake_output)
-    return -tf.math.reduce_mean(fake_output)
+    return cross_entropy(tf.ones_like(fake_output), fake_output)
+    #return -tf.math.reduce_mean(fake_output)
 
 
 def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, un_X, un_y, encoder, decoder, disc_par_enc_model, disc_gen_enc_model, size_stateful, pos_size, pos_variations, pos_variations_count, step):
@@ -169,7 +169,7 @@ def d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, u
     disc_trainable_vars = discriminator.trainable_variables + disc_gen_enc.trainable_variables + disc_par_enc.trainable_variables
     gradients_of_discriminator = disc_tape.gradient(total_disc_loss, disc_trainable_vars)
     #print("Train Disc gradient norm before clipping: ", [tf.norm(gd) for gd in gradients_of_discriminator])
-    #gradients_of_discriminator = [(tf.clip_by_norm(grad, clip_norm=disc_clip_norm)) for grad in gradients_of_discriminator]
+    gradients_of_discriminator = [(tf.clip_by_norm(grad, clip_norm=disc_clip_norm)) for grad in gradients_of_discriminator]
     #print("Train Disc gradient norm after clipping: ", [tf.norm(gd) for gd in gradients_of_discriminator])
     discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, disc_trainable_vars))
     return encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, disc_real_loss, disc_fake_loss, total_disc_loss
@@ -182,7 +182,7 @@ def g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, u
         # discriminate pairs of true parent and generated child sequences
         fake_output = discriminator([real_x, fake_y], training=True)
         gen_fake_loss = generator_loss(fake_output)
-        total_gen_loss = gen_true_loss #+ gen_fake_loss
+        total_gen_loss = gen_true_loss + gen_fake_loss
     print()
     # get all trainable vars for generator
     gen_trainable_vars = encoder.trainable_variables + decoder.trainable_variables
@@ -190,7 +190,7 @@ def g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, u
     #gradients_norm = [tf.norm(gd) for gd in gradients_of_generator]
     #print("Train Gen gradient norm: {}".format(str(tf.reduce_mean(gradients_norm).numpy())))
     #print("Train Gen gradient norm before clipping: ", [tf.norm(gd) for gd in gradients_of_generator])
-    #gradients_of_generator = [(tf.clip_by_norm(grad, clip_norm=gen_clip_norm)) for grad in gradients_of_generator]
+    gradients_of_generator = [(tf.clip_by_norm(grad, clip_norm=gen_clip_norm)) for grad in gradients_of_generator]
     #print("Train Gen gradient norm after clipping: ", [tf.norm(gd) for gd in gradients_of_generator])
     generator_optimizer.apply_gradients(zip(gradients_of_generator, gen_trainable_vars))
     return encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, gen_true_loss, gen_fake_loss, total_gen_loss
@@ -201,24 +201,17 @@ def sample_true_x_y(batch_size, X_train, y_train, cluster_indices):
     cluster_keys = list(cluster_indices.keys())
     cluster_keys = list(np.unique(cluster_keys))
     random.shuffle(cluster_keys)
-    #print(cluster_keys)
-    #rand_keys = random.sample(cluster_keys, batch_size) #random.sample(cluster_keys, batch_size) #np.array(choices(cluster_keys, k=batch_size)) #
-    rand_keys = np.array(choices(cluster_keys, k=batch_size))
+    if len(cluster_keys) >= batch_size:
+        rand_keys = random.sample(cluster_keys, batch_size)
+    else:
+        rand_keys = np.array(choices(cluster_keys, k=batch_size))
     x_batch_train = list()
     y_batch_train = list()
     rand_batch_indices = list()
-    '''print(cluster_indices)
-    print()
     print(rand_keys)
-    print()'''
-    print(rand_keys)
-    #print()
     for key in rand_keys:
         rows_indices = cluster_indices[key]
-        #print(rows_indices)
         random.shuffle(rows_indices)
-        #print(rows_indices)
-        #rand_row_index = np.random.randint(0, len(rows_indices), 1)[0]
         rand_batch_indices.append(rows_indices[0])
         #print("---")
     #rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)
@@ -365,10 +358,9 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, pf_model, enc
       print("Pretrain epoch {}/{}, batch {}/{}, gen true loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches), str(gen_loss.numpy())))
       gen_trainable_vars = gen_encoder.trainable_variables + gen_decoder.trainable_variables
       gradients_of_generator = gen_tape.gradient(gen_loss, gen_trainable_vars)
-      #gradients_of_generator = [tf.clip_by_value(grad, clip_value_min=-1e-6, clip_value_max=1e-6) for grad in gradients_of_generator]
-      #gradients_of_generator = [(tf.clip_by_norm(grad, clip_norm=pretrain_clip_norm)) for grad in gradients_of_generator]
-      #gradients_norm = [tf.norm(gd) for gd in gradients_of_generator]
-      #print("Pretrain mean gradient norm: ", gradients_norm)
+      #print("Pretrain gradient norm before clipping: ", [tf.norm(gd) for gd in gradients_of_generator])
+      gradients_of_generator = [(tf.clip_by_norm(grad, clip_norm=pretrain_clip_norm)) for grad in gradients_of_generator]
+      #print("Pretrain gradient norm after clipping: ", [tf.norm(gd) for gd in gradients_of_generator])
       pretrain_generator_optimizer.apply_gradients(zip(gradients_of_generator, gen_trainable_vars))
 
       # optimize pf discriminator
