@@ -97,7 +97,7 @@ def create_pf_model(seq_len, vocab_size, embedding_dim, enc_units, batch_size):
 def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_size, s_stateful):
     # Create encoder model for Generator
     # define layers
-    gen_inputs = tf.keras.Input(shape=(seq_len,)) #batch_size, s_stateful
+    gen_inputs = tf.keras.Input(batch_shape=(batch_size, s_stateful)) #batch_size, s_stateful
     gen_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim, 
         embeddings_regularizer="l2", #mask_zero=True
     )
@@ -110,7 +110,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
                     #kernel_constraint=tf.keras.constraints.unit_norm(),
                     #recurrent_constraint=tf.keras.constraints.unit_norm(),
     				return_sequences=True,
-                    #stateful=True,
+                    stateful=True,
     				return_state=True))
     '''gen_gru = tf.keras.layers.GRU(enc_units,
                     #kernel_regularizer="l2",
