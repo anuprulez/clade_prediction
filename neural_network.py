@@ -98,6 +98,8 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     # Create encoder model for Generator
     # define layers
     gen_inputs = tf.keras.Input(batch_shape=(batch_size, s_stateful)) #batch_size, s_stateful
+    enc_i_state_f = tf.keras.Input(shape=(enc_units,))
+    enc_i_state_b = tf.keras.Input(shape=(enc_units,))
     gen_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim, 
         embeddings_regularizer="l2", #mask_zero=True
     )
@@ -127,15 +129,15 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     #embed = tf.keras.layers.Dropout(ENC_DROPOUT)(embed)
     embed = tf.keras.layers.SpatialDropout1D(ENC_DROPOUT)(embed)
     #embed = tf.keras.layers.LayerNormalization()(embed)
-    enc_output, enc_f, enc_b = gen_gru(embed)
+    enc_output, enc_f, enc_b = gen_gru(embed, initial_state=[enc_i_state_f, enc_i_state_b])
 
-    enc_state = tf.keras.layers.Concatenate()([enc_f, enc_b])
+    #enc_state = tf.keras.layers.Concatenate()([enc_f, enc_b])
     #enc_state = tf.keras.layers.Dropout(ENC_DROPOUT)(enc_state)
     #enc_state = tf.keras.layers.LayerNormalization()(enc_state)
     #state_f = tf.keras.layers.LayerNormalization()(state_f)
     #state_b = tf.keras.layers.LayerNormalization()(state_b)
 
-    encoder_model = tf.keras.Model([gen_inputs], [enc_output, enc_state])
+    encoder_model = tf.keras.Model([gen_inputs, enc_i_state_f, enc_i_state_b], [enc_output, enc_f, enc_b])
 
     # Create decoder for Generator
     dec_input_state = tf.keras.Input(shape=(2 * enc_units,))

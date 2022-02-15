@@ -41,7 +41,7 @@ cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 n_disc_step = 10
 n_gen_step = 5
 unrolled_steps = 0
-test_log_step = 200
+test_log_step = 1
 teacher_forcing_ratio = 0.0
 disc_clip_norm = 1.0
 gen_clip_norm = 1.0
@@ -323,12 +323,12 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, pf_model, enc
       #print(pos_size)
       with tf.GradientTape() as gen_tape:
           #print(unrolled_x.shape, unrolled_y.shape)
-          pred_logits, gen_encoder, gen_decoder, gen_loss = utils.loop_encode_decode(seq_len, batch_size, vocab_size, unrolled_x, unrolled_y, gen_encoder, gen_decoder, enc_units, teacher_forcing_ratio, True, size_stateful, pos_size, pos_variations, pos_variations_count, step)
+          pred_logits, gen_encoder, gen_decoder, gen_loss = utils.loop_encode_decode_stateful(seq_len, batch_size, vocab_size, unrolled_x, unrolled_y, gen_encoder, gen_decoder, enc_units, teacher_forcing_ratio, True, size_stateful, pos_size, pos_variations, pos_variations_count, step)
           #print("Training: true input seq")
           #print(unrolled_x[:5, 1:], unrolled_x.shape)
           #print()
           print("Training: true output seq")
-          print(unrolled_y[:batch_size, 1:], unrolled_y.shape)
+          print(unrolled_y[:batch_size,], unrolled_y.shape)
           print()
           print(tf.argmax(pred_logits, axis=-1)[:batch_size, :], pred_logits.shape)
 
