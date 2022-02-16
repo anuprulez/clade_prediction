@@ -616,44 +616,25 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
     global_logits = list()
     enc_state_f = tf.zeros((batch_size, enc_units))
     enc_state_b = tf.zeros((batch_size, enc_units))
-    #print(enc_state)
     n_stateful_batches = int(input_tokens.shape[1]/float(s_stateful))
-    #print(input_tokens)
-    #print()
-    #print(output_tokens)
     i_tokens = tf.fill([batch_size, 1], 0)
-
-    #print("n_stateful_batches", n_stateful_batches)
     for stateful_index in range(n_stateful_batches):
-        #gen_logits = list()
         s_batch = input_tokens[:, stateful_index*s_stateful: (stateful_index+1)*s_stateful]
-        #print(s_batch)
-        enc_output, enc_state_f, enc_state_b = gen_encoder([s_batch, enc_state_f, enc_state_b])
-        #print("enc_state_f.shape: ", enc_state_f.shape)
-        #print("enc_state_b.shape: ", enc_state_b.shape)
-        #enc(s_batch, enc_state, training=training) #stateful_encoding(s_stateful, input_tokens, gen_encoder, True)
-        dec_state = tf.concat([enc_state_f, enc_state_b], -1)  #enc_state
-        #print("dec_state.shape: ", dec_state.shape)
-        loss_enc_state_norm = tf.math.abs(max_norm - tf.norm(dec_state))
+        enc_output, enc_state_f, enc_state_b = gen_encoder([s_batch, enc_state_f, enc_state_b], training=True)
+        dec_state = tf.concat([enc_state_f, enc_state_b], -1)
         dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
         
         for t in range(s_batch.shape[1]):
-            dec_result, dec_state = gen_decoder([i_tokens, dec_state])
+            dec_result, dec_state = gen_decoder([i_tokens, dec_state], training=True)
             dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
-
-            #gen_logits.append(dec_result)
             orig_t = stateful_index * s_stateful + t
-            #print(s_batch)
-            #print()
-            #print(output_tokens)
-            #print("orig_t", orig_t)
             if len(output_tokens) > 0:
                 o_tokens = output_tokens[:, orig_t:orig_t+1]
 
                 # collect different variations at each POS
                 u_var_distribution = np.array(list(pos_variations_count[str(orig_t)].values()))
                 unique_cls = np.array(list(pos_variations_count[str(orig_t)].keys()))
-
+            
                 all_cls = tf.repeat(unique_cls, repeats=u_var_distribution).numpy()
                 random.shuffle(all_cls)
                 y = all_cls
@@ -662,11 +643,7 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
                 y_ind = le.fit_transform(y)
                 recip_freq = len(y) / (len(le.classes_) * np.bincount(y_ind).astype(np.float64))
                 class_wt = recip_freq[le.transform(classes)]
-                beta = 0.999
-                #print(i_tokens)
-                #print()
-                #print(o_tokens)
-                #print(pos_variations_count[str(orig_t)])
+                beta = 0.9999
                 s_wts = np.sum(class_wt)
 
                 class_var_pos = dict()
@@ -674,47 +651,30 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
                 exp_class_var_pos = dict()
                 real_class_wts = list()
                 for k_i, key in enumerate(unique_cls):
-                    #    # loss input taken from paper: https://arxiv.org/pdf/1901.05555.pdf
+                    # loss input taken from paper: https://arxiv.org/pdf/1901.05555.pdf
                     class_var_pos[key] = class_wt[k_i] #/ float(s_wts)
                     norm_class_var_pos[key] = class_wt[k_i] / float(s_wts)
                     exp_class_var_pos[key] = (1 - beta) / (1 - beta ** pos_variations_count[str(orig_t)][key])
                     real_class_wts.append(exp_class_var_pos[key])
 
-                #print(exp_class_var_pos)
-
                 '''for key in exp_class_var_pos:
                     exp_class_var_pos[key] = exp_class_var_pos[key] / np.sum(real_class_wts)'''
 
-                #print(exp_class_var_pos)
                 exp_norm_u_var_distribution = np.zeros((batch_size))
                 uniform_wts = np.zeros((batch_size))
                 for pos_idx, pos in enumerate(np.reshape(o_tokens, (batch_size,))):
                     exp_norm_u_var_distribution[pos_idx] = exp_class_var_pos[pos] #/ float(np.sum(real_class_wts))
-                    #uniform_wts[pos_idx] = 1.0 #/ float(batch_size)
-                #print(exp_norm_u_var_distribution)
+                    exp_norm_u_var_distribution_cls[pos_idx] = class_var_pos[pos]
+
                 exp_norm_u_var_distribution = exp_norm_u_var_distribution / np.sum(exp_norm_u_var_distribution)
-                
-                #print(exp_norm_u_var_distribution)
-                #print(uniform_wts)
-                #print("enc_state_f.shape: ", enc_state_f.shape)
-                #print("dec_state.shape: ", dec_state.shape)
-                #print("----")
-
                 weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
-
                 step_loss = weighted_loss
                 loss += step_loss
-
                 global_logits.append(dec_result)
-
             i_tokens = o_tokens
 
     global_logits = tf.concat(global_logits, axis=-2)
-    #print("global_logits.shape: ", global_logits.shape)
     loss = loss / seq_len
-    print("Losses: (true)", loss.numpy())
-    #import sys
-    #sys.exit()
     return global_logits, gen_encoder, gen_decoder, loss
 
 
@@ -727,27 +687,22 @@ def loop_encode_decode_predict_stateful(seq_len, batch_size, vocab_size, input_t
     loss = tf.constant(0.0)
     for stateful_index in range(n_stateful_batches):
         s_batch = input_tokens[:, stateful_index*s_stateful: (stateful_index+1)*s_stateful]
-        #print(s_batch)
-        #print()
-        #print(output_tokens)
-        enc_output, enc_state_f, enc_state_b = gen_encoder([s_batch, enc_state_f, enc_state_b])
+        enc_output, enc_state_f, enc_state_b = gen_encoder([s_batch, enc_state_f, enc_state_b], training=train_test)
         dec_state = tf.concat([enc_state_f, enc_state_b], -1)
         dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
         for t in range(s_batch.shape[1]):
             orig_t = stateful_index * s_stateful + t
-            dec_result, dec_state = gen_decoder([i_tokens, dec_state])
+            dec_result, dec_state = gen_decoder([i_tokens, dec_state], training=train_test)
             dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
             gen_logits.append(dec_result)
             if len(output_tokens) > 0:
                 o_tokens = output_tokens[:, orig_t:orig_t+1]
-                #print(t, o_tokens)
                 step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
                 loss += step_loss
             i_tokens = tf.argmax(dec_result, axis=-1)
     gen_logits = tf.concat(gen_logits, axis=-2)
-    #print(gen_logits.shape)
     loss = loss / seq_len
-    return gen_logits, gen_encoder, gen_decoder, loss
+    return gen_logits, loss
 
 
 def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful, mut_freq, pos_variations, pos_variations_count, batch_step):
@@ -899,7 +854,7 @@ def loop_encode_decode(seq_len, batch_size, vocab_size, input_tokens, output_tok
     #dec_loop_norm = dec_loop_norm / seq_len
     #dec_loop_pw_norm = dec_loop_pw_norm / seq_len
     #dec_loop_corr = dec_loop_corr / seq_len
-    print("Losses: (true)", loss.numpy())
+    #print("Losses: (true)", loss.numpy())
     #print("Losses: (true, enc norm, dec norm)", loss.numpy(), loss_enc_state_norm.numpy(), loss_dec_loop_norm.numpy()
     #print("Enc state mean dist:", enc_mean_dist)
     #print("Dec state mean dist:", dec_loop_mean_dist)
@@ -982,7 +937,7 @@ def predict_sequence(tr_epoch, tr_batch, test_dataset_in, test_dataset_out, te_b
         print(batch_y_test[:te_batch_size,])
         # generate seqs stepwise - teacher forcing
         #generated_logits, loss = _loop_pred_step(seq_len, te_batch_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units)
-        generated_logits, _, _, loss = loop_encode_decode_predict_stateful(seq_len, te_batch_size, vocab_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units, test_tf_ratio, train_mode, s_stateful, dict())
+        generated_logits, loss = loop_encode_decode_predict_stateful(seq_len, te_batch_size, vocab_size, batch_x_test, batch_y_test, loaded_encoder, loaded_generator, enc_units, test_tf_ratio, train_mode, s_stateful, dict())
         print(tf.argmax(generated_logits, axis=-1)[:te_batch_size, :])
         one_x = convert_to_string_list(batch_x_test)
         one_y = convert_to_string_list(batch_y_test)
@@ -1005,7 +960,7 @@ def predict_sequence(tr_epoch, tr_batch, test_dataset_in, test_dataset_out, te_b
 
     if save is True:
         true_predicted_multiple = pd.DataFrame(list(zip(batch_x, batch_y, batch_pred)), columns=["X", "Y", "Generated"])
-        df_path = "{}{}_intermediate_training_prediction_tr_epoch_{}_tr_batch_{}_n_te_batches_{}.csv".format("data/generated_files/", train_type, str(tr_epoch), str(tr_batch), str(step), str(n_te_batches))
+        df_path = "{}{}_intermediate_training_prediction_tr_epoch_{}_tr_batch_{}_n_te_batches_{}.csv".format("data/generated_files/", train_type, str(tr_epoch+1), str(tr_batch+1), str(step+1), str(n_te_batches))
         true_predicted_multiple.to_csv(df_path, index=None)
     return np.mean(avg_test_loss), np.mean(avg_test_seq_var)
 
@@ -1035,15 +990,13 @@ def generate_per_seq(tr_epoch, tr_batch, seq_len, te_batch_size, vocab_size, bat
     true_predicted_multiple.to_csv(df_path, index=None)
 
 
-def save_predicted_test_data(test_data_in, test_data_out, te_batch_size, enc_units, vocab_size, epoch_type_name, enc_model_path, dec_model_path):
+def save_predicted_test_data(test_data_in, test_data_out, te_batch_size, enc_units, vocab_size, seq_len, size_stateful, epoch_type_name, enc_model_path, dec_model_path):
     te_encoder = tf.keras.models.load_model(enc_model_path)
     te_decoder = tf.keras.models.load_model(dec_model_path)
     test_data_in, test_data_out = convert_to_array(test_data_in), convert_to_array(test_data_out)
-    seq_len = test_data_in.shape[1]
     n_te_batches = int(test_data_in.shape[0] / te_batch_size)
     test_tf_ratio = 0.0
     train_mode = False
-    s_stateful = True
     test_x = list()
     pred_y = list()
     if n_te_batches > 100:
@@ -1052,13 +1005,16 @@ def save_predicted_test_data(test_data_in, test_data_out, te_batch_size, enc_uni
     for b_c in range(n_te_batches):
         s_idx = b_c*te_batch_size
         e_idx = (b_c+1)*te_batch_size
-        #print(b_c, s_idx, e_idx)
         batch_x_test, batch_y_test = test_data_in[s_idx:e_idx, :], test_data_out[s_idx:e_idx, :]
+        #batch_x_test, batch_y_test = sample_unrelated_x_y(test_data_in, test_data_out, te_batch_size)
         if batch_x_test.shape[0] == te_batch_size:
             #print(batch_x_test.shape, batch_y_test.shape)
-            generated_logits, _, _, loss = loop_encode_decode_predict_stateful(seq_len, te_batch_size, vocab_size, batch_x_test, batch_y_test, te_encoder, te_decoder, enc_units, test_tf_ratio, train_mode, s_stateful, dict())
+            generated_logits, loss = loop_encode_decode_predict_stateful(seq_len, te_batch_size, vocab_size, batch_x_test, batch_y_test, te_encoder, te_decoder, enc_units, test_tf_ratio, train_mode, size_stateful, dict())
             gen_tokens = tf.argmax(generated_logits, axis=-1)
             variation_score = get_sequence_variation_percentage(batch_x_test, generated_logits)
+            '''print(batch_x_test[:te_batch_size, ])
+            print()
+            print(gen_tokens[:te_batch_size,])'''
             print("Test batch {}, loss: {},  variation score: {}".format(str(b_c+1), str(loss), str(variation_score)))
             batch_x_test = convert_to_string_list(batch_x_test)
             gen_tokens = convert_to_string_list(gen_tokens)
