@@ -13,9 +13,10 @@ from scipy.stats.mstats import pearsonr
 
 import utils
 
-data_path = "test_results/14_02_22_5/" #"test_results/19_10_20A_20B_unrolled_GPU/" # 08_10_one_hot_3_CPU_20A_20B
-test_file = [data_path + "test/20A_20B.csv"]
-#test_file = [data_path + "test_20B/combined_dataframe.csv"] # combined dataframe for 20B (as X) and children of 20B (as Y)
+data_path = "test_results/18_02_22_0/" #"test_results/19_10_20A_20B_unrolled_GPU/" # 08_10_one_hot_3_CPU_20A_20B
+#test_file = [data_path + "test/20A_20B.csv"]
+#test_file = [data_path + "test/20A_20B.csv"]
+test_file = [data_path + "test_future/combined_dataframe.csv"] # combined dataframe for 20B (as X) and children of 20B (as Y)
 #gen_file = "model_generated_sequences/generated_seqs_20A_20B_477723_gan_train_20A.csv" # generated_seqs_20A_20B_1127915 # generated_seqs_20A_20B_302510.csv
 #combined_gen_files_paths = ["model_generated_sequences/generated_seqs_20A_20B_969065_pre_train_20A.csv"]
 #combined_gen_files_paths = ["model_generated_sequences/generated_seqs_20A_20B_1891906_pre_train_20B.csv"]
@@ -25,7 +26,7 @@ kmer_f_dict = utils.read_json(data_path + "kmer_f_word_dictionaries.json")
 #child_clade = "20I_Alpha_20F_20D_21G_Lambda_21H" #"20B" #"20I_Alpha_20F_20D_21G_Lambda_21H"
 
 
-def get_path_all_gen_files(path=data_path + "gen_file"):    
+def get_path_all_gen_files(path=data_path + "model_generated_sequences"):    
     all_gen_files = glob.glob(path + '/*.csv')
     return all_gen_files
 
@@ -84,17 +85,18 @@ def read_dataframe(file_path, sep, cols, gen=False):
         #print("-------------------------------")
         #print(y_seq.split(","))
         #print(x_seq)
-        x_sp = x_seq.split(",")[1:]
-        if gen is True:
+        x_sp = x_seq.split(",") #[1:]
+        y_sp = y_seq.split(",")
+        '''if gen is True:
             y_sp = y_seq.split(",")
         else:
-            y_sp = y_seq.split(",")[1:]
+            y_sp = y_seq.split(",")''' #[1:]
 
         x_sp = utils.reconstruct_seq([kmer_f_dict[pos] for pos in x_sp])
         y_sp = utils.reconstruct_seq([kmer_f_dict[pos] for pos in y_sp])
 
         for i, (aa_x, aa_y) in enumerate(zip(x_sp, y_sp)):
-            if i > 50:
+            if i > 300:
                 break
             #print(i, aa_x, aa_y)
             if aa_x != aa_y: #and aa_x not in [0, "0"] and aa_y not in ["0", 0]:
@@ -124,7 +126,7 @@ def read_dataframe(file_path, sep, cols, gen=False):
 def get_mat(aa_list, ct_dict, size):
     mat = np.zeros((len(aa_list), len(aa_list)))
     freq = list(ct_dict.values())
-    max_freq = max(freq)
+    max_freq = np.sum(freq) #max(freq)
     for i, mut_y in enumerate(aa_list):
         for j, mut_x in enumerate(aa_list):
             key = "{}>{}".format(mut_y, mut_x)
@@ -161,7 +163,7 @@ def plot_true_gen_dist(true_par_child, gen_par_child, te_size, gen_size):
 
     compute_common_muts(true_par_child, gen_par_child, te_size, gen_size)
 
-    cmap = "Blues" #"RdYlBu" Spectral
+    cmap = "Blues" #"Blues" #"RdYlBu" Spectral
     plt.rcParams.update({'font.size': 10})
 
     fig, axs = plt.subplots(2)

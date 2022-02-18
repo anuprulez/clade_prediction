@@ -34,7 +34,7 @@ TRAIN_GEN_ENC_MODEL = "data/generated_files/gen_enc_model"
 TRAIN_GEN_DEC_MODEL = "data/generated_files/gen_dec_model"
 
 
-pretrain_generator_optimizer = tf.keras.optimizers.Adam(learning_rate=1e-2) #learning_rate=3e-5
+pretrain_generator_optimizer = tf.keras.optimizers.Adam(learning_rate=1e-2) #learning_rate=3e-5 , beta_1=0.5
 pf_discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5)
 generator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) # learning_rate=1e-3, beta_1=0.5
 discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) # learning_rate=3e-5, beta_1=0.5

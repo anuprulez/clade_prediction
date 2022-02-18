@@ -76,7 +76,10 @@ def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, start_token
         # get df for parent clade
         in_clade_df = dataframe[dataframe["Clade"].replace("/", "_") == in_clade]
         print(in_clade_df)
-        in_clade_df = in_clade_df.sample(n=random_size, replace=False)
+        try:
+            in_clade_df = in_clade_df.sample(n=random_size, replace=False)
+        except:
+            in_clade_df = in_clade_df.sample(n=random_size, replace=True)
         in_len = len(in_clade_df.index)
         print("Size of clade {}: {}".format(in_clade, str(in_len)))
         #print(in_clade_df)
@@ -95,7 +98,10 @@ def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, start_token
 
             out_clade_df = dataframe[dataframe["Clade"].replace("/", "_") == out_clade]
             print(out_clade_df)
-            out_clade_df = out_clade_df.sample(n=random_size, replace=False)
+            try:
+                out_clade_df = out_clade_df.sample(n=random_size, replace=False)
+            except:
+                out_clade_df = out_clade_df.sample(n=random_size, replace=True)
             out_len = len(out_clade_df.index)
             print("Size of clade {}: {}".format(out_clade, str(out_len)))
 
