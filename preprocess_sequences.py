@@ -76,7 +76,10 @@ def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, start_token
         # get df for parent clade
         in_clade_df = dataframe[dataframe["Clade"].replace("/", "_") == in_clade]
         print(in_clade_df)
-        in_clade_df = in_clade_df.sample(n=random_size, replace=False)
+        try:
+            in_clade_df = in_clade_df.sample(n=random_size, replace=False)
+        except:
+            in_clade_df = in_clade_df.sample(n=random_size, replace=True)
         in_len = len(in_clade_df.index)
         print("Size of clade {}: {}".format(in_clade, str(in_len)))
         #print(in_clade_df)
@@ -85,32 +88,29 @@ def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, start_token
         u_in_clade = in_clade_seq.drop_duplicates()
         u_in_clade = u_in_clade.tolist()
         for out_clade in clade_in_clade_out[in_clade]:
-
             if unrelated is False:
                 te_filename = "data/test/{}_{}.csv".format(in_clade, out_clade)
                 tr_filename = "data/train/{}_{}.csv".format(in_clade, out_clade)
             else:
                te_filename = "data/te_unrelated/{}_{}.csv".format(in_clade, out_clade)
                tr_filename = "data/tr_unrelated/{}_{}.csv".format(in_clade, out_clade)
-
             out_clade_df = dataframe[dataframe["Clade"].replace("/", "_") == out_clade]
             print(out_clade_df)
-            out_clade_df = out_clade_df.sample(n=random_size, replace=False)
+            try:
+                out_clade_df = out_clade_df.sample(n=random_size, replace=False)
+            except:
+                out_clade_df = out_clade_df.sample(n=random_size, replace=True)
             out_len = len(out_clade_df.index)
             print("Size of clade {}: {}".format(out_clade, str(out_len)))
-
             out_clade_seq = out_clade_df["Sequence"]
             u_out_clade = out_clade_seq.drop_duplicates()
             u_out_clade = u_out_clade.tolist()
-
             #u_filtered_x_y, kmer_f_dict, kmer_r_dict = utils.generate_cross_product(u_in_clade, u_out_clade, edit_threshold, len_aa_subseq, forward_dict, start_token, unrelated=unrelated)
             u_filtered_x_y, kmer_f_dict, kmer_r_dict = utils.generate_cross_product(u_in_clade, u_out_clade, edit_threshold, len_aa_subseq, forward_dict, rev_dict, start_token, unrelated=unrelated)
             print("Unique size of clade combination {}_{}: {}".format(in_clade, out_clade, str(len(u_filtered_x_y.index))))
             total_samples += len(u_filtered_x_y.index)
-
             train_df = u_filtered_x_y.sample(frac=train_size, random_state=200)
             test_df = u_filtered_x_y.drop(train_df.index)
-
             # convert to original seq and then to Kmers
             #print("Converting to Kmers...")
             #train_df = utils.ordinal_to_kmer(train_df, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, s_kmer)
