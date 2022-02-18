@@ -39,8 +39,8 @@ pf_discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5)
 generator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) # learning_rate=1e-3, beta_1=0.5
 discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) # learning_rate=3e-5, beta_1=0.5
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
-n_disc_step = 10
-n_gen_step = 5
+n_disc_step = 6
+n_gen_step = 3
 unrolled_steps = 0
 test_log_step = 200
 teacher_forcing_ratio = 0.0
@@ -80,7 +80,11 @@ def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, un
     #generated_logits, decoder, gen_t_loss = utils.generator_step(seq_len, batch_size, vocab_size, decoder, transformed_enc_state, unrolled_y, True)
     # compute generated sequence variation
 
-    generated_logits, encoder, decoder, gen_t_loss = utils.loop_encode_decode(seq_len, batch_size, vocab_size, unrolled_x, unrolled_y, encoder, decoder, enc_units, teacher_forcing_ratio, True, size_stateful, pos_size, pos_variations, pos_variations_count, step)
+    #generated_logits, encoder, decoder, gen_t_loss = utils.loop_encode_decode(seq_len, batch_size, vocab_size, unrolled_x, unrolled_y, encoder, decoder, enc_units, teacher_forcing_ratio, True, size_stateful, pos_size, pos_variations, pos_variations_count, step)
+
+    generated_logits, encoder, decoder, gen_t_loss = utils.loop_encode_decode_stateful(seq_len, batch_size, vocab_size, unrolled_x, unrolled_y, encoder, decoder, enc_units, teacher_forcing_ratio, True, size_stateful, pos_size, pos_variations, pos_variations_count, step)
+
+    # pred_logits, gen_encoder, gen_decoder, gen_loss = utils.loop_encode_decode_stateful(seq_len, batch_size, vocab_size, unrolled_x, unrolled_y, gen_encoder, gen_decoder, enc_units, teacher_forcing_ratio, True, size_stateful, pos_size, pos_variations, pos_variations_count, step)
 
     '''stateful_batches = list()
     n_stateful_batches = int(unrolled_x.shape[1]/float(size_stateful))
@@ -112,7 +116,7 @@ def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, un
 
     gen_tokens = tf.argmax(generated_logits, axis=-1)
     print("True output")
-    print(unrolled_y[:batch_size, 1:])
+    print(unrolled_y[:batch_size, :])
     print()
     print("Gen output")
     print(gen_tokens[:batch_size, :])

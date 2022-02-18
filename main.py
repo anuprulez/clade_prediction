@@ -71,26 +71,26 @@ enc_units = 128
 '''
 
 s_kmer = 3
-LEN_AA = 302 # 1273 for considering entire seq length
+LEN_AA = 17 # 1273 for considering entire seq length
 len_aa_subseq = LEN_AA
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 1 # write 2 here when there is padding of zero in in and out sequences
-size_stateful = 50
+size_stateful = 5 # 50 for 302
 # Neural network parameters
 embedding_dim = 128
 batch_size = 8
 te_batch_size = batch_size
 n_te_batches = 20
-enc_units = 128
-pretrain_epochs = 20
-epochs = 20
+enc_units = 32 # 128 for 302
+pretrain_epochs = 1
+epochs = 1
 max_l_dist = 11
 test_train_size = 0.85
 pretrain_train_size = 0.5
-random_clade_size = 450
-to_pretrain = True
-pretrained_model = False
-gan_train = False
+random_clade_size = 200
+to_pretrain = False
+pretrained_model = True
+gan_train = True
 start_token = 0
 stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/", "data/pretrain/"]
 amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"
@@ -410,7 +410,8 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
         epoch_type_name = "gan_train_epoch_{}".format(str(n+1))
         #TRAIN_GEN_ENC_MODEL = "data/generated_files/gen_enc_model"
         #TRAIN_GEN_DEC_MODEL = "data/generated_files/gen_dec_model"
-        utils.save_predicted_test_data(test_dataset_in, test_dataset_out, te_batch_size, enc_units, vocab_size, epoch_type_name, TRAIN_GEN_ENC_MODEL, TRAIN_GEN_DEC_MODEL)
+        # utils.save_predicted_test_data(test_dataset_in, test_dataset_out, te_batch_size, enc_units, vocab_size, len_final_aa_padding, size_stateful, epoch_type_name, PRETRAIN_GEN_ENC_MODEL, PRETRAIN_GEN_DEC_MODEL) #
+        utils.save_predicted_test_data(test_dataset_in, test_dataset_out, te_batch_size, enc_units, vocab_size, len_final_aa_padding, size_stateful, epoch_type_name, TRAIN_GEN_ENC_MODEL, TRAIN_GEN_DEC_MODEL)
         #TRAIN_GEN_ENC_MODEL, TRAIN_GEN_DEC_MODEL
     print("Training finished")
     # save loss files
