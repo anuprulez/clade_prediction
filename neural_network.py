@@ -203,7 +203,8 @@ def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units, batch
     par_gen_enc_GRU = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(enc_units,
                     kernel_regularizer="l2",
                     recurrent_regularizer="l2",
-                    recurrent_initializer='glorot_uniform',
+                    recurrent_initializer='glorot_normal',
+                    kernel_initializer="glorot_normal",
     				return_sequences=True,
                     #stateful=True,
     				return_state=True))
@@ -221,9 +222,10 @@ def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units, batch
     gen_enc_inputs = tf.keras.layers.Dropout(ENC_DROPOUT)(gen_enc_inputs)
     #gen_enc_inputs = tf.keras.layers.LayerNormalization()(gen_enc_inputs)
     gen_enc_GRU = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(enc_units,
-                    kernel_regularizer="l2",
+                   kernel_regularizer="l2",
                     recurrent_regularizer="l2",
-                    recurrent_initializer='glorot_uniform',
+                    recurrent_initializer='glorot_normal',
+                    kernel_initializer="glorot_normal",
     				return_sequences=True,
                     #stateful=True,
     				return_state=True))
