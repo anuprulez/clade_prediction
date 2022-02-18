@@ -87,7 +87,7 @@ def add_padding_to_seq(seq, s_token):
     return seq #"{},{}".format(str(s_token), seq)
 
 
-def get_u_kmers(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict, start_token):
+def get_u_kmers(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict, start_token, unrelated):
     x_list = list()
     y_list = list()
     s_kmer = 3
@@ -125,13 +125,23 @@ def get_u_kmers(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict, start_tok
         re_y = reconstruct_seq([kmer_f_dict[int(pos)] for pos in enc_j.split(",")])
         l_dist = compute_Levenshtein_dist(re_x, re_y)
         l_distance.append(l_dist)
-        if l_dist > 0 and l_dist < max_l_dist:
+        '''if l_dist > 0 and l_dist < max_l_dist:
             filtered_l_distance.append(l_dist)
             fil_x.append(add_padding_to_seq(enc_i, start_token))
             fil_y.append(add_padding_to_seq(enc_j, start_token))
             #fil_x.append(enc_i)
-            #fil_y.append(enc_j)
-    return fil_x, fil_y, kmer_f_dict, kmer_r_dict
+            #fil_y.append(enc_j)'''
+        if unrelated is False:
+            if l_dist > 0 and l_dist < max_l_dist:
+                fil_x.append(add_padding_to_seq(enc_i, start_token))
+                fil_y.append(add_padding_to_seq(enc_j, start_token))
+                filtered_l_distance.append(l_dist)
+        else:
+            if l_dist >= max_l_dist:
+                fil_x.append(add_padding_to_seq(enc_i, start_token))
+                fil_y.append(add_padding_to_seq(enc_j, start_token))
+                filtered_l_distance.append(l_dist)
+    return fil_x, fil_y, kmer_f_dict, kmer_r_dict, l_distance, filtered_l_distance
 
 
 def split_test_train(x, y, split_size):
@@ -145,17 +155,10 @@ def generate_cross_product(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict
     print(len(x_seq), len(y_seq))
     x_y = list(itertools.product(x_seq, y_seq))
     print(len(x_y))
-    print("Filtering for range of levenshtein distance...")
-    l_distance = list()
-    filtered_l_distance = list()
-    filtered_x = list()
-    filtered_y = list()
-
-    kmer_f_dict = dict()
-    kmer_r_dict = dict()
+    print("Filtering for range of levenshtein distance ...")
 
     #print(forward_dict)
-    filtered_x, filtered_y, kmer_f_dict, kmer_r_dict = get_u_kmers(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict, start_token)
+    filtered_x, filtered_y, kmer_f_dict, kmer_r_dict, l_distance, filtered_l_distance = get_u_kmers(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict, start_token, unrelated)
     
     '''for i, x_i in enumerate(x_seq):
         for j, y_j in enumerate(y_seq):
