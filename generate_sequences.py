@@ -17,6 +17,7 @@ from nltk.translate.bleu_score import sentence_bleu
 import preprocess_sequences
 import utils
 
+#### Best results - 18_02_22_0
 
 RESULT_PATH = "test_results/18_02_22_0/" # 04_02_22_GPU # 04_02_22_local
 
@@ -32,8 +33,8 @@ train_size = 1.0
 enc_units = 128
 random_size =  450
 
-no_models = 2
-start_model_index = 8
+no_models = 5
+start_model_index = 16
 enc_stddev = 1.0
 dec_stddev = 0.0001
 start_token = 0
@@ -357,11 +358,11 @@ def create_parent_child_true_seq(forward_dict, rev_dict):
 if __name__ == "__main__":
     start_time = time.time()
     # enable only when predicting future sequences
-    #prepare_pred_future_seq()
+    prepare_pred_future_seq()
     # when not gen_future, file_path = RESULT_PATH + "test/*.csv"
     # when gen_future, file_path = COMBINED_FILE
-    #file_path = COMBINED_FILE
-    file_path = RESULT_PATH + "test/20A_20B.csv"
+    file_path = COMBINED_FILE
+    #file_path = RESULT_PATH + "test/20A_20B.csv"
     load_model_generated_sequences(file_path)
     end_time = time.time()
     print("Program finished in {} seconds".format(str(np.round(end_time - start_time, 2))))
