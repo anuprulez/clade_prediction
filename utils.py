@@ -31,7 +31,7 @@ import neural_network
 PATH_KMER_F_DICT = "data/ncov_global/kmer_f_word_dictionaries.json"
 PATH_KMER_R_DICT = "data/ncov_global/kmer_r_word_dictionaries.json"
 
-m_loss = neural_network.MaskedLoss()
+#m_loss = neural_network.MaskedLoss()
 bce = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 #focal_loss_func = SparseCategoricalFocalLoss(gamma=2)
 

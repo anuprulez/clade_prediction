@@ -49,7 +49,7 @@ gen_clip_norm = 1.0
 pretrain_clip_norm = 1.0
 
 
-m_loss = neural_network.MaskedLoss()
+#m_loss = neural_network.MaskedLoss()
 mae = tf.keras.losses.MeanAbsoluteError()
 
 
