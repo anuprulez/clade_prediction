@@ -123,9 +123,6 @@ def read_files():
     rev_dict = utils.read_json(PATH_R_DICT)
     encoder = None
     decoder = None
-    pf_model = None
-    #kmer_f_dict, kmer_r_dict = utils.get_all_possible_words(amino_acid_codes, s_kmer)
-
     if pretrained_model is False:
         print("Cleaning up stale folders...")
         utils.clean_up(stale_folders)
@@ -205,57 +202,13 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     print("train and test data sizes")
     print(len(combined_X), len(combined_y), len(combined_te_X), len(combined_te_y))
 
-    # convert test and train datasets to kmers
-    '''kmers_global = list()
-    #print(forward_dict)
-    train_kmers = utils.get_all_kmers(combined_X, combined_y, forward_dict, s_kmer)
-    kmers_global.extend(train_kmers)
-
-    test_kmers = utils.get_all_kmers(combined_te_X, combined_te_y, forward_dict, s_kmer)
-    kmers_global.extend(test_kmers)
-
-    kmers_global = list(set(kmers_global))
-
-    kmer_f_dict = {i + 1: kmers_global[i] for i in range(0, len(kmers_global))}
-    kmer_r_dict = {kmers_global[i]: i + 1  for i in range(0, len(kmers_global))}
-    utils.save_as_json(PATH_KMER_F_DICT, kmer_f_dict)
-    utils.save_as_json(PATH_KMER_R_DICT, kmer_r_dict)
-
-    kmer_f_dict[0] = "<start>"
-    #kmer_f_dict[len(kmers_global)+1] = "<end>"
-    kmer_r_dict["<start>"] = 0
-    #kmer_r_dict["<end>"] = len(kmers_global)+1
-
-    print(kmer_f_dict, len(kmer_f_dict))
-    print()
-    print(print(kmer_r_dict, len(kmer_r_dict)))
-
-    #sys.exit()
-    vocab_size = len(kmer_f_dict) + 1
-
-    print("Number of kmers: {}".format(str(len(kmer_f_dict) - 1)))
-    print("Vocab size: {}".format(str(len(kmer_f_dict) + 1)))
-
-    combined_X, combined_y = utils.encode_sequences_kmers(forward_dict, kmer_r_dict, combined_X, combined_y, s_kmer)
-    combined_te_X, combined_te_y = utils.encode_sequences_kmers(forward_dict, kmer_r_dict, combined_te_X, combined_te_y, s_kmer)
-
-    print(combined_X[0])
-    print(combined_y[0])'''
-
     kmer_f_dict = utils.read_json(PATH_KMER_F_DICT)
     kmer_r_dict = utils.read_json(PATH_KMER_R_DICT)
-
-    #print(kmer_f_dict)
 
     vocab_size = len(kmer_f_dict) + 1
 
     print("Number of kmers: {}".format(str(len(kmer_f_dict))))
     print("Vocab size: {}".format(str(len(kmer_f_dict) + 1)))
-
-    #kmer_f_dict = dict()
-    #kmer_r_dict = dict()
-
-    #vocab_size = len(forward_dict) + 1
 
     combined_X = np.array(combined_X)
     combined_y = np.array(combined_y)
@@ -264,13 +217,10 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     test_dataset_out = np.array(combined_te_y)
 
     if gen_encoder is None or gen_decoder is None:
-        #len_final_aa_padding = 16
         encoder, decoder = neural_network.make_generator_model(len_final_aa_padding, vocab_size, embedding_dim, enc_units, batch_size, size_stateful)
-        #pf_model = neural_network.create_pf_model(len_final_aa_padding - 1, vocab_size, embedding_dim, enc_units, batch_size)
     else:
         encoder = gen_encoder
         decoder = gen_decoder
-        #pf_model = neural_network.create_pf_model(len_final_aa_padding - 1, vocab_size, embedding_dim, enc_units, batch_size)
 
     # divide into pretrain and train
     if to_pretrain is False:
@@ -335,8 +285,6 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
             print("Pre-training epoch {} finished".format(str(i+1)))
             print()
             epoch_type_name = "pretrain_epoch_{}".format(str(i+1))
-            #PRETRAIN_GEN_ENC_MODEL = "data/generated_files/pretrain_gen_encoder"
-            #PRETRAIN_GEN_DEC_MODEL = "data/generated_files/pretrain_gen_decoder"
             utils.save_predicted_test_data(test_dataset_in, test_dataset_out, te_batch_size, enc_units, vocab_size, len_final_aa_padding, size_stateful, epoch_type_name, PRETRAIN_GEN_ENC_MODEL, PRETRAIN_GEN_DEC_MODEL) #
         np.savetxt(PRETRAIN_GEN_LOSS, pretrain_gen_train_loss)
         np.savetxt(PRETRAIN_GEN_TEST_LOSS, pretrain_gen_test_loss)
@@ -408,11 +356,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
             train_gen_test_seq_var.append(epo_tr_gen_seq_var)
         print()
         epoch_type_name = "gan_train_epoch_{}".format(str(n+1))
-        #TRAIN_GEN_ENC_MODEL = "data/generated_files/gen_enc_model"
-        #TRAIN_GEN_DEC_MODEL = "data/generated_files/gen_dec_model"
-        # utils.save_predicted_test_data(test_dataset_in, test_dataset_out, te_batch_size, enc_units, vocab_size, len_final_aa_padding, size_stateful, epoch_type_name, PRETRAIN_GEN_ENC_MODEL, PRETRAIN_GEN_DEC_MODEL) #
         utils.save_predicted_test_data(test_dataset_in, test_dataset_out, te_batch_size, enc_units, vocab_size, len_final_aa_padding, size_stateful, epoch_type_name, TRAIN_GEN_ENC_MODEL, TRAIN_GEN_DEC_MODEL)
-        #TRAIN_GEN_ENC_MODEL, TRAIN_GEN_DEC_MODEL
     print("Training finished")
     # save loss files
     np.savetxt(TRAIN_GEN_TOTAL_LOSS, train_gen_total_loss)
@@ -425,9 +369,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     np.savetxt("data/generated_files/train_gen_batch_test_loss.txt", train_gen_batch_test_loss)
     np.savetxt("data/generated_files/train_gen_batch_test_seq_var.txt", train_gen_batch_test_seq_var)
     np.savetxt("data/generated_files/train_gen_test_seq_var.txt", train_gen_test_seq_var)
-    #print(pos_variations)
-    #np.savetxt("data/generated_files/pretrain_train_variations_at_POS.txt", pos_variations)
-    
+
     end_time = time.time()
     print("Program finished in {} seconds".format(str(np.round(end_time - start_time, 2))))
 
