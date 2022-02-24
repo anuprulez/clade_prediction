@@ -17,27 +17,29 @@ from nltk.translate.bleu_score import sentence_bleu
 import preprocess_sequences
 import utils
 
-#### Best results - 18_02_22_0
+#### Best results - 18_02_22_0, models from 16 - 20
 
-RESULT_PATH = "test_results/18_02_22_0/" # 04_02_22_GPU # 04_02_22_local
+RESULT_PATH = "test_results/22_02_22_0/" # 04_02_22_GPU # 04_02_22_local
 
 s_kmer = 3
 #LEN_AA = 301 # It should be n - 1 (n == seq len while training)
-LEN_AA = 302 # 1273 for considering entire seq length
+LEN_AA = 1273 # 1273 for considering entire seq length
 len_aa_subseq = LEN_AA
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 1
 min_diff = 0
 max_diff = 11 #int(LEN_AA/5)
 train_size = 1.0
-enc_units = 128
+enc_units = 256
 random_size =  450
 
-no_models = 5
-start_model_index = 16
+no_models = 1
+start_model_index = 2 # best results 16
 enc_stddev = 1.0
 dec_stddev = 0.0001
 start_token = 0
+size_stateful = 41
+batch_size = 4
 
 model_type = "pre_train"
 FUTURE_GEN_TEST = "test/20A_20B.csv"
@@ -176,7 +178,7 @@ def load_model_generated_sequences(file_path):
 
 
 def predict_multiple(test_x, test_y, len_final_aa_padding, vocab_size, encoded_wuhan_seq, forward_dict, kmer_f_dict, kmer_r_dict):
-    batch_size = 8 #test_x.shape[0]
+    #batch_size = 8 #test_x.shape[0]
     print(batch_size, len(test_x), len(test_y))
     test_dataset_in = tf.data.Dataset.from_tensor_slices((test_x)).batch(batch_size)
     #test_dataset_out = tf.data.Dataset.from_tensor_slices((test_y)).batch(batch_size)
@@ -184,7 +186,7 @@ def predict_multiple(test_x, test_y, len_final_aa_padding, vocab_size, encoded_w
     #true_y = list()
     predicted_y = list()
     test_tf_ratio = 0.0
-    size_stateful = 50
+    
     num_te_batches = int(len(test_x) / float(batch_size)) 
     #num_te_batches = 1
     
