@@ -159,13 +159,12 @@ def g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, u
     return encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, gen_true_loss, gen_fake_loss, total_gen_loss
 
 
-def sample_true_x_y(batch_size, X_train, y_train, cluster_indices):
+def sample_true_x_y(batch_size, X_train, y_train):
     rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)
     x_batch_train = X_train[rand_batch_indices]
     y_batch_train = y_train[rand_batch_indices]
     unrolled_x = utils.convert_to_array(x_batch_train)
     unrolled_y = utils.convert_to_array(y_batch_train)
-
     return unrolled_x, unrolled_y
 
 
@@ -212,7 +211,7 @@ def get_text_data():
     return train_x, train_y, test_x, test_y
 
 
-def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vocab_size, n_batches, batch_size, pretr_parent_child_mut_indices, epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, pos_variations, pos_variations_count, cluster_indices):
+def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vocab_size, n_batches, batch_size, pretr_parent_child_mut_indices, epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, pos_variations, pos_variations_count):
   X_train, y_train, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches = inputs
   epo_avg_tr_gen_loss = list()
   epo_te_gen_loss = list()
@@ -230,7 +229,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
   utils.create_dirs(dec_pre_train_save_folder)
 
   for step in range(n_batches):
-      unrolled_x, unrolled_y = sample_true_x_y(batch_size, X_train, y_train, cluster_indices)
+      unrolled_x, unrolled_y = sample_true_x_y(batch_size, X_train, y_train)
       seq_len = unrolled_x.shape[1]
       with tf.GradientTape() as gen_tape:
           pred_logits, gen_encoder, gen_decoder, gen_loss = utils.loop_encode_decode_stateful(seq_len, batch_size, vocab_size, unrolled_x, unrolled_y, gen_encoder, gen_decoder, enc_units, teacher_forcing_ratio, True, size_stateful, pos_size, pos_variations, pos_variations_count, step)
