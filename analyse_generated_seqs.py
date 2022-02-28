@@ -95,6 +95,7 @@ def read_dataframe(file_path, sep, cols, gen=False):
     mut_child_pos_wu = dict()
     mut_frequency_pos = dict()
     mut_frequency_mut_dist_pos = dict()
+    wu_target_mut_frequency_mut_dist_pos = dict()
 
 
     for index, (x_seq, y_seq) in enumerate(zip(x, y)):
@@ -127,13 +128,9 @@ def read_dataframe(file_path, sep, cols, gen=False):
                     aa_initial = dict()
                     for aa_code in aa_list:
                         aa_initial[aa_code] = 0
-                    
                     mut_frequency_mut_dist_pos[str(i+1)] = aa_initial
-
                 mut_frequency_mut_dist_pos[str(i+1)][aa_y] += 1
-
                 #print(index, "Parent>Gen: ", key_pos)
-
             wu_aa = original_wuhan[i]
 
             if wu_aa != aa_x:
@@ -143,13 +140,21 @@ def read_dataframe(file_path, sep, cols, gen=False):
                 mut_parent_pos_wu[key_wu_parent] += 1
                 #print(index, "Wuhan>Parent: ", key_wu_parent)
 
+
             if wu_aa != aa_y:
                 key_wu_child = "{}>{}>{}".format(wu_aa, str(i+1), aa_y)
                 if key_wu_child not in mut_child_pos_wu:
                     mut_child_pos_wu[key_wu_child] = 0
                 mut_child_pos_wu[key_wu_child] += 1
-                #print(index, "Wuhan>Gen: ", key_wu_child)
-                #print("-----------------------------------------------------")
+
+
+                if str(i+1) not in list(wu_target_mut_frequency_mut_dist_pos.keys()):
+                    aa_initial_wu_target = dict()
+                    for aa_code in aa_list:
+                        aa_initial_wu_target[aa_code] = 0
+                    wu_target_mut_frequency_mut_dist_pos[str(i+1)] = aa_initial_wu_target
+                wu_target_mut_frequency_mut_dist_pos[str(i+1)][aa_y] += 1
+
 
     mut = {k: v for k, v in sorted(mut.items(), key=lambda item: item[1], reverse=True)}
     mut_pos = {k: v for k, v in sorted(mut_pos.items(), key=lambda item: item[1], reverse=True)}
@@ -158,6 +163,7 @@ def read_dataframe(file_path, sep, cols, gen=False):
     mut_child_pos_wu = {k: v for k, v in sorted(mut_child_pos_wu.items(), key=lambda item: item[1], reverse=True)}
     mut_frequency_pos = {k: v for k, v in sorted(mut_frequency_pos.items(), key=lambda item: int(item[0]), reverse=False)}
     mut_frequency_mut_dist_pos = {k: v for k, v in sorted(mut_frequency_mut_dist_pos.items(), key=lambda item: int(item[0]), reverse=False)}
+    wu_target_mut_frequency_mut_dist_pos = {k: v for k, v in sorted(wu_target_mut_frequency_mut_dist_pos.items(), key=lambda item: int(item[0]), reverse=False)}
 
     if gen == "train":
         utils.save_as_json(data_path + "{}_tr_parent_child_pos_subs.json".format(parent_clade), mut_pos)
@@ -165,18 +171,21 @@ def read_dataframe(file_path, sep, cols, gen=False):
         utils.save_as_json(data_path + "wu_{}_tr_child_pos_subs.json".format(parent_clade), mut_child_pos_wu)
         utils.save_as_json(data_path + "{}_tr_parent_child_pos_mut_freq.json".format(parent_clade), mut_frequency_pos)
         utils.save_as_json(data_path + "{}_tr_parent_child_mut_dist_pos.json".format(parent_clade), mut_frequency_mut_dist_pos)
+        utils.save_as_json(data_path + "wu_target_tr_parent_child_mut_dist_pos.json", wu_target_mut_frequency_mut_dist_pos)
     elif gen == "test":
         utils.save_as_json(data_path + "{}_te_parent_child_pos_subs.json".format(parent_clade), mut_pos)
         utils.save_as_json(data_path + "wu_{}_te_parent_pos_subs.json".format(parent_clade), mut_parent_pos_wu)
         utils.save_as_json(data_path + "wu_{}_te_child_pos_subs.json".format(parent_clade), mut_child_pos_wu)
         utils.save_as_json(data_path + "{}_te_parent_child_pos_mut_freq.json".format(parent_clade), mut_frequency_pos)
         utils.save_as_json(data_path + "{}_te_parent_child_mut_dist_pos.json".format(parent_clade), mut_frequency_mut_dist_pos)
+        utils.save_as_json(data_path + "wu_target_te_parent_child_mut_dist_pos.json", wu_target_mut_frequency_mut_dist_pos)
     else:
         utils.save_as_json(data_path + "{}_parent_gen_pos_subs.json".format(parent_clade), mut_pos)
         utils.save_as_json(data_path + "wu_{}_gen_parent_pos_subs.json".format(parent_clade), mut_parent_pos_wu)
         utils.save_as_json(data_path + "wu_{}_gen_child_pos_subs.json".format(parent_clade), mut_child_pos_wu)
         utils.save_as_json(data_path + "{}_gen_parent_child_pos_mut_freq.json".format(parent_clade), mut_frequency_pos)
         utils.save_as_json(data_path + "{}_gen_parent_child_mut_dist_pos.json".format(parent_clade), mut_frequency_mut_dist_pos)
+        utils.save_as_json(data_path + "wu_target_gen_parent_child_mut_dist_pos.json", wu_target_mut_frequency_mut_dist_pos)
 
     print("20A: {}\n".format(gen))
     
@@ -411,6 +420,63 @@ def plot_mut_freq(tr_size, te_size, gen_size):
     plt.suptitle("Substitution frequency in train and generated datasets per genomic position (POS)")
     #plt.grid(True)
     plt.show()
+
+
+    ##################################################################
+    # --------------------------------------------------------------------
+    # plot frequencies WU-Target
+
+    tr_parent_child_pos_mut_freq = utils.read_json(data_path + "wu_target_tr_parent_child_mut_dist_pos.json")
+    gen_parent_child_pos_mut_freq = utils.read_json(data_path + "wu_target_gen_parent_child_mut_dist_pos.json")
+
+    tr_freq = np.zeros((seq_len, len(list(aa_list))))
+    gen_freq = np.zeros((seq_len, len(list(aa_list))))
+
+    for i in range(seq_len):
+        if str(i+1) in tr_parent_child_pos_mut_freq:
+            tr_freq[i][:] = list(tr_parent_child_pos_mut_freq[str(i+1)].values())
+        else:
+            tr_freq[i][:] = np.zeros(len(list(aa_list)))
+
+        if str(i+1) in gen_parent_child_pos_mut_freq:
+            gen_freq[i][:] = list(gen_parent_child_pos_mut_freq[str(i+1)].values())
+        else:
+            gen_freq[i][:] = np.zeros(len(list(aa_list)))
+
+
+    y_axis = list(np.arange(0, seq_len))
+    plt.rcParams.update({'font.size': 10})
+    fig, axs = plt.subplots(2)
+
+    pos_ticks = list(np.arange(0, seq_len, y_label_bin))
+    pos_labels = list(np.arange(0, seq_len, y_label_bin))
+
+    interpolation = "none"
+
+    for i in range(len(list(aa_list))):
+        #print(i, y_axis, tr_freq[:, i])
+        ax0 = axs[0].bar(y_axis, tr_freq[:, i])
+        #ax1 = axs[1].bar(y_axis, te_freq[:, i])
+        ax1 = axs[1].bar(y_axis, gen_freq[:, i])
+        #print("--------")
+
+    axs[0].set_title("(A) Train parent-child substitution frequency")
+    axs[0].set_ylabel("Total number of substitutions")
+    axs[0].set_xlabel("Spike protein genomic position (POS)")
+    axs[0].set_xticks(pos_ticks)
+    #axs[0].grid(True)
+    axs[0].set_xticklabels(pos_labels, rotation='horizontal')
+
+    axs[1].set_title("(B) Generated parent-generated substitution frequency")
+    axs[1].set_ylabel("Total number of substitutions")
+    axs[1].set_xlabel("Spike protein genomic position (POS)")
+    axs[1].set_xticks(pos_ticks)
+    axs[1].set_xticklabels(pos_labels, rotation='horizontal')
+    #axs[2].grid(True)
+    plt.suptitle("Wu-target: Substitution frequency in train and generated datasets per genomic position (POS)")
+    #plt.grid(True)
+    plt.show()
+    
 
 
 def extract_novel_pos_subs():
