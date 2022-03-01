@@ -19,7 +19,7 @@ import utils
 
 #### Best results - 18_02_22_0, models from 16 - 20
 
-RESULT_PATH = "test_results/22_02_22_0/" # 04_02_22_GPU # 04_02_22_local
+RESULT_PATH = "test_results/28_02_22_0/" # 04_02_22_GPU # 04_02_22_local
 
 s_kmer = 3
 #LEN_AA = 301 # It should be n - 1 (n == seq len while training)
@@ -33,7 +33,7 @@ train_size = 1.0
 enc_units = 256
 random_size =  450
 
-no_models = 1
+no_models = 4
 start_model_index = 2 # best results 16
 enc_stddev = 1.0
 dec_stddev = 0.0001
@@ -299,10 +299,7 @@ def loop_encode_decode_predict(seq_len, batch_size, vocab_size, input_tokens, ou
     enc_output, enc_state = gen_encoder(input_tokens) #, training=False
     enc_norm = tf.norm(enc_state)
     dec_state = enc_state
-    #print(dec_state)
-    #print()
     dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
-    #print(dec_state[:show, :])
     loss = tf.constant(0.0)
     gen_logits = list()
     o_state_norm = list()
@@ -311,29 +308,18 @@ def loop_encode_decode_predict(seq_len, batch_size, vocab_size, input_tokens, ou
         dec_result, dec_state = gen_decoder([i_tokens, dec_state]) #, training=False
         gen_logits.append(dec_result)
         o_state_norm.append(tf.norm(dec_state))
-        #dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
+        dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
         if len(output_tokens) > 0:
             o_tokens = output_tokens[:, t+1:t+2]
             step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
             loss += step_loss
         i_tokens = tf.argmax(dec_result, axis=-1)
-        '''temp = 0.99
-        dec_result_temp = tf.math.log(dec_result / temp)
-        dec_result_temp = tf.math.exp(dec_result_temp) #/ float(dec_result.shape[-1])
-        #topk_sce = tf.keras.metrics.SparseTopKCategoricalAccuracy(k=5)
-        topk_i_tokens = tf.math.top_k(dec_result, k=5)
-        topk_i_tokens_temp = tf.math.top_k(dec_result_temp, k=5)
-        #print(o_tokens)
-        #print(dec_result.shape)
-        print(t, topk_i_tokens)'''
-        #print(t, topk_i_tokens_temp)
-        #print("------------")
     gen_logits = tf.concat(gen_logits, axis=-2)
     loss = loss / seq_len
     print("Encoder norm: {}".format(str(tf.norm(enc_state))))
     print("Decoder norm: {}".format(str(np.mean(o_state_norm))))
-    #print("--------------")
     return gen_logits, gen_encoder, gen_decoder, loss
+
 
 def create_parent_child_true_seq(forward_dict, rev_dict):
     tr_clade_files = glob.glob('data/train/*.csv')
@@ -360,11 +346,11 @@ def create_parent_child_true_seq(forward_dict, rev_dict):
 if __name__ == "__main__":
     start_time = time.time()
     # enable only when predicting future sequences
-    #prepare_pred_future_seq()
+    prepare_pred_future_seq()
     # when not gen_future, file_path = RESULT_PATH + "test/*.csv"
     # when gen_future, file_path = COMBINED_FILE
-    #file_path = COMBINED_FILE
-    file_path = RESULT_PATH + "test/20A_20B.csv"
+    file_path = COMBINED_FILE
+    #file_path = RESULT_PATH + "test/20A_20B.csv"
     load_model_generated_sequences(file_path)
     end_time = time.time()
     print("Program finished in {} seconds".format(str(np.round(end_time - start_time, 2))))
