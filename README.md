@@ -1,6 +1,10 @@
 # SARS-COV2 sequence generation
 SARS-COV2 sequence generation by applying deep learning techniques on amino acid sequences (sequence to sequence encoder-decoder, GAN)
 
+# Spike protein reference
+### NCBI Reference Sequence: YP_009724390.1
+https://www.ncbi.nlm.nih.gov/protein/YP_009724390.1
+
 # Resources
 https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8056063/
 https://www.mdpi.com/1420-3049/26/9/2622/pdf
