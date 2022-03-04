@@ -55,7 +55,7 @@ def preprocess_seq_galaxy_clades(fasta_file, samples_clades, LEN_AA):
     return sample_clade_sequence_df, f_word_dictionaries, r_word_dictionaries
 
 
-def filter_samples_clades(dataframe, clades_in_clades_out):
+def filter_samples_clades(dataframe):
     f_df = list()
     for index, item in dataframe.iterrows():
         sample_name = item["SampleName"]
@@ -64,7 +64,6 @@ def filter_samples_clades(dataframe, clades_in_clades_out):
         # filter out incomplete/duplicate samples
         if len(split_s_name) > 2:
             f_df.append(item.tolist())
-    #print(f_df)
     new_df = pd.DataFrame(f_df, columns=list(dataframe.columns))
     return new_df
 
@@ -74,43 +73,30 @@ def filter_by_country():
 
 
 def date_to_date(date):
-    #year, month, day = date[0], date[1], date[2]
-    year, month, day = int(date[0]), int(date[1]), int(date[2])
-    return datetime.datetime(year, month, day)
+    return datetime.datetime(int(date[0]), int(date[1]), int(date[2]))
 
 
-
-
-
-def filter_by_date(dataframe, clade_name, collection_start_month, buffer_days=180):
+def filter_by_date(dataframe, clade_name, start_date=None, buffer_days=180):
     f_df = list()
     emer_dates = pd.read_csv(PATH_CLADE_EMERGENCE_DATES, sep="\t")
-    #print(emer_dates)
     clade_emer_date = emer_dates[emer_dates["Nextstrain_clade"] == clade_name]
-    #print(clade_emer_date)
-    date = clade_emer_date.iloc[0]["first_sequence"].split("-")
-    start_date = date_to_date(date)
+    if start_date is None:
+        start_date = date_to_date(clade_emer_date.iloc[0]["first_sequence"].split("-"))
+    else:
+        start_date = date_to_date(start_date)
     max_date_range = start_date + datetime.timedelta(days=buffer_days)
-    #print(start_date, max_date_range, max_date_range.isoformat())
-
+    print(start_date, max_date_range)
     for index, item in dataframe.iterrows():
         try:
             sample_name = item["SampleName"].split("/")
             row_date = sample_name[3].split("|")
-            #print(row_date)
             sample_date = date_to_date(row_date[1].split("-"))
-            #print(start_date, sample_date, max_date_range)
-            #if int(row_month) in range(int(month), int(month)+6) and row_year == year:
             if sample_date >= start_date and sample_date <= max_date_range:
                 f_df.append(item.tolist())
-                #print(item["SampleName"])
-                #print("----------")
         except:
             continue
     new_df = pd.DataFrame(f_df, columns=list(dataframe.columns))
-    #print(new_df)
     return new_df, max_date_range
-
 
 
 def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, start_token, collection_start_month, train_size=0.8, edit_threshold=3, random_size=200, replace=False, unrelated=False):
@@ -124,12 +110,14 @@ def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, start_token
 
     for in_clade in clade_in_clade_out:
         # get df for parent clade
-
         in_clade_df = dataframe[dataframe["Clade"].replace("/", "_") == in_clade]
         print("Clade name: {}".format(in_clade))
         print(in_clade_df)
-        in_clade_df, max_parent_range = filter_by_date(in_clade_df, in_clade, collection_start_month)
-        in_clade_df.to_csv("data/generated_files/in_clade_df.csv")
+        print("Filtering by date...")
+        in_clade_df, max_parent_range = filter_by_date(in_clade_df, in_clade, None)
+        print(in_clade_df)
+        print("Remove duplicate sequences...")
+        in_clade_df = in_clade_df.drop_duplicates(subset=['Sequence'])
         print(in_clade_df)
         try:
             in_clade_df = in_clade_df.sample(n=random_size, replace=False)
@@ -137,8 +125,7 @@ def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, start_token
             in_clade_df = in_clade_df.sample(n=random_size, replace=True)
         in_len = len(in_clade_df.index)
         print("Size of clade {}: {}".format(in_clade, str(in_len)))
-        #print(in_clade_df)
-        # get df for child clades
+        in_clade_df.to_csv("data/generated_files/in_clade_df.csv")
         in_clade_seq = in_clade_df["Sequence"]
         u_in_clade = in_clade_seq.drop_duplicates()
         u_in_clade = u_in_clade.tolist()
@@ -157,11 +144,14 @@ def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, start_token
                tr_filename = "data/tr_unrelated/{}_{}.csv".format(in_clade, out_clade)
             out_clade_df = dataframe[dataframe["Clade"].replace("/", "_") == out_clade]
             print(out_clade_df)
-            print(max_parent_range)
-            out_clade_df, _ = filter_by_date(out_clade_df, out_clade, max_parent_range.strftime("%Y-%m-%d"))
+            print(max_parent_range, max_parent_range.strftime("%Y-%m-%d"))
+            print("Filtering by date...")
+            out_clade_df, _ = filter_by_date(out_clade_df, out_clade, max_parent_range.strftime("%Y-%m-%d").split("-"))
+            print(out_clade_df)
+            print("Remove duplicate sequences...")
+            out_clade_df = out_clade_df.drop_duplicates(subset=['Sequence'])
             print(out_clade_df)
             out_clade_df.to_csv("data/generated_files/out_clade_df.csv")
-            #sys.exit()
             try:
                 out_clade_df = out_clade_df.sample(n=random_size, replace=False)
             except:
