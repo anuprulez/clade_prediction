@@ -31,7 +31,7 @@ min_diff = 0
 max_diff = 11 #int(LEN_AA/5)
 train_size = 1.0
 enc_units = 256
-random_size =  450
+random_size = 100
 
 no_models = 4
 start_model_index = 2 # best results 16
@@ -44,11 +44,12 @@ batch_size = 4
 model_type = "pre_train"
 FUTURE_GEN_TEST = "test/20A_20B.csv"
 
-clade_parent = "20A" # 20A
-clade_childen = ["20B"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] 
+clade_parent = "20C" # 20A
+clade_childen = ["20G", "20H (Beta)", "21C (Epsilon)", "21F (Iota)"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] 
 #["20G", "21C_Epsilon", "21F_Iota"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] # ["20B"]
 # ["20G", "21C_Epsilon", "21F_Iota"]
 # {"20B": ["20I (Alpha, V1)", "20F", "20D", "21G (Lambda)", "21H"]}
+# ["20I (Alpha, V1)", "20F", "20D", "21G (Lambda)"]
 
 generating_factor = 5
 
@@ -61,10 +62,15 @@ PATH_R_DICT = PATH_PRE + "r_word_dictionaries.json"
 PATH_KMER_F_DICT = RESULT_PATH + "kmer_f_word_dictionaries.json"
 PATH_KMER_R_DICT = RESULT_PATH + "kmer_r_word_dictionaries.json"
 PATH_CLADES = "data/generating_clades.json"
-COMBINED_FILE = RESULT_PATH + "combined_dataframe.csv"
+COMBINED_FILE = RESULT_PATH + "combined_dataframe_{}_{}.csv".format(clade_parent, "_".join(clade_childen))
 WUHAN_SEQ = PATH_PRE + "wuhan-hu-1-spike-prot.txt"
 GEN_ENC_WEIGHTS = "generator_encoder_weights.h5"
 GEN_DEC_WEIGHTS = "generator_decoder_weights.h5"
+
+forward_dict = utils.read_json(PATH_F_DICT)
+rev_dict = utils.read_json(PATH_R_DICT)
+kmer_f_dict = utils.read_json(PATH_KMER_F_DICT)
+kmer_r_dict = utils.read_json(PATH_KMER_R_DICT)
 
 
 def prepare_pred_future_seq():
@@ -76,14 +82,34 @@ def prepare_pred_future_seq():
     print(clades_in_clades_out)
     dataf = pd.read_csv(PATH_SAMPLES_CLADES, sep=",")
     encoded_sequence_df = preprocess_sequences.filter_samples_clades(dataf)
-
+    print(encoded_sequence_df)
     print("Generating cross product...")
     preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df, len_aa_subseq, start_token, train_size=train_size, edit_threshold=max_diff, random_size=random_size, replace=False, unrelated=False)
+
+    # combine train files when generating 20C - children
+    total_x = list()
+    total_y = list()
+    print("Combining datasets from training folder...")
+    tr_clade_files = glob.glob('data/train/*.csv')
+    for name in tr_clade_files:
+        tr_clade_df = pd.read_csv(name, sep="\t")
+        x = tr_clade_df["X"].tolist()
+        y = tr_clade_df["Y"].tolist()
+        print(len(x), len(y))
+        print("---")
+        total_x.extend(x)
+        total_y.extend(y)
+        print()
+    print(len(total_x), len(total_y))
+    #combined_dataframe = generated_cross_prod(total_x, total_y, max_diff, len_aa_subseq, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict)
+    combined_dataframe = pd.DataFrame(list(zip(total_x, total_y)), columns=["X", "Y"])
+    combined_dataframe.to_csv(COMBINED_FILE, sep="\t", index=None)
     # preprocess_sequences.make_cross_product(clades_in_clades_out, filtered_dataf, len_aa_subseq, start_token, train_size=test_train_size, edit_threshold=max_l_dist, random_size=random_clade_size, unrelated=False)
     # generate only with all rows
     #create_parent_child_true_seq(forward_dict, rev_dict)
     # generate only with test rows
-    create_parent_child_true_seq_test()
+    #create_parent_child_true_seq_test()
+    
     #return encoded_wuhan_seq
 
 
@@ -110,10 +136,7 @@ def generated_cross_prod(list_true_y_test, children_combined_y, max_diff, len_aa
 
 
 def create_parent_child_true_seq_test():
-    forward_dict = utils.read_json(PATH_F_DICT)
-    rev_dict = utils.read_json(PATH_R_DICT)
-    kmer_f_dict = utils.read_json(PATH_KMER_F_DICT)
-    kmer_r_dict = utils.read_json(PATH_KMER_R_DICT)
+    
     #print(forward_dict)
     print("Loading test datasets...")
     list_true_y_test = list()

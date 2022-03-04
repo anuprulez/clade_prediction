@@ -35,10 +35,10 @@ test_file = [data_path + "test/20A_20B.csv"]'''
 
 
 # combined dataframe for 20B (as X) and children of 20B (as Y)
-parent_clade = "20B"
-child_clade = "AL20F20D21H"
-train_file = [data_path + "test_future/combined_dataframe.csv"]
-test_file = [data_path + "test_future/combined_dataframe.csv"]
+parent_clade = "20C"
+child_clade = "20G_H_21C_F"
+train_file = [data_path + "test_future/combined_dataframe_20C_20G_20H (Beta)_21C (Epsilon)_21F (Iota).csv"]
+test_file = [data_path + "test_future/combined_dataframe_20C_20G_20H (Beta)_21C (Epsilon)_21F (Iota).csv"]
 
 
 #gen_file = "model_generated_sequences/generated_seqs_20A_20B_477723_gan_train_20A.csv" # generated_seqs_20A_20B_1127915 # generated_seqs_20A_20B_302510.csv
@@ -467,8 +467,8 @@ def plot_mut_freq_dist_parent_child_gen(tr_size, te_size, gen_size):
 
 def plot_pred_subs():
 
-    gen_child_step_1 = "20A"
-    gen_child_step_2 = "20B" #"AL20F20D21H"
+    gen_child_step_1 = "20C"
+    gen_child_step_2 = "20G_H_21C_F" #"AL20F20D21H"
     gen_parent_child_pos_mut_freq_step1 = utils.read_json(data_path + "analysed_results/gen_{}_gen_pos_mut_freq.json".format(gen_child_step_1))
     gen_parent_child_pos_mut_freq_step2 = utils.read_json(data_path + "analysed_results/gen_{}_gen_pos_mut_freq.json".format(gen_child_step_2))
     print(gen_parent_child_pos_mut_freq_step1)
@@ -646,19 +646,19 @@ def create_tabular_files():
 
 if __name__ == "__main__":
     start_time = time.time()
-    '''utils.create_dirs(data_path + "analysed_results/")
+    utils.create_dirs(data_path + "analysed_results/")
     all_gen_paths = get_path_all_gen_files()
     print(all_gen_paths)
     
 
     tr_original_muts, tr_size = read_dataframe(train_file, "\t", ["X", "Y"], "train")
     te_original_muts, te_size = read_dataframe(test_file, "\t", ["X", "Y"], "test")
-    gen_muts, gen_size = read_dataframe(all_gen_paths, ",", ["20A", "Generated"], "gen") #["20A", "Generated"] #["X", "Pred Y"]
-    #plot_true_gen_dist(tr_original_muts, te_original_muts, gen_muts, tr_size, te_size, gen_size)
+    gen_muts, gen_size = read_dataframe(all_gen_paths, ",", ["20C", "Generated"], "gen") #["20A", "Generated"] #["X", "Pred Y"]
+    plot_true_gen_dist(tr_original_muts, te_original_muts, gen_muts, tr_size, te_size, gen_size)
 
     plot_mut_freq(tr_size, te_size, gen_size)
-    #plot_mut_freq_dist_parent_child_gen(tr_size, te_size, gen_size)
-    #plot_mut_freq_dist_parent_child_gen_wu(tr_size, te_size, gen_size)'''
+    plot_mut_freq_dist_parent_child_gen(tr_size, te_size, gen_size)
+    plot_mut_freq_dist_parent_child_gen_wu(tr_size, te_size, gen_size)
     create_tabular_files()
     #plot_pred_subs()
     #extract_novel_pos_subs()

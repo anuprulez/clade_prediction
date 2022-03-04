@@ -71,7 +71,7 @@ enc_units = 128
 '''
 
 s_kmer = 3
-LEN_AA = 1273 # 1273 for considering entire seq length
+LEN_AA = 17 # 1273 for considering entire seq length
 len_aa_subseq = LEN_AA
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 1 # write 2 here when there is padding of zero in in and out sequences
@@ -81,18 +81,19 @@ embedding_dim = 128
 batch_size = 8
 te_batch_size = batch_size
 n_te_batches = 20
-enc_units = 256 # 128 for 302
-pretrain_epochs = 20
+enc_units = 32 # 128 for 302
+pretrain_epochs = 1
 epochs = 1
 max_l_dist = 11
 test_train_size = 0.85
 pretrain_train_size = 0.5
-random_clade_size = 400
+random_clade_size = 200
 to_pretrain = True
 pretrained_model = False
 retrain_pretrain_start_index = 0
 gan_train = False
 start_token = 0
+parent_collection_start_month = "2020-01-20"
 stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/", "data/pretrain/"]
 amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"
 
@@ -127,14 +128,16 @@ def read_files():
     if pretrained_model is False:
         print("Cleaning up stale folders...")
         utils.clean_up(stale_folders)
-        print("Preprocessing sample-clade assignment file...")
-        dataf = pd.read_csv(PATH_SAMPLES_CLADES, sep=",")
-        filtered_dataf = preprocess_sequences.filter_samples_clades(dataf)
         clades_in_clades_out = utils.read_json(PATH_TRAINING_CLADES)
         print(clades_in_clades_out)
+        print("Preprocessing sample-clade assignment file...")
+        dataf = pd.read_csv(PATH_SAMPLES_CLADES, sep=",")
+        filtered_dataf = preprocess_sequences.filter_samples_clades(dataf, clades_in_clades_out)
+        
+        
         unrelated_clades = utils.read_json(PATH_UNRELATED_CLADES)
         print("Generating cross product of real parent child...")
-        preprocess_sequences.make_cross_product(clades_in_clades_out, filtered_dataf, len_aa_subseq, start_token, train_size=test_train_size, edit_threshold=max_l_dist, random_size=random_clade_size, unrelated=False)
+        preprocess_sequences.make_cross_product(clades_in_clades_out, filtered_dataf, len_aa_subseq, start_token, parent_collection_start_month, train_size=test_train_size, edit_threshold=max_l_dist, random_size=random_clade_size, unrelated=False)
         #print("Generating cross product of real sequences but not parent-child...")
         #preprocess_sequences.make_cross_product(unrelated_clades, filtered_dataf, len_aa_subseq, start_token, train_size=1.0, edit_threshold=max_l_dist, random_size=random_clade_size, unrelated=True)
         #sys.exit()
@@ -149,6 +152,7 @@ def read_files():
             encoder = tf.keras.models.load_model(enc_path)
             decoder = tf.keras.models.load_model(dec_path)
 
+    sys.exit()
     start_training(forward_dict, rev_dict, encoder, decoder)
 
 
