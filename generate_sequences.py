@@ -19,7 +19,7 @@ import utils
 
 #### Best results - 18_02_22_0, models from 16 - 20
 
-RESULT_PATH = "test_results/28_02_22_0/" # 04_02_22_GPU # 04_02_22_local
+RESULT_PATH = "test_results/28_02_22_0/" # 04_02_22_GPU # 04_02_22_local 28_02_22_0
 
 s_kmer = 3
 #LEN_AA = 301 # It should be n - 1 (n == seq len while training)
@@ -31,7 +31,7 @@ min_diff = 0
 max_diff = 11 #int(LEN_AA/5)
 train_size = 1.0
 enc_units = 256
-random_size = 100
+random_size = 1000
 
 no_models = 4
 start_model_index = 2 # best results 16
@@ -40,16 +40,14 @@ dec_stddev = 0.0001
 start_token = 0
 size_stateful = 41
 batch_size = 4
+collection_start_month =  None
 
 model_type = "pre_train"
 FUTURE_GEN_TEST = "test/20A_20B.csv"
 
-clade_parent = "20C" # 20A
-clade_childen = ["20G", "20H (Beta)", "21C (Epsilon)", "21F (Iota)"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] 
-#["20G", "21C_Epsilon", "21F_Iota"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] # ["20B"]
-# ["20G", "21C_Epsilon", "21F_Iota"]
-# {"20B": ["20I (Alpha, V1)", "20F", "20D", "21G (Lambda)", "21H"]}
-# ["20I (Alpha, V1)", "20F", "20D", "21G (Lambda)"]
+clade_parent = "20B" # 20A
+clade_childen = ["20I (Alpha, V1)"]  #["20G", "20H (Beta)", "21C (Epsilon)", "21F (Iota)"] #["20D", "20F", "20I (Alpha, V1)", "20J (Gamma, V3)"]
+
 
 generating_factor = 5
 
@@ -84,7 +82,7 @@ def prepare_pred_future_seq():
     encoded_sequence_df = preprocess_sequences.filter_samples_clades(dataf)
     print(encoded_sequence_df)
     print("Generating cross product...")
-    preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df, len_aa_subseq, start_token, train_size=train_size, edit_threshold=max_diff, random_size=random_size, replace=False, unrelated=False)
+    preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df, len_aa_subseq, start_token, collection_start_month, train_size=train_size, edit_threshold=max_diff, random_size=random_size, replace=False, unrelated=False)
 
     # combine train files when generating 20C - children
     total_x = list()
@@ -374,6 +372,6 @@ if __name__ == "__main__":
     # when gen_future, file_path = COMBINED_FILE
     file_path = COMBINED_FILE
     #file_path = RESULT_PATH + "test/20A_20B.csv"
-    load_model_generated_sequences(file_path)
+    #load_model_generated_sequences(file_path)
     end_time = time.time()
     print("Program finished in {} seconds".format(str(np.round(end_time - start_time, 2))))
