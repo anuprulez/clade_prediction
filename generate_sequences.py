@@ -82,7 +82,7 @@ def prepare_pred_future_seq():
     encoded_sequence_df = preprocess_sequences.filter_samples_clades(dataf)
     print(encoded_sequence_df)
     print("Generating cross product...")
-    preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df, len_aa_subseq, start_token, collection_start_month, train_size=train_size, edit_threshold=max_diff, random_size=random_size, replace=False, unrelated=False)
+    preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df, len_aa_subseq, start_token, collection_start_month, train_size=train_size, edit_threshold=max_diff, random_size=random_size, replace=False, unrelated=False, train_pairs=False)
 
     # combine train files when generating 20C - children
     total_x = list()

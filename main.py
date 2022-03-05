@@ -71,7 +71,7 @@ enc_units = 128
 '''
 
 s_kmer = 3
-LEN_AA = 17 # 1273 for considering entire seq length
+LEN_AA = 1273 # 1273 for considering entire seq length
 len_aa_subseq = LEN_AA
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 1 # write 2 here when there is padding of zero in in and out sequences
@@ -86,8 +86,8 @@ pretrain_epochs = 1
 epochs = 1
 max_l_dist = 11
 test_train_size = 0.85
-pretrain_train_size = 0.5
-random_clade_size = 200
+pretrain_train_size = 0.01 # all dataset as pretrain and not as test
+random_clade_size = 300
 to_pretrain = True
 pretrained_model = False
 retrain_pretrain_start_index = 0
@@ -132,7 +132,7 @@ def read_files():
         print(clades_in_clades_out)
         print("Preprocessing sample-clade assignment file...")
         dataf = pd.read_csv(PATH_SAMPLES_CLADES, sep=",")
-        filtered_dataf = preprocess_sequences.filter_samples_clades(dataf, clades_in_clades_out)
+        filtered_dataf = preprocess_sequences.filter_samples_clades(dataf)
         
         
         unrelated_clades = utils.read_json(PATH_UNRELATED_CLADES)
@@ -152,7 +152,7 @@ def read_files():
             encoder = tf.keras.models.load_model(enc_path)
             decoder = tf.keras.models.load_model(dec_path)
 
-    sys.exit()
+    
     start_training(forward_dict, rev_dict, encoder, decoder)
 
 
@@ -268,6 +268,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     X_train = np.array(X_train)
     y_train = np.array(y_train)
 
+    sys.exit()
     #train_cluster_indices, train_cluster_indices_dict = utils.find_cluster_indices(y_train, batch_size)
 
     # pretrain generator

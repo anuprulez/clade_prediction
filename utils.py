@@ -135,15 +135,39 @@ def split_test_train(x, y, split_size):
     return x_1, x_2, y_1, y_2
 
 
-def generate_cross_product(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict, rev_dict, start_token, cols=["X", "Y"], unrelated=False, unrelated_threshold=15):
-    print(len(x_seq), len(y_seq))
-    x_y = list(itertools.product(x_seq, y_seq))
-    print(len(x_y))
+def generate_cross_product(x_df, y_df, max_l_dist, len_aa_subseq, forward_dict, rev_dict, start_token, cols=["X", "Y"], unrelated=False, unrelated_threshold=15, train_nation="USA", train_pairs=True):
+
+    in_countries = x_df["Country"].tolist()
+    out_countries = y_df["Country"].tolist()
+    common_countries = list(set(in_countries).intersection(out_countries))
+    print("Common countries in input and output clades: ", common_countries)
+    for nation in common_countries:
+        in_df = x_df[x_df["Country"] == nation]
+        out_df = y_df[y_df["Country"] == nation]
+        print(in_df)
+        print()
+        print(out_df)
+        print("Cross prod size: ", len(in_df.index) * len(out_df.index))
+        print("-------")
+
+    x_train_test = x_df[x_df["Country"] == train_nation]
+    y_train_test = y_df[y_df["Country"] == train_nation]
+    x_tr_te_seq = x_train_test["Sequence"].tolist()
+    y_tr_te_seq = y_train_test["Sequence"].tolist()
+    print(train_pairs, len(x_train_test.index), len(y_train_test.index))
+
+    x_val = x_df[x_df["Country"] != train_nation]
+    y_val = y_df[y_df["Country"] != train_nation]
+    x_val_seq = x_val["Sequence"].tolist()
+    y_val_seq = y_val["Sequence"].tolist()
+    print(train_pairs, len(x_val.index), len(y_val.index))
+
+    print(len(x_tr_te_seq), len(y_tr_te_seq))
+    x_y = list(itertools.product(x_tr_te_seq, y_tr_te_seq))
+    print("Training combination: ", len(x_y))
     print("Filtering for range of levenshtein distance ...")
-
-    #print(forward_dict)
-    filtered_x, filtered_y, kmer_f_dict, kmer_r_dict, l_distance, filtered_l_distance = get_u_kmers(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict, start_token, unrelated)
-
+    print("Filtering for train and test")
+    filtered_x, filtered_y, kmer_f_dict, kmer_r_dict, l_distance, filtered_l_distance = get_u_kmers(x_tr_te_seq, y_tr_te_seq, max_l_dist, len_aa_subseq, forward_dict, start_token, unrelated)
     print(len(filtered_l_distance), np.mean(filtered_l_distance))
     filtered_dataframe = pd.DataFrame(list(zip(filtered_x, filtered_y)), columns=["X", "Y"])
     print("Combined dataframe size: {}".format(str(len(filtered_dataframe.index))))
@@ -152,6 +176,25 @@ def generate_cross_product(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict
     print("Mean levenshtein dist: {}".format(str(np.mean(l_distance))))
     print("Mean filtered levenshtein dist: {}".format(str(np.mean(filtered_l_distance))))
     print("Filtered dataframe size: {}".format(str(len(filtered_dataframe.index))))
+
+    # validation
+    print("Filtering for validation")
+    print(len(x_val_seq), len(y_val_seq))
+    val_x_y = list(itertools.product(x_val_seq, y_val_seq))
+    print("Validation combination: ", len(val_x_y))
+    create_dirs("data/validation")
+    filtered_x_val, filtered_y_val, _, _, l_distance, filtered_l_distance = get_u_kmers(x_val_seq, y_val_seq, max_l_dist, len_aa_subseq, forward_dict, start_token, unrelated)
+    filtered_dataframe_validation = pd.DataFrame(list(zip(filtered_x_val, filtered_y_val)), columns=["X", "Y"])
+    filtered_dataframe_validation.to_csv("data/validation/validation_data.csv", sep="\t", index=None)
+    print(len(filtered_l_distance), np.mean(filtered_l_distance))
+    filtered_dataframe = pd.DataFrame(list(zip(filtered_x, filtered_y)), columns=["X", "Y"])
+    print("Validation Combined dataframe size: {}".format(str(len(filtered_dataframe.index))))
+    np.savetxt("data/generated_files/validation_l_distance.txt", l_distance)
+    np.savetxt("data/generated_files/validation_filtered_l_distance.txt", filtered_l_distance)
+    print("Validation Mean levenshtein dist: {}".format(str(np.mean(l_distance))))
+    print("Validation Mean filtered levenshtein dist: {}".format(str(np.mean(filtered_l_distance))))
+    print("Validation Filtered dataframe size: {}".format(str(len(filtered_dataframe_validation.index))))
+
     return filtered_dataframe, kmer_f_dict, kmer_r_dict
 
 

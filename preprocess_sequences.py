@@ -68,8 +68,23 @@ def filter_samples_clades(dataframe):
     return new_df
 
 
-def filter_by_country():
-    print()
+def filter_by_country(dataframe):
+    f_df = list()
+    origin_nations = list()
+    for index, item in dataframe.iterrows():
+        sample_name = item["SampleName"].split("/")
+        row_date = sample_name[3].split("|")
+        a = item.tolist()
+        a.append(sample_name[1])
+        a.append(row_date[1])
+        a.append(row_date[2])
+        f_df.append(a)
+    cols = list(dataframe.columns)
+    cols.append("Country")
+    cols.append("Collection_date")
+    cols.append("Accession_number")
+    new_df = pd.DataFrame(f_df, columns=cols)
+    return new_df
 
 
 def date_to_date(date):
@@ -99,7 +114,7 @@ def filter_by_date(dataframe, clade_name, start_date=None, buffer_days=180):
     return new_df, max_date_range
 
 
-def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, start_token, collection_start_month, train_size=0.8, edit_threshold=3, random_size=200, replace=False, unrelated=False):
+def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, start_token, collection_start_month, train_size=0.8, edit_threshold=3, random_size=200, replace=False, unrelated=False, train_pairs=True):
     total_samples = 0
 
     forward_dict = utils.read_json(PATH_F_DICT)
@@ -119,10 +134,14 @@ def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, start_token
         print("Remove duplicate sequences...")
         in_clade_df = in_clade_df.drop_duplicates(subset=['Sequence'])
         print(in_clade_df)
+        print("Normalizing by country...")
+        in_clade_df = filter_by_country(in_clade_df)
+        print(in_clade_df)
         try:
             in_clade_df = in_clade_df.sample(n=random_size, replace=False)
         except:
             in_clade_df = in_clade_df.sample(n=random_size, replace=True)
+        print(in_clade_df.groupby(['Country']).count())
         in_len = len(in_clade_df.index)
         print("Size of clade {}: {}".format(in_clade, str(in_len)))
         in_clade_df.to_csv("data/generated_files/in_clade_df.csv")
@@ -151,18 +170,23 @@ def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, start_token
             print("Remove duplicate sequences...")
             out_clade_df = out_clade_df.drop_duplicates(subset=['Sequence'])
             print(out_clade_df)
+            print("Normalizing by country...")
+            out_clade_df = filter_by_country(out_clade_df)
             out_clade_df.to_csv("data/generated_files/out_clade_df.csv")
+            
             try:
                 out_clade_df = out_clade_df.sample(n=random_size, replace=False)
             except:
                 out_clade_df = out_clade_df.sample(n=random_size, replace=True)
             out_len = len(out_clade_df.index)
+            print(out_clade_df.groupby(['Country']).count())
             print("Size of clade {}: {}".format(out_clade, str(out_len)))
             out_clade_seq = out_clade_df["Sequence"]
             u_out_clade = out_clade_seq.drop_duplicates()
             u_out_clade = u_out_clade.tolist()
             #u_filtered_x_y, kmer_f_dict, kmer_r_dict = utils.generate_cross_product(u_in_clade, u_out_clade, edit_threshold, len_aa_subseq, forward_dict, start_token, unrelated=unrelated)
-            u_filtered_x_y, kmer_f_dict, kmer_r_dict = utils.generate_cross_product(u_in_clade, u_out_clade, edit_threshold, len_aa_subseq, forward_dict, rev_dict, start_token, unrelated=unrelated)
+            u_filtered_x_y, kmer_f_dict, kmer_r_dict = utils.generate_cross_product(in_clade_df, out_clade_df, edit_threshold, len_aa_subseq, forward_dict, rev_dict, start_token, unrelated=unrelated, train_pairs=train_pairs)
+            
             print("Unique size of clade combination {}_{}: {}".format(in_clade, out_clade, str(len(u_filtered_x_y.index))))
             total_samples += len(u_filtered_x_y.index)
             train_df = u_filtered_x_y.sample(frac=train_size, random_state=200)
@@ -177,6 +201,7 @@ def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, start_token
             print("train size: {}".format(len(train_df.index)))
             print("test size: {}".format(len(test_df.index)))
             print()
+            sys.exit()
     print()
     print("Total number of samples: {}".format(str(total_samples)))
 

@@ -52,6 +52,16 @@ https://en.wikipedia.org/wiki/Gibbs_sampling
 http://people.csail.mit.edu/andyyuan/docs/interspeech-16.audio2vec.paper.pdf
 https://arxiv.org/pdf/2108.11992.pdf
 
+### Clade emergence date
+
+https://github.com/nextstrain/ncov/blob/master/defaults/clade_emergence_dates.tsv
+
+### Clade assignment
+
+https://docs.nextstrain.org/projects/nextclade/en/stable/user/algorithm/index.html
+
+
+
 ### Acknowledgements
 
 Data from this analysis have been downloaded from GISAID (https://www.gisaid.org/help/publish-with-data-from-gisaid/)
