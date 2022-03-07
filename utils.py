@@ -32,20 +32,25 @@ PATH_KMER_F_DICT = "data/ncov_global/kmer_f_word_dictionaries.json"
 PATH_KMER_R_DICT = "data/ncov_global/kmer_r_word_dictionaries.json"
 
 #m_loss = neural_network.MaskedLoss()
-bce = tf.keras.losses.BinaryCrossentropy(from_logits=False)
+#bce = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 #focal_loss_func = SparseCategoricalFocalLoss(gamma=2)
 
 cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False, reduction='none')
 
-mae = tf.keras.losses.MeanAbsoluteError()
-mse = tf.keras.losses.MeanSquaredError()
+#mae = tf.keras.losses.MeanAbsoluteError()
+#mse = tf.keras.losses.MeanSquaredError()
+
 test_tf_ratio = 0.0
-enc_stddev = 1.0 # 0.05 for pretraining
-max_norm = 1.0
+enc_stddev = 0.1
+max_norm = 5.0
 dec_stddev = 0.0001
-max_batch_turn = 50
+#max_batch_turn = 50
 #pos_variations = dict()
 amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"
+
+
+def decay_lr(lr, factor=0.95):
+    return factor * lr
 
 
 def loss_function(real, pred):
@@ -150,17 +155,12 @@ def generate_cross_product(x_df, y_df, max_l_dist, len_aa_subseq, forward_dict, 
         print("Cross prod size: ", len(in_df.index) * len(out_df.index))
         print("-------")
 
+    print("For the USA")
     x_train_test = x_df[x_df["Country"] == train_nation]
     y_train_test = y_df[y_df["Country"] == train_nation]
     x_tr_te_seq = x_train_test["Sequence"].tolist()
     y_tr_te_seq = y_train_test["Sequence"].tolist()
     print(train_pairs, len(x_train_test.index), len(y_train_test.index))
-
-    x_val = x_df[x_df["Country"] != train_nation]
-    y_val = y_df[y_df["Country"] != train_nation]
-    x_val_seq = x_val["Sequence"].tolist()
-    y_val_seq = y_val["Sequence"].tolist()
-    print(train_pairs, len(x_val.index), len(y_val.index))
 
     print(len(x_tr_te_seq), len(y_tr_te_seq))
     x_y = list(itertools.product(x_tr_te_seq, y_tr_te_seq))
@@ -176,6 +176,14 @@ def generate_cross_product(x_df, y_df, max_l_dist, len_aa_subseq, forward_dict, 
     print("Mean levenshtein dist: {}".format(str(np.mean(l_distance))))
     print("Mean filtered levenshtein dist: {}".format(str(np.mean(filtered_l_distance))))
     print("Filtered dataframe size: {}".format(str(len(filtered_dataframe.index))))
+
+
+    '''print("For rest of the world")
+    x_val = x_df[x_df["Country"] != train_nation]
+    y_val = y_df[y_df["Country"] != train_nation]
+    x_val_seq = x_val["Sequence"].tolist()
+    y_val_seq = y_val["Sequence"].tolist()
+    print(train_pairs, len(x_val.index), len(y_val.index))
 
     # validation
     print("Filtering for validation")
@@ -193,7 +201,7 @@ def generate_cross_product(x_df, y_df, max_l_dist, len_aa_subseq, forward_dict, 
     np.savetxt("data/generated_files/validation_filtered_l_distance.txt", filtered_l_distance)
     print("Validation Mean levenshtein dist: {}".format(str(np.mean(l_distance))))
     print("Validation Mean filtered levenshtein dist: {}".format(str(np.mean(filtered_l_distance))))
-    print("Validation Filtered dataframe size: {}".format(str(len(filtered_dataframe_validation.index))))
+    print("Validation Filtered dataframe size: {}".format(str(len(filtered_dataframe_validation.index))))'''
 
     return filtered_dataframe, kmer_f_dict, kmer_r_dict
 
@@ -480,20 +488,28 @@ def stateful_encoding(size_stateful, inputs, enc, training=False):
 
 
 def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful, mut_freq, pos_variations, pos_variations_count, batch_step):
+    # TODO: Implement loss wrt to WU reference genome - crossentropy(Wu - true target) - crossentropy(Wu - generated target) == 0
     loss = tf.constant(0.0)
     global_logits = list()
     enc_state_f = tf.zeros((batch_size, enc_units))
     enc_state_b = tf.zeros((batch_size, enc_units))
     n_stateful_batches = int(input_tokens.shape[1]/float(s_stateful))
     i_tokens = tf.fill([batch_size, 1], 0)
+    loss_dec_loop_norm = tf.constant(0.0)
+    loss_enc_state_norm = tf.constant(0.0)
     for stateful_index in range(n_stateful_batches):
         s_batch = input_tokens[:, stateful_index*s_stateful: (stateful_index+1)*s_stateful]
         enc_output, enc_state_f, enc_state_b = gen_encoder([s_batch, enc_state_f, enc_state_b], training=True)
         dec_state = tf.concat([enc_state_f, enc_state_b], -1)
+        loss_enc_state_norm += tf.math.abs(max_norm - tf.norm(dec_state))
+        #print(dec_state[:, :5], tf.norm(dec_state))
         dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
-        
+        #print(dec_state[:, :5], tf.norm(dec_state))
+        #print("---")
         for t in range(s_batch.shape[1]):
             dec_result, dec_state = gen_decoder([i_tokens, dec_state], training=True)
+            loss_dec_state_norm = tf.math.abs(max_norm - tf.norm(dec_state))
+            loss_dec_loop_norm += loss_dec_state_norm
             dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
             orig_t = stateful_index * s_stateful + t
             if len(output_tokens) > 0:
@@ -540,8 +556,12 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
             i_tokens = o_tokens
 
     global_logits = tf.concat(global_logits, axis=-2)
+    loss_dec_loop_norm = loss_dec_loop_norm / seq_len
+    loss_enc_state_norm = loss_enc_state_norm / n_stateful_batches
     loss = loss / seq_len
-    return global_logits, gen_encoder, gen_decoder, loss
+    total_loss = loss + loss_dec_loop_norm + loss_enc_state_norm
+    print("Losses: (total, true, enc norm, dec norm)", total_loss.numpy(), loss.numpy(), loss_enc_state_norm.numpy(), loss_dec_loop_norm.numpy())
+    return global_logits, gen_encoder, gen_decoder, total_loss
 
 
 def loop_encode_decode_predict_stateful(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful, mut_freq): 

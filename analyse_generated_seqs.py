@@ -36,9 +36,9 @@ test_file = [data_path + "test/20A_20B.csv"]'''
 
 # combined dataframe for 20B (as X) and children of 20B (as Y)
 parent_clade = "20B" #"20C"
-child_clade = "20I_Alpha" #"20G_H_21C_F"
-train_file = [data_path + "test_future/combined_dataframe_20B_20I (Alpha, V1).csv"]
-test_file = [data_path + "test_future/combined_dataframe_20B_20I (Alpha, V1).csv"]
+child_clade = "20J_Gamma" #"20G_H_21C_F" #20I_Alpha
+train_file = [data_path + "test_future/20B_20J (Gamma, V3)_USA.csv"]
+test_file = [data_path + "test_future/20B_20J (Gamma, V3)_USA.csv"]
 
 # combined dataframe for 20B (as X) and children of 20B (as Y)
 '''parent_clade = "20C"
@@ -316,7 +316,7 @@ def plot_true_gen_dist(tr_par_child, te_par_child, gen_par_child, tr_size, te_si
 
 
 def normalize_mat(D):
-    return (D - np.min(D)) / ((np.max(D) - np.min(D)) + 1e-10) #D / float(np.sum(D)) #np.log(1 + D) #(D - np.min(D)) / ((np.max(D) - np.min(D)) + 1e-10)
+    return D #(D - np.min(D)) / ((np.max(D) - np.min(D)) + 1e-10) #D / float(np.sum(D)) #np.log(1 + D) #(D - np.min(D)) / ((np.max(D) - np.min(D)) + 1e-10)
     
 
 def plot_mut_freq(tr_size, te_size, gen_size):
@@ -730,7 +730,7 @@ if __name__ == "__main__":
     plot_true_gen_dist(tr_original_muts, te_original_muts, gen_muts, tr_size, te_size, gen_size)
 
     plot_mut_freq(tr_size, te_size, gen_size)
-    plot_target_mut_freq(tr_size, te_size, gen_size)
+    #plot_target_mut_freq(tr_size, te_size, gen_size)
     plot_mut_freq_dist_parent_child_gen(tr_size, te_size, gen_size)
     plot_mut_freq_dist_parent_child_gen_wu(tr_size, te_size, gen_size)
     create_tabular_files()

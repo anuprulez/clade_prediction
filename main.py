@@ -71,28 +71,32 @@ enc_units = 128
 '''
 
 s_kmer = 3
-LEN_AA = 1273 # 1273 for considering entire seq length
+LEN_AA = 32 # 1273 for considering entire seq length
 len_aa_subseq = LEN_AA
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 1 # write 2 here when there is padding of zero in in and out sequences
-size_stateful = 5 # 50 for 302
+size_stateful = 10 # 50 for 302
 # Neural network parameters
 embedding_dim = 128
 batch_size = 8
 te_batch_size = batch_size
 n_te_batches = 20
 enc_units = 32 # 128 for 302
-pretrain_epochs = 1
+pretrain_epochs = 20
 epochs = 1
 max_l_dist = 11
 test_train_size = 0.85
 pretrain_train_size = 0.01 # all dataset as pretrain and not as test
-random_clade_size = 300
+random_clade_size = 700
 to_pretrain = True
 pretrained_model = False
 retrain_pretrain_start_index = 0
 gan_train = False
 start_token = 0
+
+#pretr_lr = 1e-1 #learning_rate=3e-5
+generator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) # learning_rate=1e-3, beta_1=0.5
+discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) # learning_rate=3e-5, beta_1=0.5
 parent_collection_start_month = "2020-01-20"
 stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/", "data/pretrain/"]
 amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"
@@ -268,12 +272,12 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     X_train = np.array(X_train)
     y_train = np.array(y_train)
 
-    sys.exit()
+    #sys.exit()
     #train_cluster_indices, train_cluster_indices_dict = utils.find_cluster_indices(y_train, batch_size)
 
     # pretrain generator
     if to_pretrain is True:
-
+        
         utils.create_dirs("data/generated_files/pre_train")
         pretrain_gen_train_loss = list()
         pretrain_gen_test_loss = list()
@@ -293,9 +297,12 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
         # get pretraining dataset as sliced tensors
         n_pretrain_batches = int(X_pretrain.shape[0]/float(batch_size))
         print("Num of pretrain batches: {}".format(str(n_pretrain_batches)))
-        for i in range(pretrain_epochs):
+        pretr_lr = 1e-2
+        for i in range(retrain_pretrain_start_index, pretrain_epochs):
+            pretrain_generator_optimizer = tf.keras.optimizers.Adam(learning_rate=pretr_lr)
             print("Pre training epoch {}/{}...".format(str(i+1), str(pretrain_epochs)))
-            pretrain_gen_tr_loss, bat_te_gen_loss, bat_te_seq_var, bat_tr_seq_var, encoder, decoder = train_model.pretrain_generator([X_pretrain, y_pretrain, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches], i, encoder, decoder, enc_units, vocab_size, n_pretrain_batches, batch_size, pretr_parent_child_mut_indices, pretrain_epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, pos_variations, pos_variations_count)
+            pretrain_gen_tr_loss, bat_te_gen_loss, bat_te_seq_var, bat_tr_seq_var, encoder, decoder, _ = train_model.pretrain_generator([X_pretrain, y_pretrain, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches], i, encoder, decoder, pretrain_generator_optimizer, enc_units, vocab_size, n_pretrain_batches, batch_size, pretr_parent_child_mut_indices, pretrain_epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, pos_variations, pos_variations_count)
+            pretr_lr = utils.decay_lr(pretr_lr)
             print("Pre training loss at epoch {}/{}: Generator loss: {}, variation score: {}".format(str(i+1), str(pretrain_epochs), str(pretrain_gen_tr_loss), str(np.mean(bat_tr_seq_var))))
             pretrain_gen_train_loss.append(pretrain_gen_tr_loss)
             pretrain_gen_batch_test_loss.append(bat_te_gen_loss)

@@ -201,7 +201,6 @@ def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, start_token
             print("train size: {}".format(len(train_df.index)))
             print("test size: {}".format(len(test_df.index)))
             print()
-            sys.exit()
     print()
     print("Total number of samples: {}".format(str(total_samples)))
 

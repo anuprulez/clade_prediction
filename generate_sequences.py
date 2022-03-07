@@ -17,9 +17,9 @@ from nltk.translate.bleu_score import sentence_bleu
 import preprocess_sequences
 import utils
 
-#### Best results - 18_02_22_0, models from 16 - 20
+#### Best results - 18_02_22_0, models from 16 - 20 #28_02_22_0
 
-RESULT_PATH = "test_results/28_02_22_0/" # 04_02_22_GPU # 04_02_22_local 28_02_22_0
+RESULT_PATH = "test_results/18_02_22_0/" # 04_02_22_GPU # 04_02_22_local 28_02_22_0
 
 s_kmer = 3
 #LEN_AA = 301 # It should be n - 1 (n == seq len while training)
@@ -31,7 +31,7 @@ min_diff = 0
 max_diff = 11 #int(LEN_AA/5)
 train_size = 1.0
 enc_units = 256
-random_size = 1000
+random_size = 500
 
 no_models = 4
 start_model_index = 2 # best results 16
@@ -46,7 +46,7 @@ model_type = "pre_train"
 FUTURE_GEN_TEST = "test/20A_20B.csv"
 
 clade_parent = "20B" # 20A
-clade_childen = ["20I (Alpha, V1)"]  #["20G", "20H (Beta)", "21C (Epsilon)", "21F (Iota)"] #["20D", "20F", "20I (Alpha, V1)", "20J (Gamma, V3)"]
+clade_childen = ["20J (Gamma, V3)"]  #["20G", "20H (Beta)", "21C (Epsilon)", "21F (Iota)"] #["20D", "20F", "20I (Alpha, V1)", "20J (Gamma, V3)"]
 
 
 generating_factor = 5
