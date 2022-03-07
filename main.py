@@ -297,12 +297,12 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
         # get pretraining dataset as sliced tensors
         n_pretrain_batches = int(X_pretrain.shape[0]/float(batch_size))
         print("Num of pretrain batches: {}".format(str(n_pretrain_batches)))
-        pretr_lr = 1e-2
+        
         for i in range(retrain_pretrain_start_index, pretrain_epochs):
-            pretrain_generator_optimizer = tf.keras.optimizers.Adam(learning_rate=pretr_lr)
+            #pretrain_generator_optimizer = tf.keras.optimizers.Adam(learning_rate=pretr_lr)
             print("Pre training epoch {}/{}...".format(str(i+1), str(pretrain_epochs)))
-            pretrain_gen_tr_loss, bat_te_gen_loss, bat_te_seq_var, bat_tr_seq_var, encoder, decoder, _ = train_model.pretrain_generator([X_pretrain, y_pretrain, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches], i, encoder, decoder, pretrain_generator_optimizer, enc_units, vocab_size, n_pretrain_batches, batch_size, pretr_parent_child_mut_indices, pretrain_epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, pos_variations, pos_variations_count)
-            pretr_lr = utils.decay_lr(pretr_lr)
+            pretrain_gen_tr_loss, bat_te_gen_loss, bat_te_seq_var, bat_tr_seq_var, encoder, decoder, _ = train_model.pretrain_generator([X_pretrain, y_pretrain, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches], i, encoder, decoder, enc_units, vocab_size, n_pretrain_batches, batch_size, pretr_parent_child_mut_indices, pretrain_epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, pos_variations, pos_variations_count)
+            #pretr_lr = utils.decay_lr(pretr_lr)
             print("Pre training loss at epoch {}/{}: Generator loss: {}, variation score: {}".format(str(i+1), str(pretrain_epochs), str(pretrain_gen_tr_loss), str(np.mean(bat_tr_seq_var))))
             pretrain_gen_train_loss.append(pretrain_gen_tr_loss)
             pretrain_gen_batch_test_loss.append(bat_te_gen_loss)

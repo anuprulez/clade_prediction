@@ -53,6 +53,10 @@ def decay_lr(lr, factor=0.95):
     return factor * lr
 
 
+def decayed_learning_rate(initial_learning_rate, step, decay_rate=0.95, decay_steps=1000000):
+  return initial_learning_rate * np.float_power(decay_rate, (step / decay_steps))
+
+
 def loss_function(real, pred):
   cross_entropy = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False, reduction='none')
   loss = cross_entropy(y_true=real, y_pred=pred)
