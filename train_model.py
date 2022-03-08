@@ -226,7 +226,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, updated_lr, e
   utils.create_dirs(dec_pre_train_save_folder)
 
   for step in range(n_batches):
-      updated_lr = utils.decayed_learning_rate(updated_lr, (epo_step + 1) * (step + 1))
+      #updated_lr = utils.decayed_learning_rate(updated_lr, (epo_step + 1) * (step + 1))
       pretrain_generator_optimizer = tf.keras.optimizers.Adam(learning_rate=updated_lr)
       unrolled_x, unrolled_y = sample_true_x_y(batch_size, X_train, y_train)
       seq_len = unrolled_x.shape[1]
@@ -249,7 +249,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, updated_lr, e
       gradients_of_generator = gen_tape.gradient(gen_loss, gen_trainable_vars)
       gradients_of_generator = [(tf.clip_by_norm(grad, clip_norm=pretrain_clip_norm)) for grad in gradients_of_generator]
       pretrain_generator_optimizer.apply_gradients(zip(gradients_of_generator, gen_trainable_vars))
-      print(pretrain_generator_optimizer.lr)
+      #print(pretrain_generator_optimizer.lr)
 
       # optimize pf discriminator
       if (step + 1) % test_log_step == 0 and step > 0:

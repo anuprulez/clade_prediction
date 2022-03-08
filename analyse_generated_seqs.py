@@ -2,6 +2,7 @@ import time
 import sys
 import os
 
+import tensorflow as tf
 import pandas as pd
 from pandas import ExcelWriter
 import xlsxwriter
@@ -20,8 +21,12 @@ aa_list = list('QNKWFPYLMTEIARGHSDVC')
 seq_len = 1273 #1273 #303 #1273
 y_label_bin = 20
 ##### Best results with 18_02_22_0 22_02_22_0 # 28_02_22_0
-
+PATH_PRE = "data/ncov_global/"
 data_path = "test_results/28_02_22_0/" #"test_results/19_10_20A_20B_unrolled_GPU/" # 08_10_one_hot_3_CPU_20A_20B
+PATH_F_DICT = PATH_PRE + "f_word_dictionaries.json"
+PATH_R_DICT = PATH_PRE + "r_word_dictionaries.json"
+PATH_KMER_F_DICT = PATH_PRE + "kmer_f_word_dictionaries.json"
+PATH_KMER_R_DICT = PATH_PRE + "kmer_r_word_dictionaries.json"
 
 ### 22_02_22_0
 
@@ -632,7 +637,93 @@ def create_tabular_files():
             df_subs = parse_mut_keys_freq(subs, "analysed_results/" + sheet_name + ".csv")
             print(sheet_name, df_subs)
             print()
-            df_subs.to_excel(writer, sheet_name=sheet_name) 
+            df_subs.to_excel(writer, sheet_name=sheet_name)
+
+
+def plot_embeddings():
+    no_models = 1
+    start_model_index = 5 # best results 16
+    model_type = "pre_train"
+    forward_dict = utils.read_json(PATH_F_DICT)
+    rev_dict = utils.read_json(PATH_R_DICT)
+    kmer_f_dict = utils.read_json(PATH_KMER_F_DICT)
+    kmer_r_dict = utils.read_json(PATH_KMER_R_DICT)
+    batch_size = 4
+    vocab_size = len(rev_dict) + 1
+    true_20B_c_20B = data_path + "test_future/combined_dataframe_20B_20D_20F_20I (Alpha, V1)_20J (Gamma, V3).csv"
+    gen_20B_c_20B = data_path + "gen_file/generated_seqs_20A_20B_1678920_pre_train_20B_model_2_6.csv"
+    len_final_aa_padding = 1271
+    size_stateful = 41
+    enc_units = 256
+    true_20B_c_20B_df = pd.read_csv(true_20B_c_20B, sep="\t")
+    print(true_20B_c_20B_df)
+    true_20B_c_20B_Y = true_20B_c_20B_df["Y"].drop_duplicates()
+    true_20B_c_20B_Y = true_20B_c_20B_Y.tolist()
+
+    gen_20B_c_20B_df = pd.read_csv(gen_20B_c_20B, sep=",")
+    print(gen_20B_c_20B_df)
+    gen_20B_c_20B_Y = gen_20B_c_20B_df["Generated"].drop_duplicates()
+    gen_20B_c_20B_Y = gen_20B_c_20B_Y.tolist()
+
+    embeddings_true_Y = list()
+    embeddings_gen_Y = list()
+    max_batch = 20
+    for iter_model in range(start_model_index, start_model_index + no_models):
+ 
+        enc_model_path = data_path + model_type + "/" + str(iter_model) + "/enc"
+        #dec_model_path = data_path + model_type + "/" + str(iter_model) + "/dec"
+
+        print("Loading encoder from {}...".format(enc_model_path))
+        #print("Loading decoder from {}...".format(dec_model_path))
+
+        loaded_encoder = tf.keras.models.load_model(enc_model_path) #"pretrain_gen_encoder" #gen_enc_model
+        #loaded_decoder = tf.keras.models.load_model(dec_model_path) #pretrain_gen_decoder #gen_dec_model
+        true_Y = tf.data.Dataset.from_tensor_slices((true_20B_c_20B_Y)).batch(batch_size)
+        gen_Y = tf.data.Dataset.from_tensor_slices((gen_20B_c_20B_Y)).batch(batch_size)
+
+        for step, x in enumerate(true_Y):
+            true_array = utils.pred_convert_to_array(x)
+            emb_true = loop_encode_predict_stateful(batch_size, true_array, loaded_encoder, enc_units, False, size_stateful)
+            embeddings_true_Y.extend(emb_true.numpy())
+            print("True Y Batch {} finished".format(str(step + 1)))
+            if step == max_batch:
+                break
+        for step, x in enumerate(gen_Y):
+            gen_array = utils.pred_convert_to_array(x)
+            emb_gen = loop_encode_predict_stateful(batch_size, gen_array, loaded_encoder, enc_units, False, size_stateful)
+            embeddings_gen_Y.extend(emb_gen.numpy())
+            print("Gen Y Batch {} finished".format(str(step + 1)))
+            if step == max_batch:
+                break
+
+    embeddings_true_Y = np.reshape(embeddings_true_Y, (len(embeddings_true_Y), 2 * enc_units))
+    embeddings_gen_Y = np.reshape(embeddings_gen_Y, (len(embeddings_gen_Y), 2 * enc_units))
+    # plot embeddings
+    from sklearn.manifold import TSNE
+    true_Y_embedded = TSNE(n_components=2, learning_rate='auto', init='random').fit_transform(embeddings_true_Y)
+    gen_Y_embedded = TSNE(n_components=2, learning_rate='auto', init='random').fit_transform(embeddings_gen_Y)
+
+    plt.scatter(true_Y_embedded[0], true_Y_embedded[1])
+    plt.show()
+
+    plt.scatter(gen_Y_embedded[0], gen_Y_embedded[1])
+    plt.show()
+
+
+def loop_encode_predict_stateful(batch_size, input_tokens, gen_encoder, enc_units, train_test, s_stateful): 
+    enc_state_f = tf.zeros((batch_size, enc_units))
+    enc_state_b = tf.zeros((batch_size, enc_units))
+    n_stateful_batches = int(input_tokens.shape[1]/float(s_stateful))
+    i_tokens = tf.fill([batch_size, 1], 0)
+    gen_logits = list()
+    loss = tf.constant(0.0)
+    dec_state = None
+    for stateful_index in range(n_stateful_batches):
+        s_batch = input_tokens[:, stateful_index*s_stateful: (stateful_index+1)*s_stateful]
+        enc_output, enc_state_f, enc_state_b = gen_encoder([s_batch, enc_state_f, enc_state_b], training=train_test)
+        dec_state = tf.concat([enc_state_f, enc_state_b], -1)
+        #dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
+    return dec_state
 
 
 '''def extract_novel_pos_subs():
@@ -720,7 +811,7 @@ def create_tabular_files():
 if __name__ == "__main__":
     start_time = time.time()
     utils.create_dirs(data_path + "analysed_results/")
-    all_gen_paths = get_path_all_gen_files()
+    '''all_gen_paths = get_path_all_gen_files()
     print(all_gen_paths)
     
 
@@ -736,7 +827,9 @@ if __name__ == "__main__":
     create_tabular_files()
     #plot_pred_subs()
     #extract_novel_pos_subs()
-    #create_fasta_file(all_gen_paths)
+    #create_fasta_file(all_gen_paths)'''
+
+    plot_embeddings()
     
     end_time = time.time()
     print("Program finished in {} seconds".format(str(np.round(end_time - start_time, 2))))

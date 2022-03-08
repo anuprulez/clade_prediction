@@ -41,7 +41,7 @@ cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=F
 #mse = tf.keras.losses.MeanSquaredError()
 
 test_tf_ratio = 0.0
-enc_stddev = 0.1
+enc_stddev = 0.05
 max_norm = 5.0
 dec_stddev = 0.0001
 #max_batch_turn = 50
@@ -506,10 +506,13 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
         enc_output, enc_state_f, enc_state_b = gen_encoder([s_batch, enc_state_f, enc_state_b], training=True)
         dec_state = tf.concat([enc_state_f, enc_state_b], -1)
         loss_enc_state_norm += tf.math.abs(max_norm - tf.norm(dec_state))
-        #print(dec_state[:, :5], tf.norm(dec_state))
+        print(dec_state[:, :5], tf.norm(dec_state))
         dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
-        #print(dec_state[:, :5], tf.norm(dec_state))
-        #print("---")
+        print(dec_state[:, :5], tf.norm(dec_state))
+        print("---")
+        u_seq_len = s_batch.shape[1]
+        free_run_loops = int(0.2 * u_seq_len)
+        free_run_s_index = np.random.randint(0, u_seq_len - free_run_loops, 1)[0]
         for t in range(s_batch.shape[1]):
             dec_result, dec_state = gen_decoder([i_tokens, dec_state], training=True)
             loss_dec_state_norm = tf.math.abs(max_norm - tf.norm(dec_state))
@@ -557,7 +560,11 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
                 step_loss = weighted_loss
                 loss += step_loss
                 global_logits.append(dec_result)
-            i_tokens = o_tokens
+            if t in list(range(free_run_s_index, free_run_s_index + free_run_loops)):
+                i_tokens = tf.argmax(dec_result, axis=-1)
+            else:
+                i_tokens = o_tokens
+            #i_tokens = o_tokens
 
     global_logits = tf.concat(global_logits, axis=-2)
     loss_dec_loop_norm = loss_dec_loop_norm / seq_len
