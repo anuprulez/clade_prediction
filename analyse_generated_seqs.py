@@ -22,7 +22,7 @@ seq_len = 1273 #1273 #303 #1273
 y_label_bin = 20
 ##### Best results with 18_02_22_0 22_02_22_0 # 28_02_22_0
 PATH_PRE = "data/ncov_global/"
-data_path = "test_results/28_02_22_0/" #"test_results/19_10_20A_20B_unrolled_GPU/" # 08_10_one_hot_3_CPU_20A_20B
+data_path = "test_results/08_03_22/" #"test_results/19_10_20A_20B_unrolled_GPU/" # 08_10_one_hot_3_CPU_20A_20B
 PATH_F_DICT = PATH_PRE + "f_word_dictionaries.json"
 PATH_R_DICT = PATH_PRE + "r_word_dictionaries.json"
 PATH_KMER_F_DICT = PATH_PRE + "kmer_f_word_dictionaries.json"
@@ -652,9 +652,9 @@ def plot_embeddings():
     vocab_size = len(rev_dict) + 1
     true_20B_c_20B = data_path + "test_future/combined_dataframe_20B_20D_20F_20I (Alpha, V1)_20J (Gamma, V3).csv"
     gen_20B_c_20B = data_path + "gen_file/generated_seqs_20A_20B_1678920_pre_train_20B_model_2_6.csv"
-    len_final_aa_padding = 1271
-    size_stateful = 41
-    enc_units = 256
+    len_final_aa_padding = 30
+    size_stateful = 10
+    enc_units = 64
     true_20B_c_20B_df = pd.read_csv(true_20B_c_20B, sep="\t")
     print(true_20B_c_20B_df)
     true_20B_c_20B_Y = true_20B_c_20B_df["Y"].drop_duplicates()
@@ -721,6 +721,7 @@ def loop_encode_predict_stateful(batch_size, input_tokens, gen_encoder, enc_unit
     for stateful_index in range(n_stateful_batches):
         s_batch = input_tokens[:, stateful_index*s_stateful: (stateful_index+1)*s_stateful]
         enc_output, enc_state_f, enc_state_b = gen_encoder([s_batch, enc_state_f, enc_state_b], training=train_test)
+        # TODO take average across all embeddings
         dec_state = tf.concat([enc_state_f, enc_state_b], -1)
         #dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
     return dec_state

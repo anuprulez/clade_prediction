@@ -71,23 +71,23 @@ enc_units = 128
 '''
 
 s_kmer = 3
-LEN_AA = 32 # 1273 for considering entire seq length
+LEN_AA = 102 # 1273 for considering entire seq length
 len_aa_subseq = LEN_AA
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 1 # write 2 here when there is padding of zero in in and out sequences
-size_stateful = 10 # 50 for 302
+size_stateful = 20 # 50 for 302
 # Neural network parameters
 embedding_dim = 128
 batch_size = 8
 te_batch_size = batch_size
 n_te_batches = 20
 enc_units = 64 # 128 for 302
-pretrain_epochs = 20
+pretrain_epochs = 2
 epochs = 1
 max_l_dist = 11
 test_train_size = 0.85
 pretrain_train_size = 0.01 # all dataset as pretrain and not as test
-random_clade_size = 600
+random_clade_size = 100
 to_pretrain = True
 pretrained_model = False
 retrain_pretrain_start_index = 0
@@ -298,11 +298,11 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
         # get pretraining dataset as sliced tensors
         n_pretrain_batches = int(X_pretrain.shape[0]/float(batch_size))
         print("Num of pretrain batches: {}".format(str(n_pretrain_batches)))
-        updated_lr = pretr_lr
+        #updated_lr = pretr_lr
         for i in range(retrain_pretrain_start_index, pretrain_epochs):
             #pretrain_generator_optimizer = tf.keras.optimizers.Adam(learning_rate=pretr_lr)
             print("Pre training epoch {}/{}...".format(str(i+1), str(pretrain_epochs)))
-            pretrain_gen_tr_loss, bat_te_gen_loss, bat_te_seq_var, bat_tr_seq_var, encoder, decoder, _ = train_model.pretrain_generator([X_pretrain, y_pretrain, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches], i, encoder, decoder, updated_lr, enc_units, vocab_size, n_pretrain_batches, batch_size, pretr_parent_child_mut_indices, pretrain_epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, pos_variations, pos_variations_count)
+            pretrain_gen_tr_loss, bat_te_gen_loss, bat_te_seq_var, bat_tr_seq_var, encoder, decoder, _ = train_model.pretrain_generator([X_pretrain, y_pretrain, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches], i, encoder, decoder, pretr_lr, enc_units, vocab_size, n_pretrain_batches, batch_size, pretr_parent_child_mut_indices, pretrain_epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, pos_variations, pos_variations_count)
             print("Pre training loss at epoch {}/{}: Generator loss: {}, variation score: {}".format(str(i+1), str(pretrain_epochs), str(pretrain_gen_tr_loss), str(np.mean(bat_tr_seq_var))))
             pretrain_gen_train_loss.append(pretrain_gen_tr_loss)
             pretrain_gen_batch_test_loss.append(bat_te_gen_loss)
