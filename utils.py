@@ -162,18 +162,24 @@ def generate_cross_product(x_df, y_df, in_clade, out_clade, max_l_dist, len_aa_s
     print("For the USA")
     X = x_df[x_df["Country"] == train_nation]
     Y = y_df[y_df["Country"] == train_nation]
+
+    X = X.sample(frac=1).reset_index(drop=True)
+    Y = Y.sample(frac=1).reset_index(drop=True)
+
     print(X)
     print(Y)
 
-    train_x = X.sample(frac=train_size, random_state=200)
-    test_x = X.drop(train_x.index)
+    x_split_size = int(train_size * len(X.index))
+    y_split_size = int(train_size * len(Y.index))
 
-    train_y = Y.sample(frac=train_size, random_state=200)
-    test_y = Y.drop(train_y.index)
+    train_x = X[:x_split_size]
+    test_x = X[x_split_size:]
+
+    train_y = Y[:y_split_size]
+    test_y = Y[y_split_size:]
 
     print(len(train_x.index), len(train_y.index), len(test_x.index), len(test_y.index))
-    #sys.exit()
-
+    
     if unrelated is False:
         te_filename = "data/test/{}_{}.csv".format(in_clade, out_clade)
         tr_filename = "data/train/{}_{}.csv".format(in_clade, out_clade)
@@ -183,9 +189,7 @@ def generate_cross_product(x_df, y_df, in_clade, out_clade, max_l_dist, len_aa_s
 
     x_tr_seq = train_x["Sequence"].tolist()
     y_tr_seq = train_y["Sequence"].tolist()
-    #print(train_pairs, len(train_x.index), len(train_y.index))
 
-    #print(len(x_tr_seq), len(y_tr_seq))
     tr_x_y = list(itertools.product(x_tr_seq, y_tr_seq))
     print("Training combination: ", len(x_tr_seq), len(y_tr_seq), len(tr_x_y))
     print("Filtering for range of levenshtein distance ...")
@@ -200,12 +204,9 @@ def generate_cross_product(x_df, y_df, in_clade, out_clade, max_l_dist, len_aa_s
     print("Mean filtered levenshtein dist: {}".format(str(np.mean(filtered_l_distance))))
     print("Tr Filtered dataframe size: {}".format(str(len(tr_filtered_dataframe.index))))
 
-
     x_te_seq = test_x["Sequence"].tolist()
     y_te_seq = test_y["Sequence"].tolist()
-    #print(train_pairs, len(train_x.index), len(train_y.index))
 
-    #print(len(x_tr_seq), len(y_tr_seq))
     te_x_y = list(itertools.product(x_te_seq, y_te_seq))
     print("Test combination: ", len(x_te_seq), len(y_te_seq), len(te_x_y))
     print("Filtering for range of levenshtein distance ...")
