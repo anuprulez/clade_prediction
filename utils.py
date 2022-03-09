@@ -32,20 +32,29 @@ PATH_KMER_F_DICT = "data/ncov_global/kmer_f_word_dictionaries.json"
 PATH_KMER_R_DICT = "data/ncov_global/kmer_r_word_dictionaries.json"
 
 #m_loss = neural_network.MaskedLoss()
-bce = tf.keras.losses.BinaryCrossentropy(from_logits=False)
+#bce = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 #focal_loss_func = SparseCategoricalFocalLoss(gamma=2)
 
 cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False, reduction='none')
 
-mae = tf.keras.losses.MeanAbsoluteError()
-mse = tf.keras.losses.MeanSquaredError()
+#mae = tf.keras.losses.MeanAbsoluteError()
+#mse = tf.keras.losses.MeanSquaredError()
+
 test_tf_ratio = 0.0
-enc_stddev = 1.0 # 0.05 for pretraining
+enc_stddev = 0.05
 max_norm = 1.0
 dec_stddev = 0.0001
-max_batch_turn = 50
+#max_batch_turn = 50
 #pos_variations = dict()
 amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"
+
+
+def decay_lr(lr, factor=0.95):
+    return factor * lr
+
+
+def decayed_learning_rate(initial_learning_rate, step, decay_rate=0.95, decay_steps=1000000):
+  return initial_learning_rate * np.float_power(decay_rate, (step / decay_steps))
 
 
 def loss_function(real, pred):
@@ -135,24 +144,113 @@ def split_test_train(x, y, split_size):
     return x_1, x_2, y_1, y_2
 
 
-def generate_cross_product(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict, rev_dict, start_token, cols=["X", "Y"], unrelated=False, unrelated_threshold=15):
-    print(len(x_seq), len(y_seq))
-    x_y = list(itertools.product(x_seq, y_seq))
-    print(len(x_y))
+def generate_cross_product(x_df, y_df, in_clade, out_clade, max_l_dist, len_aa_subseq, forward_dict, rev_dict, start_token, cols=["X", "Y"], unrelated=False, unrelated_threshold=15, train_nation="USA", train_pairs=True, train_size=0.8):
+
+    in_countries = x_df["Country"].tolist()
+    out_countries = y_df["Country"].tolist()
+    common_countries = list(set(in_countries).intersection(out_countries))
+    print("Common countries in input and output clades: ", common_countries)
+    for nation in common_countries:
+        in_df = x_df[x_df["Country"] == nation]
+        out_df = y_df[y_df["Country"] == nation]
+        print(in_df)
+        print()
+        print(out_df)
+        print("Cross prod size: ", len(in_df.index) * len(out_df.index))
+        print("-------")
+
+    print("For the USA")
+    X = x_df[x_df["Country"] == train_nation]
+    Y = y_df[y_df["Country"] == train_nation]
+
+    X = X.sample(frac=1).reset_index(drop=True)
+    Y = Y.sample(frac=1).reset_index(drop=True)
+
+    print(X)
+    print(Y)
+
+    x_split_size = int(train_size * len(X.index))
+    y_split_size = int(train_size * len(Y.index))
+
+    train_x = X[:x_split_size]
+    test_x = X[x_split_size:]
+
+    train_y = Y[:y_split_size]
+    test_y = Y[y_split_size:]
+
+    print(len(train_x.index), len(train_y.index), len(test_x.index), len(test_y.index))
+    
+    if unrelated is False:
+        te_filename = "data/test/{}_{}.csv".format(in_clade, out_clade)
+        tr_filename = "data/train/{}_{}.csv".format(in_clade, out_clade)
+    else:
+       te_filename = "data/te_unrelated/{}_{}.csv".format(in_clade, out_clade)
+       tr_filename = "data/tr_unrelated/{}_{}.csv".format(in_clade, out_clade)
+
+    x_tr_seq = train_x["Sequence"].tolist()
+    y_tr_seq = train_y["Sequence"].tolist()
+
+    tr_x_y = list(itertools.product(x_tr_seq, y_tr_seq))
+    print("Training combination: ", len(x_tr_seq), len(y_tr_seq), len(tr_x_y))
     print("Filtering for range of levenshtein distance ...")
-
-    #print(forward_dict)
-    filtered_x, filtered_y, kmer_f_dict, kmer_r_dict, l_distance, filtered_l_distance = get_u_kmers(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict, start_token, unrelated)
-
+    print("Filtering for train...")
+    tr_filtered_x, tr_filtered_y, kmer_f_dict, kmer_r_dict, l_distance, filtered_l_distance = get_u_kmers(x_tr_seq, y_tr_seq, max_l_dist, len_aa_subseq, forward_dict, start_token, unrelated)
     print(len(filtered_l_distance), np.mean(filtered_l_distance))
-    filtered_dataframe = pd.DataFrame(list(zip(filtered_x, filtered_y)), columns=["X", "Y"])
-    print("Combined dataframe size: {}".format(str(len(filtered_dataframe.index))))
-    np.savetxt("data/generated_files/l_distance.txt", l_distance)
-    np.savetxt("data/generated_files/filtered_l_distance.txt", filtered_l_distance)
+    tr_filtered_dataframe = pd.DataFrame(list(zip(tr_filtered_x, tr_filtered_y)), columns=["X", "Y"])
+    print("Combined dataframe size: {}".format(str(len(tr_filtered_dataframe.index))))
+    np.savetxt("data/generated_files/tr_l_distance.txt", l_distance)
+    np.savetxt("data/generated_files/tr_filtered_l_distance.txt", filtered_l_distance)
     print("Mean levenshtein dist: {}".format(str(np.mean(l_distance))))
     print("Mean filtered levenshtein dist: {}".format(str(np.mean(filtered_l_distance))))
-    print("Filtered dataframe size: {}".format(str(len(filtered_dataframe.index))))
-    return filtered_dataframe, kmer_f_dict, kmer_r_dict
+    print("Tr Filtered dataframe size: {}".format(str(len(tr_filtered_dataframe.index))))
+
+    x_te_seq = test_x["Sequence"].tolist()
+    y_te_seq = test_y["Sequence"].tolist()
+
+    te_x_y = list(itertools.product(x_te_seq, y_te_seq))
+    print("Test combination: ", len(x_te_seq), len(y_te_seq), len(te_x_y))
+    print("Filtering for range of levenshtein distance ...")
+    print("Filtering for test")
+    te_filtered_x, te_filtered_y, kmer_f_dict, kmer_r_dict, l_distance, filtered_l_distance = get_u_kmers(x_te_seq, y_te_seq, max_l_dist, len_aa_subseq, forward_dict, start_token, unrelated)
+    print(len(filtered_l_distance), np.mean(filtered_l_distance))
+    te_filtered_dataframe = pd.DataFrame(list(zip(te_filtered_x, te_filtered_y)), columns=["X", "Y"])
+    print("Combined dataframe size: {}".format(str(len(te_filtered_dataframe.index))))
+    np.savetxt("data/generated_files/te_l_distance.txt", l_distance)
+    np.savetxt("data/generated_files/te_filtered_l_distance.txt", filtered_l_distance)
+    print("Mean levenshtein dist: {}".format(str(np.mean(l_distance))))
+    print("Mean filtered levenshtein dist: {}".format(str(np.mean(filtered_l_distance))))
+    print("Te Filtered dataframe size: {}".format(str(len(te_filtered_dataframe.index))))
+
+    tr_filtered_dataframe.to_csv(tr_filename, sep="\t", index=None)
+    te_filtered_dataframe.to_csv(te_filename, sep="\t", index=None)
+
+
+    '''print("For rest of the world")
+    x_val = x_df[x_df["Country"] != train_nation]
+    y_val = y_df[y_df["Country"] != train_nation]
+    x_val_seq = x_val["Sequence"].tolist()
+    y_val_seq = y_val["Sequence"].tolist()
+    print(train_pairs, len(x_val.index), len(y_val.index))
+
+    # validation
+    print("Filtering for validation")
+    print(len(x_val_seq), len(y_val_seq))
+    val_x_y = list(itertools.product(x_val_seq, y_val_seq))
+    print("Validation combination: ", len(val_x_y))
+    create_dirs("data/validation")
+    filtered_x_val, filtered_y_val, _, _, l_distance, filtered_l_distance = get_u_kmers(x_val_seq, y_val_seq, max_l_dist, len_aa_subseq, forward_dict, start_token, unrelated)
+    filtered_dataframe_validation = pd.DataFrame(list(zip(filtered_x_val, filtered_y_val)), columns=["X", "Y"])
+    filtered_dataframe_validation.to_csv("data/validation/validation_data.csv", sep="\t", index=None)
+    print(len(filtered_l_distance), np.mean(filtered_l_distance))
+    filtered_dataframe = pd.DataFrame(list(zip(filtered_x, filtered_y)), columns=["X", "Y"])
+    print("Validation Combined dataframe size: {}".format(str(len(filtered_dataframe.index))))
+    np.savetxt("data/generated_files/validation_l_distance.txt", l_distance)
+    np.savetxt("data/generated_files/validation_filtered_l_distance.txt", filtered_l_distance)
+    print("Validation Mean levenshtein dist: {}".format(str(np.mean(l_distance))))
+    print("Validation Mean filtered levenshtein dist: {}".format(str(np.mean(filtered_l_distance))))
+    print("Validation Filtered dataframe size: {}".format(str(len(filtered_dataframe_validation.index))))'''
+
+    return tr_filtered_dataframe, te_filtered_dataframe, kmer_f_dict, kmer_r_dict
 
 
 def transform_noise(noise):
@@ -437,29 +535,43 @@ def stateful_encoding(size_stateful, inputs, enc, training=False):
 
 
 def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful, mut_freq, pos_variations, pos_variations_count, batch_step):
+    # TODO: Implement loss wrt to WU reference genome - crossentropy(Wu - true target) - crossentropy(Wu - generated target) == 0
     loss = tf.constant(0.0)
+    true_loss = tf.constant(0.0)
     global_logits = list()
+    # reset state after each batch training
     enc_state_f = tf.zeros((batch_size, enc_units))
     enc_state_b = tf.zeros((batch_size, enc_units))
     n_stateful_batches = int(input_tokens.shape[1]/float(s_stateful))
     i_tokens = tf.fill([batch_size, 1], 0)
+    loss_dec_loop_norm = tf.constant(0.0)
+    loss_enc_state_norm = tf.constant(0.0)
     for stateful_index in range(n_stateful_batches):
         s_batch = input_tokens[:, stateful_index*s_stateful: (stateful_index+1)*s_stateful]
         enc_output, enc_state_f, enc_state_b = gen_encoder([s_batch, enc_state_f, enc_state_b], training=True)
         dec_state = tf.concat([enc_state_f, enc_state_b], -1)
+        #print(dec_state[:, :5], tf.norm(dec_state))
+        #dec_state = tf.clip_by_norm(dec_state, clip_norm=max_norm)
+        #print(dec_state[:, :5], tf.norm(dec_state))
+        loss_enc_state_norm += tf.math.abs(max_norm - tf.norm(dec_state))
         dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
-        
+        #print(dec_state[:, :5], tf.norm(dec_state))
+        #print("---")
+        u_seq_len = s_batch.shape[1]
+        free_run_loops = int(0.2 * u_seq_len)
+        free_run_s_index = np.random.randint(0, u_seq_len - free_run_loops + 1, 1)[0]
+        #print(free_run_loops, free_run_s_index)
         for t in range(s_batch.shape[1]):
             dec_result, dec_state = gen_decoder([i_tokens, dec_state], training=True)
+            loss_dec_state_norm = tf.math.abs(max_norm - tf.norm(dec_state))
+            loss_dec_loop_norm += loss_dec_state_norm
             dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
             orig_t = stateful_index * s_stateful + t
             if len(output_tokens) > 0:
                 o_tokens = output_tokens[:, orig_t:orig_t+1]
-
                 # collect different variations at each POS
                 u_var_distribution = np.array(list(pos_variations_count[str(orig_t)].values()))
                 unique_cls = np.array(list(pos_variations_count[str(orig_t)].keys()))
-            
                 all_cls = tf.repeat(unique_cls, repeats=u_var_distribution).numpy()
                 random.shuffle(all_cls)
                 y = all_cls
@@ -476,11 +588,14 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
                 exp_class_var_pos = dict()
                 real_class_wts = list()
                 for k_i, key in enumerate(unique_cls):
-                    # loss input taken from paper: https://arxiv.org/pdf/1901.05555.pdf
-                    class_var_pos[key] = class_wt[k_i] #/ float(s_wts)
-                    norm_class_var_pos[key] = class_wt[k_i] / float(s_wts)
-                    exp_class_var_pos[key] = (1 - beta) / (1 - beta ** pos_variations_count[str(orig_t)][key])
-                    real_class_wts.append(exp_class_var_pos[key])
+                    if len(unique_cls) == 1:
+                        exp_class_var_pos[key] = 1.0 / pos_variations_count[str(orig_t)][key] 
+                    else:
+                        # loss input taken from paper: https://arxiv.org/pdf/1901.05555.pdf
+                        class_var_pos[key] = class_wt[k_i] #/ float(s_wts)
+                        norm_class_var_pos[key] = class_wt[k_i] / float(s_wts)
+                        exp_class_var_pos[key] = (1 - beta) / (1 - beta ** pos_variations_count[str(orig_t)][key])
+                        real_class_wts.append(exp_class_var_pos[key])
 
                 '''for key in exp_class_var_pos:
                     exp_class_var_pos[key] = exp_class_var_pos[key] / np.sum(real_class_wts)'''
@@ -488,17 +603,41 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
                 exp_norm_u_var_distribution = np.zeros((batch_size))
                 uniform_wts = np.zeros((batch_size))
                 for pos_idx, pos in enumerate(np.reshape(o_tokens, (batch_size,))):
-                    exp_norm_u_var_distribution[pos_idx] = exp_class_var_pos[pos] #/ float(np.sum(real_class_wts))
-                exp_norm_u_var_distribution = exp_norm_u_var_distribution / np.sum(exp_norm_u_var_distribution)
+                    exp_norm_u_var_distribution[pos_idx] = exp_class_var_pos[pos]
+                #exp_norm_u_var_distribution = exp_norm_u_var_distribution / np.sum(exp_norm_u_var_distribution)
+                '''print(t)
+                print(pos_variations_count[str(orig_t)])
+                print()
+                print(class_var_pos)
+                print()
+                print(exp_class_var_pos)
+                print()
+                print(o_tokens)
+                print()
+                print(exp_norm_u_var_distribution)
+                print("========----=========")'''
                 weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
+                true_loss += tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
                 step_loss = weighted_loss
                 loss += step_loss
                 global_logits.append(dec_result)
+            '''if t in list(range(free_run_s_index, free_run_s_index + free_run_loops)):
+                #print("Free run...")
+                i_tokens = tf.argmax(dec_result, axis=-1)
+            else:
+                #print("Fixed run...")
+                i_tokens = o_tokens'''
             i_tokens = o_tokens
-
+    #sys.exit()
     global_logits = tf.concat(global_logits, axis=-2)
+    loss_dec_loop_norm = loss_dec_loop_norm / seq_len
+    loss_enc_state_norm = loss_enc_state_norm / n_stateful_batches
     loss = loss / seq_len
-    return global_logits, gen_encoder, gen_decoder, loss
+    true_loss = true_loss / seq_len
+    total_loss = loss #+ loss_dec_loop_norm + loss_enc_state_norm
+    print("True loss: {}, Weighted loss: {}".format(str(true_loss.numpy()), str(total_loss.numpy())))
+    #print("Losses: (total, true, enc norm, dec norm)", total_loss.numpy(), loss.numpy(), loss_enc_state_norm.numpy(), loss_dec_loop_norm.numpy())
+    return global_logits, gen_encoder, gen_decoder, total_loss
 
 
 def loop_encode_decode_predict_stateful(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful, mut_freq): 
@@ -512,7 +651,10 @@ def loop_encode_decode_predict_stateful(seq_len, batch_size, vocab_size, input_t
         s_batch = input_tokens[:, stateful_index*s_stateful: (stateful_index+1)*s_stateful]
         enc_output, enc_state_f, enc_state_b = gen_encoder([s_batch, enc_state_f, enc_state_b], training=train_test)
         dec_state = tf.concat([enc_state_f, enc_state_b], -1)
+        #print("Test dec norm before clipping: ", tf.norm(dec_state))
+        #dec_state = tf.clip_by_norm(dec_state, clip_norm=max_norm)
         dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
+        #print("Test dec norm after clipping and adding noise: ", tf.norm(dec_state))
         for t in range(s_batch.shape[1]):
             orig_t = stateful_index * s_stateful + t
             dec_result, dec_state = gen_decoder([i_tokens, dec_state], training=train_test)

@@ -34,19 +34,16 @@ TRAIN_GEN_ENC_MODEL = "data/generated_files/gen_enc_model"
 TRAIN_GEN_DEC_MODEL = "data/generated_files/gen_dec_model"
 
 
-pretrain_generator_optimizer = tf.keras.optimizers.Adam(learning_rate=1e-2) #learning_rate=3e-5
-pf_discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5)
-generator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) # learning_rate=1e-3, beta_1=0.5
-discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) # learning_rate=3e-5, beta_1=0.5
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
+
 n_disc_step = 6
 n_gen_step = 3
 unrolled_steps = 0
-test_log_step = 200
+test_log_step = 100
 teacher_forcing_ratio = 0.0
-disc_clip_norm = 1.0
-gen_clip_norm = 1.0
-pretrain_clip_norm = 1.0
+disc_clip_norm = 5.0
+gen_clip_norm = 5.0
+pretrain_clip_norm = 10.0
 
 
 
@@ -159,12 +156,31 @@ def g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, u
     return encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, gen_true_loss, gen_fake_loss, total_gen_loss
 
 
-def sample_true_x_y(batch_size, X_train, y_train):
-    rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)
+def sample_true_x_y(batch_size, X_train, y_train, cluster_indices):
+    '''rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)
+    x_batch_train = X_train[rand_batch_indices]
+    y_batch_train = y_train[rand_batch_indices]
+    unrolled_x = utils.convert_to_array(x_batch_train)
+    unrolled_y = utils.convert_to_array(y_batch_train)'''
+    # sample_true_x_y(batch_size, X_train, y_train, cluster_indices)'''
+    cluster_keys = list(cluster_indices.keys())
+    cluster_keys = list(np.unique(cluster_keys))
+    random.shuffle(cluster_keys)
+    if len(cluster_keys) >= batch_size:
+        rand_keys = random.sample(cluster_keys, batch_size)
+    else:
+        rand_keys = np.array(choices(cluster_keys, k=batch_size))
+    rand_batch_indices = list()
+    print(rand_keys)
+    for key in rand_keys:
+        rows_indices = cluster_indices[key]
+        random.shuffle(rows_indices)
+        rand_batch_indices.append(rows_indices[0])
     x_batch_train = X_train[rand_batch_indices]
     y_batch_train = y_train[rand_batch_indices]
     unrolled_x = utils.convert_to_array(x_batch_train)
     unrolled_y = utils.convert_to_array(y_batch_train)
+
     return unrolled_x, unrolled_y
 
 
@@ -211,7 +227,7 @@ def get_text_data():
     return train_x, train_y, test_x, test_y
 
 
-def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vocab_size, n_batches, batch_size, pretr_parent_child_mut_indices, epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, pos_variations, pos_variations_count):
+def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, updated_lr, enc_units, vocab_size, n_batches, batch_size, pretr_parent_child_mut_indices, epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, pos_variations, pos_variations_count, cluster_indices):
   X_train, y_train, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches = inputs
   epo_avg_tr_gen_loss = list()
   epo_te_gen_loss = list()
@@ -229,7 +245,9 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
   utils.create_dirs(dec_pre_train_save_folder)
 
   for step in range(n_batches):
-      unrolled_x, unrolled_y = sample_true_x_y(batch_size, X_train, y_train)
+      #updated_lr = utils.decayed_learning_rate(updated_lr, (epo_step + 1) * (step + 1))
+      pretrain_generator_optimizer = tf.keras.optimizers.Adam(learning_rate=updated_lr)
+      unrolled_x, unrolled_y = sample_true_x_y(batch_size, X_train, y_train, cluster_indices)
       seq_len = unrolled_x.shape[1]
       with tf.GradientTape() as gen_tape:
           pred_logits, gen_encoder, gen_decoder, gen_loss = utils.loop_encode_decode_stateful(seq_len, batch_size, vocab_size, unrolled_x, unrolled_y, gen_encoder, gen_decoder, enc_units, teacher_forcing_ratio, True, size_stateful, pos_size, pos_variations, pos_variations_count, step)
@@ -244,13 +262,13 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
           print("Pretr: generation variation score: {}".format(str(variation_score)))
           epo_tr_seq_var.append(variation_score)
 
-
       print("Pretrain epoch {}/{}, batch {}/{}, gen true loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches), str(gen_loss.numpy())))
       print()
       gen_trainable_vars = gen_encoder.trainable_variables + gen_decoder.trainable_variables
       gradients_of_generator = gen_tape.gradient(gen_loss, gen_trainable_vars)
       gradients_of_generator = [(tf.clip_by_norm(grad, clip_norm=pretrain_clip_norm)) for grad in gradients_of_generator]
       pretrain_generator_optimizer.apply_gradients(zip(gradients_of_generator, gen_trainable_vars))
+      #print(pretrain_generator_optimizer.lr)
 
       # optimize pf discriminator
       if (step + 1) % test_log_step == 0 and step > 0:
@@ -277,7 +295,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
   tf.keras.models.save_model(gen_decoder, dec_pre_train_save_folder)
 
   utils.save_as_json("data/generated_files/pretr_ave_batch_x_y_mut_epo_{}.json".format(str(epo_step)), batch_mut_distribution)
-  return np.mean(epo_avg_tr_gen_loss), np.mean(epo_te_gen_loss), np.mean(epo_te_seq_var), np.mean(epo_tr_seq_var), gen_encoder, gen_decoder
+  return np.mean(epo_avg_tr_gen_loss), np.mean(epo_te_gen_loss), np.mean(epo_te_seq_var), np.mean(epo_tr_seq_var), gen_encoder, gen_decoder, updated_lr
 
 
 def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, enc_units, vocab_size, n_train_batches, batch_size, parent_child_mut_indices, epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, pos_variations, pos_variations_count, train_cluster_indices_dict):

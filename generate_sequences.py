@@ -17,9 +17,9 @@ from nltk.translate.bleu_score import sentence_bleu
 import preprocess_sequences
 import utils
 
-#### Best results - 18_02_22_0, models from 16 - 20
+#### Best results - 18_02_22_0, models from 16 - 20 #28_02_22_0
 
-RESULT_PATH = "test_results/22_02_22_0/" # 04_02_22_GPU # 04_02_22_local
+RESULT_PATH = "test_results/18_02_22_0/" # 04_02_22_GPU # 04_02_22_local 28_02_22_0
 
 s_kmer = 3
 #LEN_AA = 301 # It should be n - 1 (n == seq len while training)
@@ -31,24 +31,23 @@ min_diff = 0
 max_diff = 11 #int(LEN_AA/5)
 train_size = 1.0
 enc_units = 256
-random_size =  450
+random_size = 500
 
-no_models = 1
+no_models = 4
 start_model_index = 2 # best results 16
 enc_stddev = 1.0
 dec_stddev = 0.0001
 start_token = 0
 size_stateful = 41
 batch_size = 4
+collection_start_month =  None
 
 model_type = "pre_train"
 FUTURE_GEN_TEST = "test/20A_20B.csv"
 
-clade_parent = "20A" # 20A
-clade_childen = ["20B"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] 
-#["20G", "21C_Epsilon", "21F_Iota"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] #["20I_Alpha", "20F", "20D", "21G_Lambda", "21H"] # ["20B"]
-# ["20G", "21C_Epsilon", "21F_Iota"]
-# {"20B": ["20I (Alpha, V1)", "20F", "20D", "21G (Lambda)", "21H"]}
+clade_parent = "20B" # 20A
+clade_childen = ["20J (Gamma, V3)"]  #["20G", "20H (Beta)", "21C (Epsilon)", "21F (Iota)"] #["20D", "20F", "20I (Alpha, V1)", "20J (Gamma, V3)"]
+
 
 generating_factor = 5
 
@@ -61,10 +60,15 @@ PATH_R_DICT = PATH_PRE + "r_word_dictionaries.json"
 PATH_KMER_F_DICT = RESULT_PATH + "kmer_f_word_dictionaries.json"
 PATH_KMER_R_DICT = RESULT_PATH + "kmer_r_word_dictionaries.json"
 PATH_CLADES = "data/generating_clades.json"
-COMBINED_FILE = RESULT_PATH + "combined_dataframe.csv"
+COMBINED_FILE = RESULT_PATH + "combined_dataframe_{}_{}.csv".format(clade_parent, "_".join(clade_childen))
 WUHAN_SEQ = PATH_PRE + "wuhan-hu-1-spike-prot.txt"
 GEN_ENC_WEIGHTS = "generator_encoder_weights.h5"
 GEN_DEC_WEIGHTS = "generator_decoder_weights.h5"
+
+forward_dict = utils.read_json(PATH_F_DICT)
+rev_dict = utils.read_json(PATH_R_DICT)
+kmer_f_dict = utils.read_json(PATH_KMER_F_DICT)
+kmer_r_dict = utils.read_json(PATH_KMER_R_DICT)
 
 
 def prepare_pred_future_seq():
@@ -76,14 +80,34 @@ def prepare_pred_future_seq():
     print(clades_in_clades_out)
     dataf = pd.read_csv(PATH_SAMPLES_CLADES, sep=",")
     encoded_sequence_df = preprocess_sequences.filter_samples_clades(dataf)
-
+    print(encoded_sequence_df)
     print("Generating cross product...")
-    preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df, len_aa_subseq, start_token, train_size=train_size, edit_threshold=max_diff, random_size=random_size, replace=False, unrelated=False)
+    preprocess_sequences.make_cross_product(clades_in_clades_out, encoded_sequence_df, len_aa_subseq, start_token, collection_start_month, train_size=train_size, edit_threshold=max_diff, random_size=random_size, replace=False, unrelated=False, train_pairs=False)
+
+    # combine train files when generating 20C - children
+    total_x = list()
+    total_y = list()
+    print("Combining datasets from training folder...")
+    tr_clade_files = glob.glob('data/train/*.csv')
+    for name in tr_clade_files:
+        tr_clade_df = pd.read_csv(name, sep="\t")
+        x = tr_clade_df["X"].tolist()
+        y = tr_clade_df["Y"].tolist()
+        print(len(x), len(y))
+        print("---")
+        total_x.extend(x)
+        total_y.extend(y)
+        print()
+    print(len(total_x), len(total_y))
+    #combined_dataframe = generated_cross_prod(total_x, total_y, max_diff, len_aa_subseq, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict)
+    combined_dataframe = pd.DataFrame(list(zip(total_x, total_y)), columns=["X", "Y"])
+    combined_dataframe.to_csv(COMBINED_FILE, sep="\t", index=None)
     # preprocess_sequences.make_cross_product(clades_in_clades_out, filtered_dataf, len_aa_subseq, start_token, train_size=test_train_size, edit_threshold=max_l_dist, random_size=random_clade_size, unrelated=False)
     # generate only with all rows
     #create_parent_child_true_seq(forward_dict, rev_dict)
     # generate only with test rows
-    create_parent_child_true_seq_test()
+    #create_parent_child_true_seq_test()
+    
     #return encoded_wuhan_seq
 
 
@@ -110,10 +134,7 @@ def generated_cross_prod(list_true_y_test, children_combined_y, max_diff, len_aa
 
 
 def create_parent_child_true_seq_test():
-    forward_dict = utils.read_json(PATH_F_DICT)
-    rev_dict = utils.read_json(PATH_R_DICT)
-    kmer_f_dict = utils.read_json(PATH_KMER_F_DICT)
-    kmer_r_dict = utils.read_json(PATH_KMER_R_DICT)
+    
     #print(forward_dict)
     print("Loading test datasets...")
     list_true_y_test = list()
@@ -299,10 +320,7 @@ def loop_encode_decode_predict(seq_len, batch_size, vocab_size, input_tokens, ou
     enc_output, enc_state = gen_encoder(input_tokens) #, training=False
     enc_norm = tf.norm(enc_state)
     dec_state = enc_state
-    #print(dec_state)
-    #print()
     dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
-    #print(dec_state[:show, :])
     loss = tf.constant(0.0)
     gen_logits = list()
     o_state_norm = list()
@@ -311,29 +329,18 @@ def loop_encode_decode_predict(seq_len, batch_size, vocab_size, input_tokens, ou
         dec_result, dec_state = gen_decoder([i_tokens, dec_state]) #, training=False
         gen_logits.append(dec_result)
         o_state_norm.append(tf.norm(dec_state))
-        #dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
+        dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
         if len(output_tokens) > 0:
             o_tokens = output_tokens[:, t+1:t+2]
             step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
             loss += step_loss
         i_tokens = tf.argmax(dec_result, axis=-1)
-        '''temp = 0.99
-        dec_result_temp = tf.math.log(dec_result / temp)
-        dec_result_temp = tf.math.exp(dec_result_temp) #/ float(dec_result.shape[-1])
-        #topk_sce = tf.keras.metrics.SparseTopKCategoricalAccuracy(k=5)
-        topk_i_tokens = tf.math.top_k(dec_result, k=5)
-        topk_i_tokens_temp = tf.math.top_k(dec_result_temp, k=5)
-        #print(o_tokens)
-        #print(dec_result.shape)
-        print(t, topk_i_tokens)'''
-        #print(t, topk_i_tokens_temp)
-        #print("------------")
     gen_logits = tf.concat(gen_logits, axis=-2)
     loss = loss / seq_len
     print("Encoder norm: {}".format(str(tf.norm(enc_state))))
     print("Decoder norm: {}".format(str(np.mean(o_state_norm))))
-    #print("--------------")
     return gen_logits, gen_encoder, gen_decoder, loss
+
 
 def create_parent_child_true_seq(forward_dict, rev_dict):
     tr_clade_files = glob.glob('data/train/*.csv')
@@ -360,11 +367,11 @@ def create_parent_child_true_seq(forward_dict, rev_dict):
 if __name__ == "__main__":
     start_time = time.time()
     # enable only when predicting future sequences
-    #prepare_pred_future_seq()
+    prepare_pred_future_seq()
     # when not gen_future, file_path = RESULT_PATH + "test/*.csv"
     # when gen_future, file_path = COMBINED_FILE
-    #file_path = COMBINED_FILE
-    file_path = RESULT_PATH + "test/20A_20B.csv"
-    load_model_generated_sequences(file_path)
+    file_path = COMBINED_FILE
+    #file_path = RESULT_PATH + "test/20A_20B.csv"
+    #load_model_generated_sequences(file_path)
     end_time = time.time()
     print("Program finished in {} seconds".format(str(np.round(end_time - start_time, 2))))
