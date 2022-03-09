@@ -41,9 +41,9 @@ cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=F
 #mse = tf.keras.losses.MeanSquaredError()
 
 test_tf_ratio = 0.0
-enc_stddev = 1.0 #0.05
+enc_stddev = 0.05
 max_norm = 1.0
-dec_stddev = 1.0 #0.0001
+dec_stddev = 0.0001
 #max_batch_turn = 50
 #pos_variations = dict()
 amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"
@@ -95,6 +95,7 @@ def get_u_kmers(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict, start_tok
     x_list = list()
     y_list = list()
     s_kmer = 3
+    
     for i, x_i in enumerate(x_seq):
         for j, y_j in enumerate(y_seq):
             # cut sequences of specific length
@@ -104,6 +105,10 @@ def get_u_kmers(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict, start_tok
             sub_y_j = ",".join(sub_y_j)
             x_list.append(sub_x_i)
             y_list.append(sub_y_j)
+
+    #print("Removing duplicate subsequences...")
+    #x_list = list(set(x_list))
+    #y_list = list(set(y_list))
 
     kmer_f_dict, kmer_r_dict = get_all_possible_words(amino_acid_codes, s_kmer)
     kmer_f_dict[start_token] = "<start>"
@@ -148,20 +153,29 @@ def generate_cross_product(x_df, y_df, in_clade, out_clade, max_l_dist, len_aa_s
 
     in_countries = x_df["Country"].tolist()
     out_countries = y_df["Country"].tolist()
+
     common_countries = list(set(in_countries).intersection(out_countries))
     print("Common countries in input and output clades: ", common_countries)
-    for nation in common_countries:
+    '''for nation in common_countries:
         in_df = x_df[x_df["Country"] == nation]
         out_df = y_df[y_df["Country"] == nation]
         print(in_df)
         print()
         print(out_df)
         print("Cross prod size: ", len(in_df.index) * len(out_df.index))
-        print("-------")
+        print("-------")'''
 
-    print("For the USA")
+    print("Training: For the USA")
+
     X = x_df[x_df["Country"] == train_nation]
     Y = y_df[y_df["Country"] == train_nation]
+    
+    print(X)
+    print(Y)
+
+    print("Dropping dups in utils.generate_cross_product")
+    X = X.drop_duplicates(subset=['Sequence'])
+    Y = Y.drop_duplicates(subset=['Sequence'])
 
     X = X.sample(frac=1).reset_index(drop=True)
     Y = Y.sample(frac=1).reset_index(drop=True)
@@ -169,88 +183,104 @@ def generate_cross_product(x_df, y_df, in_clade, out_clade, max_l_dist, len_aa_s
     print(X)
     print(Y)
 
-    x_split_size = int(train_size * len(X.index))
-    y_split_size = int(train_size * len(Y.index))
+    x_seq = X["Sequence"].tolist()
+    y_seq = Y["Sequence"].tolist()
 
-    train_x = X[:x_split_size]
-    test_x = X[x_split_size:]
+    print(len(x_seq), len(y_seq))
 
-    train_y = Y[:y_split_size]
-    test_y = Y[y_split_size:]
+    '''x_split_size = int(train_size * len(x_seq))
+    y_split_size = int(train_size * len(y_seq))
 
-    print(len(train_x.index), len(train_y.index), len(test_x.index), len(test_y.index))
+    x_tr_seq = x_seq[:x_split_size]
+    x_te_seq = x_seq[x_split_size:]
+
+    y_tr_seq = y_seq[:y_split_size]
+    y_te_seq = y_seq[y_split_size:]
+
+    print(len(x_tr_seq), len(y_tr_seq), len(x_te_seq), len(y_te_seq))
+
+    print("Calculating intersection...")
+    print(list(set(x_tr_seq).intersection(x_te_seq)))
+    print(list(set(y_tr_seq).intersection(y_te_seq)))
+
+    print(len(x_tr_seq), len(y_tr_seq), len(x_te_seq), len(y_te_seq))'''
     
     if unrelated is False:
         te_filename = "data/test/{}_{}.csv".format(in_clade, out_clade)
         tr_filename = "data/train/{}_{}.csv".format(in_clade, out_clade)
+        val_filename = "data/validation/{}_{}.csv".format(in_clade, out_clade)
     else:
        te_filename = "data/te_unrelated/{}_{}.csv".format(in_clade, out_clade)
        tr_filename = "data/tr_unrelated/{}_{}.csv".format(in_clade, out_clade)
 
-    x_tr_seq = train_x["Sequence"].tolist()
-    y_tr_seq = train_y["Sequence"].tolist()
-
-    tr_x_y = list(itertools.product(x_tr_seq, y_tr_seq))
-    print("Training combination: ", len(x_tr_seq), len(y_tr_seq), len(tr_x_y))
-    print("Filtering for range of levenshtein distance ...")
+    #print("Filtering for range of levenshtein distance ...")
     print("Filtering for train...")
-    tr_filtered_x, tr_filtered_y, kmer_f_dict, kmer_r_dict, l_distance, filtered_l_distance = get_u_kmers(x_tr_seq, y_tr_seq, max_l_dist, len_aa_subseq, forward_dict, start_token, unrelated)
+    tr_filtered_x, tr_filtered_y, kmer_f_dict, kmer_r_dict, l_distance, filtered_l_distance = get_u_kmers(x_seq, y_seq, max_l_dist, len_aa_subseq, forward_dict, start_token, unrelated)
+    print("Training combination: ", len(tr_filtered_x), len(tr_filtered_y))
     print(len(filtered_l_distance), np.mean(filtered_l_distance))
     tr_filtered_dataframe = pd.DataFrame(list(zip(tr_filtered_x, tr_filtered_y)), columns=["X", "Y"])
+    tr_filtered_dataframe = tr_filtered_dataframe.drop_duplicates()
+    tr_filtered_dataframe = tr_filtered_dataframe.sample(frac=1).reset_index(drop=True)
     print("Combined dataframe size: {}".format(str(len(tr_filtered_dataframe.index))))
+    print(tr_filtered_dataframe.drop_duplicates())
     np.savetxt("data/generated_files/tr_l_distance.txt", l_distance)
     np.savetxt("data/generated_files/tr_filtered_l_distance.txt", filtered_l_distance)
     print("Mean levenshtein dist: {}".format(str(np.mean(l_distance))))
     print("Mean filtered levenshtein dist: {}".format(str(np.mean(filtered_l_distance))))
-    print("Tr Filtered dataframe size: {}".format(str(len(tr_filtered_dataframe.index))))
-
-    x_te_seq = test_x["Sequence"].tolist()
-    y_te_seq = test_y["Sequence"].tolist()
-
-    te_x_y = list(itertools.product(x_te_seq, y_te_seq))
+    print("Training Filtered dataframe size: {}".format(str(len(tr_filtered_dataframe.index))))
+    print()
+    '''te_x_y = list(itertools.product(x_te_seq, y_te_seq))
     print("Test combination: ", len(x_te_seq), len(y_te_seq), len(te_x_y))
     print("Filtering for range of levenshtein distance ...")
     print("Filtering for test")
     te_filtered_x, te_filtered_y, kmer_f_dict, kmer_r_dict, l_distance, filtered_l_distance = get_u_kmers(x_te_seq, y_te_seq, max_l_dist, len_aa_subseq, forward_dict, start_token, unrelated)
     print(len(filtered_l_distance), np.mean(filtered_l_distance))
     te_filtered_dataframe = pd.DataFrame(list(zip(te_filtered_x, te_filtered_y)), columns=["X", "Y"])
+    #te_filtered_dataframe = te_filtered_dataframe.drop_duplicates()
     print("Combined dataframe size: {}".format(str(len(te_filtered_dataframe.index))))
+    print(te_filtered_dataframe.drop_duplicates())
     np.savetxt("data/generated_files/te_l_distance.txt", l_distance)
     np.savetxt("data/generated_files/te_filtered_l_distance.txt", filtered_l_distance)
     print("Mean levenshtein dist: {}".format(str(np.mean(l_distance))))
     print("Mean filtered levenshtein dist: {}".format(str(np.mean(filtered_l_distance))))
-    print("Te Filtered dataframe size: {}".format(str(len(te_filtered_dataframe.index))))
+    print("Te Filtered dataframe size: {}".format(str(len(te_filtered_dataframe.index))))'''
 
     tr_filtered_dataframe.to_csv(tr_filename, sep="\t", index=None)
-    te_filtered_dataframe.to_csv(te_filename, sep="\t", index=None)
+    #te_filtered_dataframe.to_csv(te_filename, sep="\t", index=None)
 
 
-    '''print("For rest of the world")
+    print("Test and validation: For rest of the world")
     x_val = x_df[x_df["Country"] != train_nation]
     y_val = y_df[y_df["Country"] != train_nation]
+
+    print("Dropping dups in utils.generate_cross_product")
+    x_val = x_val.drop_duplicates(subset=['Sequence'])
+    y_val = y_val.drop_duplicates(subset=['Sequence'])
+
+    x_val = x_val.sample(frac=1).reset_index(drop=True)
+    y_val = y_val.sample(frac=1).reset_index(drop=True)
+
     x_val_seq = x_val["Sequence"].tolist()
     y_val_seq = y_val["Sequence"].tolist()
-    print(train_pairs, len(x_val.index), len(y_val.index))
 
     # validation
-    print("Filtering for validation")
-    print(len(x_val_seq), len(y_val_seq))
-    val_x_y = list(itertools.product(x_val_seq, y_val_seq))
-    print("Validation combination: ", len(val_x_y))
+    print("Filtering for validation...")
     create_dirs("data/validation")
     filtered_x_val, filtered_y_val, _, _, l_distance, filtered_l_distance = get_u_kmers(x_val_seq, y_val_seq, max_l_dist, len_aa_subseq, forward_dict, start_token, unrelated)
     filtered_dataframe_validation = pd.DataFrame(list(zip(filtered_x_val, filtered_y_val)), columns=["X", "Y"])
-    filtered_dataframe_validation.to_csv("data/validation/validation_data.csv", sep="\t", index=None)
+    filtered_dataframe_validation = filtered_dataframe_validation.drop_duplicates()
+    filtered_dataframe_validation = filtered_dataframe_validation.sample(frac=1).reset_index(drop=True)
+    filtered_dataframe_validation.to_csv(val_filename, sep="\t", index=None)
+    filtered_dataframe_validation.to_csv(te_filename, sep="\t", index=None)
     print(len(filtered_l_distance), np.mean(filtered_l_distance))
-    filtered_dataframe = pd.DataFrame(list(zip(filtered_x, filtered_y)), columns=["X", "Y"])
-    print("Validation Combined dataframe size: {}".format(str(len(filtered_dataframe.index))))
+    print("Validation Combined dataframe size: {}".format(str(len(filtered_dataframe_validation.index))))
     np.savetxt("data/generated_files/validation_l_distance.txt", l_distance)
     np.savetxt("data/generated_files/validation_filtered_l_distance.txt", filtered_l_distance)
     print("Validation Mean levenshtein dist: {}".format(str(np.mean(l_distance))))
     print("Validation Mean filtered levenshtein dist: {}".format(str(np.mean(filtered_l_distance))))
-    print("Validation Filtered dataframe size: {}".format(str(len(filtered_dataframe_validation.index))))'''
+    print("Validation Filtered dataframe size: {}".format(str(len(filtered_dataframe_validation.index))))
 
-    return tr_filtered_dataframe, te_filtered_dataframe, kmer_f_dict, kmer_r_dict
+    return tr_filtered_dataframe, filtered_dataframe_validation, kmer_f_dict, kmer_r_dict
 
 
 def transform_noise(noise):
@@ -550,12 +580,12 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
         s_batch = input_tokens[:, stateful_index*s_stateful: (stateful_index+1)*s_stateful]
         enc_output, enc_state_f, enc_state_b = gen_encoder([s_batch, enc_state_f, enc_state_b], training=True)
         dec_state = tf.concat([enc_state_f, enc_state_b], -1)
-        print("Train dec norm before adding noise: ", tf.norm(dec_state))
-        #dec_state = tf.clip_by_norm(dec_state, clip_norm=max_norm)
+        print("Train enc norm before adding noise and clipping: ", tf.norm(dec_state))
+        dec_state = tf.clip_by_norm(dec_state, clip_norm=max_norm)
         #print(dec_state[:, :5], tf.norm(dec_state))
         loss_enc_state_norm += tf.math.abs(max_norm - tf.norm(dec_state))
         dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
-        print("Train dec norm after adding noise: ", tf.norm(dec_state))
+        print("Train enc norm after adding noise and clipping: ", tf.norm(dec_state))
         #print("---")
         u_seq_len = s_batch.shape[1]
         free_run_loops = int(0.2 * u_seq_len)
@@ -564,8 +594,9 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
         for t in range(s_batch.shape[1]):
             dec_result, dec_state = gen_decoder([i_tokens, dec_state], training=True)
             loss_dec_state_norm = tf.math.abs(max_norm - tf.norm(dec_state))
+            dec_state = tf.clip_by_norm(dec_state, clip_norm=max_norm)
             loss_dec_loop_norm += loss_dec_state_norm
-            #dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
+            dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
             orig_t = stateful_index * s_stateful + t
             if len(output_tokens) > 0:
                 o_tokens = output_tokens[:, orig_t:orig_t+1]
@@ -580,7 +611,7 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
                 y_ind = le.fit_transform(y)
                 recip_freq = len(y) / (len(le.classes_) * np.bincount(y_ind).astype(np.float64))
                 class_wt = recip_freq[le.transform(classes)]
-                beta = 0.999
+                beta = 0.9999
                 s_wts = np.sum(class_wt)
 
                 class_var_pos = dict()
@@ -622,11 +653,10 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
                 #print("Fixed run...")
                 i_tokens = o_tokens'''
             i_tokens = o_tokens
-    #sys.exit()
     global_logits = tf.concat(global_logits, axis=-2)
     loss_dec_loop_norm = loss_dec_loop_norm / seq_len
     loss_enc_state_norm = loss_enc_state_norm / n_stateful_batches
-    loss = loss / seq_len
+    #loss = loss / seq_len
     true_loss = true_loss / seq_len
     total_loss = loss #+ loss_dec_loop_norm + loss_enc_state_norm
     print("True loss: {}, Weighted loss: {}".format(str(true_loss.numpy()), str(total_loss.numpy())))
@@ -645,14 +675,15 @@ def loop_encode_decode_predict_stateful(seq_len, batch_size, vocab_size, input_t
         s_batch = input_tokens[:, stateful_index*s_stateful: (stateful_index+1)*s_stateful]
         enc_output, enc_state_f, enc_state_b = gen_encoder([s_batch, enc_state_f, enc_state_b], training=train_test)
         dec_state = tf.concat([enc_state_f, enc_state_b], -1)
-        print("Test dec norm before adding noise: ", tf.norm(dec_state))
-        #dec_state = tf.clip_by_norm(dec_state, clip_norm=max_norm)
+        print("Test enc norm before adding noise and clipping: ", tf.norm(dec_state))
+        dec_state = tf.clip_by_norm(dec_state, clip_norm=max_norm)
         dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
-        print("Test dec norm after adding noise: ", tf.norm(dec_state))
+        print("Test enc norm after adding noise and clipping: ", tf.norm(dec_state))
         for t in range(s_batch.shape[1]):
             orig_t = stateful_index * s_stateful + t
             dec_result, dec_state = gen_decoder([i_tokens, dec_state], training=train_test)
-            #dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
+            dec_state = tf.clip_by_norm(dec_state, clip_norm=max_norm)
+            dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
             gen_logits.append(dec_result)
             if len(output_tokens) > 0:
                 o_tokens = output_tokens[:, orig_t:orig_t+1]

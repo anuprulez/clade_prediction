@@ -46,7 +46,6 @@ gen_clip_norm = 5.0
 pretrain_clip_norm = 1.0
 
 
-
 def wasserstein_loss(y_true, y_pred):
     return tf.math.reduce_mean(tf.math.multiply(y_true, y_pred))
 
@@ -262,13 +261,12 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, updated_lr, e
           print("Pretr: generation variation score: {}".format(str(variation_score)))
           epo_tr_seq_var.append(variation_score)
 
-      print("Pretrain epoch {}/{}, batch {}/{}, gen true loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches), str(gen_loss.numpy())))
+      print("Pretrain epoch {}/{}, batch {}/{}, gen weighted loss: {}".format(str(epo_step+1), str(epochs), str(step+1), str(n_batches), str(gen_loss.numpy())))
       print()
       gen_trainable_vars = gen_encoder.trainable_variables + gen_decoder.trainable_variables
       gradients_of_generator = gen_tape.gradient(gen_loss, gen_trainable_vars)
       gradients_of_generator = [(tf.clip_by_norm(grad, clip_norm=pretrain_clip_norm)) for grad in gradients_of_generator]
       pretrain_generator_optimizer.apply_gradients(zip(gradients_of_generator, gen_trainable_vars))
-      #print(pretrain_generator_optimizer.lr)
 
       # optimize pf discriminator
       if (step + 1) % test_log_step == 0 and step > 0:
