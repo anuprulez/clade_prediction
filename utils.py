@@ -42,7 +42,7 @@ cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=F
 
 test_tf_ratio = 0.0
 enc_stddev = 0.05
-max_norm = 5.0
+max_norm = 1.0
 dec_stddev = 0.0001
 #max_batch_turn = 50
 #pos_variations = dict()
@@ -537,6 +537,7 @@ def stateful_encoding(size_stateful, inputs, enc, training=False):
 def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful, mut_freq, pos_variations, pos_variations_count, batch_step):
     # TODO: Implement loss wrt to WU reference genome - crossentropy(Wu - true target) - crossentropy(Wu - generated target) == 0
     loss = tf.constant(0.0)
+    true_loss = tf.constant(0.0)
     global_logits = list()
     # reset state after each batch training
     enc_state_f = tf.zeros((batch_size, enc_units))
@@ -549,8 +550,10 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
         s_batch = input_tokens[:, stateful_index*s_stateful: (stateful_index+1)*s_stateful]
         enc_output, enc_state_f, enc_state_b = gen_encoder([s_batch, enc_state_f, enc_state_b], training=True)
         dec_state = tf.concat([enc_state_f, enc_state_b], -1)
-        loss_enc_state_norm += tf.math.abs(max_norm - tf.norm(dec_state))
         #print(dec_state[:, :5], tf.norm(dec_state))
+        #dec_state = tf.clip_by_norm(dec_state, clip_norm=max_norm)
+        #print(dec_state[:, :5], tf.norm(dec_state))
+        loss_enc_state_norm += tf.math.abs(max_norm - tf.norm(dec_state))
         dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
         #print(dec_state[:, :5], tf.norm(dec_state))
         #print("---")
@@ -585,11 +588,14 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
                 exp_class_var_pos = dict()
                 real_class_wts = list()
                 for k_i, key in enumerate(unique_cls):
-                    # loss input taken from paper: https://arxiv.org/pdf/1901.05555.pdf
-                    class_var_pos[key] = class_wt[k_i] #/ float(s_wts)
-                    norm_class_var_pos[key] = class_wt[k_i] / float(s_wts)
-                    exp_class_var_pos[key] = (1 - beta) / (1 - beta ** pos_variations_count[str(orig_t)][key])
-                    real_class_wts.append(exp_class_var_pos[key])
+                    if len(unique_cls) == 1:
+                        exp_class_var_pos[key] = 1.0 / pos_variations_count[str(orig_t)][key] 
+                    else:
+                        # loss input taken from paper: https://arxiv.org/pdf/1901.05555.pdf
+                        class_var_pos[key] = class_wt[k_i] #/ float(s_wts)
+                        norm_class_var_pos[key] = class_wt[k_i] / float(s_wts)
+                        exp_class_var_pos[key] = (1 - beta) / (1 - beta ** pos_variations_count[str(orig_t)][key])
+                        real_class_wts.append(exp_class_var_pos[key])
 
                 '''for key in exp_class_var_pos:
                     exp_class_var_pos[key] = exp_class_var_pos[key] / np.sum(real_class_wts)'''
@@ -597,9 +603,21 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
                 exp_norm_u_var_distribution = np.zeros((batch_size))
                 uniform_wts = np.zeros((batch_size))
                 for pos_idx, pos in enumerate(np.reshape(o_tokens, (batch_size,))):
-                    exp_norm_u_var_distribution[pos_idx] = class_var_pos[pos] #exp_class_var_pos[pos] #/ float(np.sum(real_class_wts))
+                    exp_norm_u_var_distribution[pos_idx] = exp_class_var_pos[pos]
                 #exp_norm_u_var_distribution = exp_norm_u_var_distribution / np.sum(exp_norm_u_var_distribution)
+                '''print(t)
+                print(pos_variations_count[str(orig_t)])
+                print()
+                print(class_var_pos)
+                print()
+                print(exp_class_var_pos)
+                print()
+                print(o_tokens)
+                print()
+                print(exp_norm_u_var_distribution)
+                print("========----=========")'''
                 weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
+                true_loss += tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
                 step_loss = weighted_loss
                 loss += step_loss
                 global_logits.append(dec_result)
@@ -610,13 +628,15 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
                 #print("Fixed run...")
                 i_tokens = o_tokens'''
             i_tokens = o_tokens
-
+    #sys.exit()
     global_logits = tf.concat(global_logits, axis=-2)
     loss_dec_loop_norm = loss_dec_loop_norm / seq_len
     loss_enc_state_norm = loss_enc_state_norm / n_stateful_batches
     loss = loss / seq_len
-    total_loss = loss + loss_dec_loop_norm + loss_enc_state_norm
-    print("Losses: (total, true, enc norm, dec norm)", total_loss.numpy(), loss.numpy(), loss_enc_state_norm.numpy(), loss_dec_loop_norm.numpy())
+    true_loss = true_loss / seq_len
+    total_loss = loss #+ loss_dec_loop_norm + loss_enc_state_norm
+    print("True loss: {}, Weighted loss: {}".format(str(true_loss.numpy()), str(total_loss.numpy())))
+    #print("Losses: (total, true, enc norm, dec norm)", total_loss.numpy(), loss.numpy(), loss_enc_state_norm.numpy(), loss_dec_loop_norm.numpy())
     return global_logits, gen_encoder, gen_decoder, total_loss
 
 
@@ -631,7 +651,10 @@ def loop_encode_decode_predict_stateful(seq_len, batch_size, vocab_size, input_t
         s_batch = input_tokens[:, stateful_index*s_stateful: (stateful_index+1)*s_stateful]
         enc_output, enc_state_f, enc_state_b = gen_encoder([s_batch, enc_state_f, enc_state_b], training=train_test)
         dec_state = tf.concat([enc_state_f, enc_state_b], -1)
+        #print("Test dec norm before clipping: ", tf.norm(dec_state))
+        #dec_state = tf.clip_by_norm(dec_state, clip_norm=max_norm)
         dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
+        #print("Test dec norm after clipping and adding noise: ", tf.norm(dec_state))
         for t in range(s_batch.shape[1]):
             orig_t = stateful_index * s_stateful + t
             dec_result, dec_state = gen_decoder([i_tokens, dec_state], training=train_test)
