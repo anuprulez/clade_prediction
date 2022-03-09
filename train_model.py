@@ -43,7 +43,7 @@ test_log_step = 100
 teacher_forcing_ratio = 0.0
 disc_clip_norm = 5.0
 gen_clip_norm = 5.0
-pretrain_clip_norm = 10.0
+pretrain_clip_norm = 1.0
 
 
 
@@ -171,7 +171,7 @@ def sample_true_x_y(batch_size, X_train, y_train, cluster_indices):
     else:
         rand_keys = np.array(choices(cluster_keys, k=batch_size))
     rand_batch_indices = list()
-    print(rand_keys)
+    #print(rand_keys)
     for key in rand_keys:
         rows_indices = cluster_indices[key]
         random.shuffle(rows_indices)
