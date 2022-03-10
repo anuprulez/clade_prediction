@@ -41,11 +41,9 @@ cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=F
 #mse = tf.keras.losses.MeanSquaredError()
 
 test_tf_ratio = 0.0
-enc_stddev = 0.05
-max_norm = 1.0
+enc_stddev = 0.2
+max_norm = 10.0
 dec_stddev = 0.0001
-#max_batch_turn = 50
-#pos_variations = dict()
 amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"
 
 
@@ -150,20 +148,6 @@ def split_test_train(x, y, split_size):
 
 
 def generate_cross_product(x_df, y_df, in_clade, out_clade, max_l_dist, len_aa_subseq, forward_dict, rev_dict, start_token, cols=["X", "Y"], unrelated=False, unrelated_threshold=15, train_nation="USA", train_pairs=True, train_size=0.8):
-
-    in_countries = x_df["Country"].tolist()
-    out_countries = y_df["Country"].tolist()
-
-    common_countries = list(set(in_countries).intersection(out_countries))
-    print("Common countries in input and output clades: ", common_countries)
-    '''for nation in common_countries:
-        in_df = x_df[x_df["Country"] == nation]
-        out_df = y_df[y_df["Country"] == nation]
-        print(in_df)
-        print()
-        print(out_df)
-        print("Cross prod size: ", len(in_df.index) * len(out_df.index))
-        print("-------")'''
 
     print("Training: For the USA")
 
@@ -629,7 +613,10 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
                 uniform_wts = np.zeros((batch_size))
                 for pos_idx, pos in enumerate(np.reshape(o_tokens, (batch_size,))):
                     exp_norm_u_var_distribution[pos_idx] = exp_class_var_pos[pos]
-
+                
+                if len(list(exp_class_var_pos.values())) > 1:
+                    exp_norm_u_var_distribution = exp_norm_u_var_distribution / np.sum(exp_norm_u_var_distribution)
+                
                 '''print(t)
                 print(pos_variations_count[str(orig_t)])
                 print()
@@ -653,6 +640,7 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
                 #print("Fixed run...")
                 i_tokens = o_tokens'''
             i_tokens = o_tokens
+    #sys.exit()
     global_logits = tf.concat(global_logits, axis=-2)
     loss_dec_loop_norm = loss_dec_loop_norm / seq_len
     loss_enc_state_norm = loss_enc_state_norm / n_stateful_batches
