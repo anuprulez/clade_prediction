@@ -36,14 +36,17 @@ TRAIN_GEN_DEC_MODEL = "data/generated_files/gen_dec_model"
 
 cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 
-n_disc_step = 6
-n_gen_step = 3
+n_disc_step = 10
+n_gen_step = 5
 unrolled_steps = 0
 test_log_step = 100
 teacher_forcing_ratio = 0.0
-disc_clip_norm = 5.0
-gen_clip_norm = 5.0
+disc_clip_norm = 50.0
+gen_clip_norm = 50.0
 pretrain_clip_norm = 1.0
+
+generator_optimizer = tf.keras.optimizers.Adam(learning_rate=1e-5) # learning_rate=1e-3, beta_1=0.5
+discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=1e-5) # learning_rate=3e-5, beta_1=0.5
 
 
 def wasserstein_loss(y_true, y_pred):
@@ -78,13 +81,12 @@ def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, un
     print(gen_tokens[:batch_size, :])
     print()
 
-
     _, real_enc_f_x, real_enc_b_x = disc_par_enc_model(unrolled_x, training=True)
     real_state_x = real_enc_f_x + real_enc_b_x
     #print(real_state_x.shape, real_enc_f_x.shape, real_enc_b_x.shape)
     # unrelated real X
-    _, unrelated_real_state_f_x, unrelated_real_state_b_x = disc_par_enc_model(un_X, training=True)
-    unrelated_real_state_x = unrelated_real_state_f_x + unrelated_real_state_b_x
+    #_, unrelated_real_state_f_x, unrelated_real_state_b_x = disc_par_enc_model(un_X, training=True)
+    unrelated_real_state_x = [] #unrelated_real_state_f_x + unrelated_real_state_b_x
     # encode true child sequences for discriminator
     # reformat real output to one-hot encoding
     one_hot_real_y = tf.one_hot(unrolled_y, depth=generated_logits.shape[-1], axis=-1)
@@ -94,9 +96,9 @@ def get_par_gen_state(seq_len, batch_size, vocab_size, enc_units, unrolled_x, un
     real_state_y = real_enc_f_y + real_enc_b_y
     #print(real_state_y.shape, real_enc_f_y.shape, real_enc_b_y.shape)
     # unrelated real y
-    one_hot_unrelated_y = tf.one_hot(un_y, depth=generated_logits.shape[-1], axis=-1)
-    _, unrelated_real_state_f_y, unrelated_real_state_b_y = disc_gen_enc_model(one_hot_unrelated_y, training=True)
-    unrelated_real_state_y = unrelated_real_state_f_y + unrelated_real_state_b_y
+    #one_hot_unrelated_y = tf.one_hot(un_y, depth=generated_logits.shape[-1], axis=-1)
+    #_, unrelated_real_state_f_y, unrelated_real_state_b_y = disc_gen_enc_model(one_hot_unrelated_y, training=True)
+    unrelated_real_state_y = [] #unrelated_real_state_f_y + unrelated_real_state_b_y
 
     # encode generated child sequences for discriminator
     #fake_state_y = disc_gen_enc_model(generated_logits, training=True)
@@ -115,11 +117,11 @@ def d_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, u
         # discriminate pairs of true parent and generated child sequences
         fake_output = discriminator([real_x, fake_y], training=True)
         # discriminate pairs of true parent and random sequences
-        unreal_output = discriminator([unreal_x, unreal_y], training=True)
+        #unreal_output = discriminator([unreal_x, unreal_y], training=True)
         # halve the fake outpus and combine them to keep the final size same as the real output
-        t1 = fake_output[:int(batch_size/2.0)]
-        t2 = unreal_output[:int(batch_size/2.0)]
-        combined_fake_output = tf.concat([t1, t2], 0)
+        #t1 = fake_output[:int(batch_size/2.0)]
+        #t2 = unreal_output[:int(batch_size/2.0)]
+        combined_fake_output = fake_output #tf.concat([t1, t2], 0)
         # compute discriminator loss
         disc_real_loss, disc_fake_loss = discriminator_loss(real_output, combined_fake_output)
         total_disc_loss = disc_real_loss + disc_fake_loss
@@ -156,13 +158,12 @@ def g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, u
 
 
 def sample_true_x_y(batch_size, X_train, y_train, cluster_indices):
-    '''rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)
+    rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)
     x_batch_train = X_train[rand_batch_indices]
     y_batch_train = y_train[rand_batch_indices]
     unrolled_x = utils.convert_to_array(x_batch_train)
-    unrolled_y = utils.convert_to_array(y_batch_train)'''
-    # sample_true_x_y(batch_size, X_train, y_train, cluster_indices)'''
-    cluster_keys = list(cluster_indices.keys())
+    unrolled_y = utils.convert_to_array(y_batch_train)
+    '''cluster_keys = list(cluster_indices.keys())
     cluster_keys = list(np.unique(cluster_keys))
     random.shuffle(cluster_keys)
     if len(cluster_keys) >= batch_size:
@@ -170,7 +171,7 @@ def sample_true_x_y(batch_size, X_train, y_train, cluster_indices):
     else:
         rand_keys = np.array(choices(cluster_keys, k=batch_size))
     rand_batch_indices = list()
-    #print(rand_keys)
+    print(rand_keys)
     for key in rand_keys:
         rows_indices = cluster_indices[key]
         random.shuffle(rows_indices)
@@ -178,7 +179,7 @@ def sample_true_x_y(batch_size, X_train, y_train, cluster_indices):
     x_batch_train = X_train[rand_batch_indices]
     y_batch_train = y_train[rand_batch_indices]
     unrolled_x = utils.convert_to_array(x_batch_train)
-    unrolled_y = utils.convert_to_array(y_batch_train)
+    unrolled_y = utils.convert_to_array(y_batch_train)'''
 
     return unrolled_x, unrolled_y
 
@@ -334,7 +335,7 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
   for step in range(n_train_batches):
       #unrolled_x, unrolled_y, batch_mut_distribution = sample_true_x_y(parent_child_mut_indices, batch_size, X_train, y_train, batch_mut_distribution)
       unrolled_x, unrolled_y = sample_true_x_y(batch_size, X_train, y_train, train_cluster_indices_dict)
-      un_X, un_y = utils.sample_unrelated_x_y(unrelated_X, unrelated_y, batch_size)
+      un_X, un_y = [], [] #utils.sample_unrelated_x_y(unrelated_X, unrelated_y, batch_size)
       seq_len = unrolled_x.shape[1]
       disc_gen = step % n_disc_step
       if disc_gen in list(range(0, n_disc_step - n_gen_step)):
@@ -358,7 +359,7 @@ def start_training_mut_balanced(inputs, epo_step, encoder, decoder, disc_par_enc
               # sample data for unrolling
               #unroll_x, unroll_y, _ = sample_true_x_y(parent_child_mut_indices, batch_size, X_train, y_train, batch_mut_distribution)
               unroll_x, unroll_y = sample_true_x_y(batch_size, X_train, y_train, train_cluster_indices_dict)
-              un_unroll_X, un_unroll_y = utils.sample_unrelated_x_y(unrelated_X, unrelated_y, batch_size)
+              un_unroll_X, un_unroll_y = [], [] #utils.sample_unrelated_x_y(unrelated_X, unrelated_y, batch_size)
               # train discriminator
               _, _, disc_par_enc, disc_gen_enc, discriminator, d_r_l, d_f_l, d_t_l = d_loop(seq_len, batch_size, vocab_size, enc_units, unroll_x, unroll_y, un_unroll_X, un_unroll_y, encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, size_stateful, pos_size, pos_variations, pos_variations_count, step)
               print("Unrolled disc losses: real {}, fake {}, total {}".format(str(d_r_l.numpy()), str(d_f_l.numpy()), str(d_t_l.numpy())))
