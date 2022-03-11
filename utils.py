@@ -481,13 +481,16 @@ def clip_weights(tensor, clip_min=-1e-2, clip_max=1e-2):
 
 
 
-def find_cluster_indices(output_seqs, batch_size):
+def find_cluster_indices(output_seqs, batch_size, datatype="train_y"):
     ## Cluster the output set of sequences and chooose sequences randomly from each cluster
-    ### 
+    ###
+    print("Clustering {}".format(datatype))
     features = convert_to_array(output_seqs)
-
-    clustering_type = OPTICS(min_samples=2, min_cluster_size=2)
+    from sklearn.cluster import DBSCAN
+    clustering_type = OPTICS(min_samples=2, min_cluster_size=2) 
+    #DBSCAN(eps=0.5, min_samples=2).fit(features) #OPTICS(min_samples=2, min_cluster_size=2)
     cluster_labels = clustering_type.fit_predict(features)
+    print("Number of clusters: {}".format(str(len(cluster_labels))))
     x = list()
     y = list()
     cluster_indices_dict = dict()
@@ -498,7 +501,8 @@ def find_cluster_indices(output_seqs, batch_size):
             cluster_indices_dict[l] = list()
         cluster_indices_dict[l].append(i)
     scatter_df = pd.DataFrame(list(zip(x, y)), columns=["output_seqs", "clusters"])
-    scatter_df.to_csv("data/generated_files/clustered_output_seqs_data.csv")
+    
+    scatter_df.to_csv("data/generated_files/clustered_output_seqs_data_{}.csv".format(datatype))
     return cluster_labels, cluster_indices_dict
 
 

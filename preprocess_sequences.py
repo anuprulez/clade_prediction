@@ -142,7 +142,7 @@ def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, start_token
             in_clade_df = in_clade_df.sample(n=random_size, replace=False).reset_index(drop=True)
         print(in_clade_df.groupby(['Country']).count())
         print("Size of clade {}: {}".format(in_clade, str(in_len)))
-        in_clade_df.to_csv("data/generated_files/in_clade_df.csv")
+        in_clade_df.to_csv("data/generated_files/in_clade_df_{}.csv".format(in_clade))
 
         out_clades = clade_in_clade_out[in_clade]
         for out_clade in out_clades:
@@ -162,7 +162,7 @@ def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, start_token
             print("Remove duplicate sequences...")
             out_clade_df = out_clade_df.drop_duplicates(subset=['Sequence'])
             print(out_clade_df)
-            out_clade_df.to_csv("data/generated_files/out_clade_df.csv")
+            out_clade_df.to_csv("data/generated_files/out_clade_df_{}.csv".format(out_clade))
             out_len = len(out_clade_df.index)
             if random_size <= out_len:
                 out_clade_df = out_clade_df.sample(n=random_size, replace=False).reset_index(drop=True)

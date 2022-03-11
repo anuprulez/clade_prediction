@@ -171,7 +171,7 @@ def sample_true_x_y(batch_size, X_train, y_train, cluster_indices):
     else:
         rand_keys = np.array(choices(cluster_keys, k=batch_size))
     rand_batch_indices = list()
-    print(rand_keys)
+    print(rand_keys, "all keys: ", len(cluster_keys))
     for key in rand_keys:
         rows_indices = cluster_indices[key]
         random.shuffle(rows_indices)

@@ -87,7 +87,7 @@ epochs = 1
 max_l_dist = 32
 test_train_size = 0.8
 #pretrain_train_size = 0.01 # all dataset as pretrain and not as test
-random_clade_size = 400
+random_clade_size = 700
 to_pretrain = True
 pretrained_model = False
 retrain_pretrain_start_index = 0
@@ -270,9 +270,6 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     X_train = np.array(X_train)
     y_train = np.array(y_train)
 
-    #sys.exit()
-    
-
     # pretrain generator
     if to_pretrain is True:
         
@@ -287,12 +284,13 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
 
         print("Pretraining generator...")
         #pre_train_cluster_indices, pre_train_cluster_indices_dict = utils.find_cluster_indices(y_train, batch_size)
+        pre_train_cluster_indices_dict = dict()
         # balance tr data by mutations
         pretr_parent_child_mut_indices, pos_variations, pos_variations_count = utils.get_mutation_tr_indices(X_train, y_train, kmer_f_dict, kmer_r_dict, forward_dict, rev_dict, pos_variations, pos_variations_count)
         print(pos_variations)
         print()
         print(pos_variations_count)
-        pre_train_cluster_indices_dict = dict()
+        
         utils.save_as_json(PRETR_MUT_INDICES, pretr_parent_child_mut_indices)
         # get pretraining dataset as sliced tensors
         n_pretrain_batches = int(X_train.shape[0]/float(batch_size))
