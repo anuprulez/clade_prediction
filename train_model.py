@@ -244,7 +244,29 @@ def sample_true_x_y_mut(batch_size, X_train, y_train, mut_pattern, mut_pattern_d
     gamma_nos = np.random.gamma(1, size=seq_len)
 
 
-def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, updated_lr, enc_units, vocab_size, n_batches, batch_size, pretr_parent_child_mut_indices, epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, pos_variations, pos_variations_count, cluster_indices, mut_pattern, mut_pattern_dist, mut_pattern_dist_freq, mut_buckets):
+def sample_from_generator(batch_size, cluster_indices, training_generator, scatter_df):
+    x = list()
+    y = list()
+    for i, item in enumerate(training_generator):
+        x = item[0]
+        out_clusters = item[1]
+        print("Output clusters: ", out_clusters)
+        for j in range(len(item[1])):
+            out_seq = scatter_df[scatter_df["clusters"] == out_clusters[j]]
+            #print(out_seq)
+            out_seq = out_seq.iloc[0]["output_seqs"].tolist()
+            #print(out_seq)
+            y.append([int(pos) for pos in out_seq.split(",")])
+        break
+    y = np.array(y)
+    #print(x.shape, y.shape)
+    #print(x)
+    #print()
+    #print(y)
+    return x, y
+    
+
+def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, updated_lr, enc_units, vocab_size, n_batches, batch_size, pretr_parent_child_mut_indices, epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, pos_variations, pos_variations_count, pre_train_cluster_indices, pre_train_cluster_indices_dict, training_generator, scatter_df):
   X_train, y_train, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches = inputs
   epo_avg_tr_gen_loss = list()
   epo_te_gen_loss = list()
@@ -260,6 +282,8 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, updated_lr, e
   utils.create_dirs(epo_pre_train_save_folder)
   utils.create_dirs(enc_pre_train_save_folder)
   utils.create_dirs(dec_pre_train_save_folder)
+
+
   #cluster_ctr = 0
   #n_clusters = len(cluster_indices)
   #curr_c_idx = list(np.arange(0, n_clusters))
@@ -268,10 +292,12 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, updated_lr, e
   for step in range(n_batches):
       #updated_lr = utils.decayed_learning_rate(updated_lr, (epo_step + 1) * (step + 1))
       pretrain_generator_optimizer = tf.keras.optimizers.Adam(learning_rate=updated_lr)
+      unrolled_x, unrolled_y = sample_from_generator(batch_size, pre_train_cluster_indices, training_generator, scatter_df)
+      #sys.exit()
       #cluster_idx = curr_c_idx_re[cluster_ctr:cluster_ctr + batch_size]
       #print(cluster_idx)
       #unrolled_x, unrolled_y = sample_true_x_y(batch_size, X_train, y_train, cluster_idx, cluster_indices)
-      unrolled_x, unrolled_y = sample_true_x_y(batch_size, X_train, y_train, mut_pattern_dist, mut_buckets)
+      #unrolled_x, unrolled_y = sample_true_x_y(batch_size, X_train, y_train, mut_pattern_dist, mut_buckets)
       #cluster_ctr += batch_size
       #unrolled_x, unrolled_y = sample_true_x_y_mut(batch_size, X_train, y_train, mut_pattern, mut_pattern_dist, mut_pattern_dist_freq)
       seq_len = unrolled_x.shape[1]

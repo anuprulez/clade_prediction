@@ -578,7 +578,7 @@ def find_cluster_indices(output_seqs, batch_size, datatype="train_y"):
         cluster_indices_dict[l].append(i)
     scatter_df = pd.DataFrame(list(zip(x, y)), columns=["output_seqs", "clusters"])
     scatter_df.to_csv("data/generated_files/clustered_output_seqs_data_{}.csv".format(datatype))
-    return cluster_labels, cluster_indices_dict
+    return cluster_labels, cluster_indices_dict, scatter_df
 
 
 def calculate_sample_weights(X_train, y_train, batch_size, pos_variations_count, cluster_labels):
@@ -595,16 +595,16 @@ def calculate_sample_weights(X_train, y_train, batch_size, pos_variations_count,
                     pos_wt = (1 - beta) / (1 - beta ** pos_freq[key])
                     seq_wt += pos_wt
         sample_wts.append(seq_wt)
-    print(sample_wts)
-
-    plt.plot(sample_wts)
-    plt.show()
+    #print(sample_wts)
+    #plt.plot(sample_wts)
+    #plt.show()
     unrolled_x = convert_to_array(X_train)
     training_generator, steps_per_epoch = balanced_batch_generator(unrolled_x, cluster_labels, sample_weight=sample_wts, sampler=None, batch_size=batch_size, random_state=42)
-    print(training_generator)
-    for idx, item in enumerate(training_generator):
-        print(idx, item)
-        print("---")
+    #print(training_generator)
+    #for idx, item in enumerate(training_generator):
+    #    print(idx, item)
+    #    print("---")
+    return training_generator
     # sampler=RandomUnderSampler()
 
 
