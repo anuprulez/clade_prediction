@@ -78,7 +78,7 @@ len_final_aa_padding = len_aa_subseq - s_kmer + 1 # write 2 here when there is p
 size_stateful = 300 # 50 for 302
 # Neural network parameters
 embedding_dim = 128
-batch_size = 8
+batch_size = 16
 te_batch_size = batch_size
 n_te_batches = 20
 enc_units = 64 # 128 for 302
@@ -94,7 +94,7 @@ retrain_pretrain_start_index = 0
 gan_train = False
 start_token = 0
 
-pretr_lr = 0.01 #1e-2
+pretr_lr = 0.005 #1e-2
 parent_collection_start_month = "2020-01-20"
 stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/", "data/pretrain/", "data/validation/"]
 amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"

@@ -23,6 +23,7 @@ from sklearn import metrics
 from Levenshtein import distance as lev_dist
 from focal_loss import sparse_categorical_focal_loss
 from imblearn.under_sampling import RandomUnderSampler
+from imblearn.over_sampling import RandomOverSampler
 from imblearn.tensorflow import balanced_batch_generator
 import matplotlib.pyplot as plt
 
@@ -566,7 +567,7 @@ def find_cluster_indices(output_seqs, batch_size, datatype="train_y"):
     clustering_type = OPTICS(min_samples=2, min_cluster_size=2) 
     #DBSCAN(eps=0.5, min_samples=2).fit(features) #OPTICS(min_samples=2, min_cluster_size=2)
     cluster_labels = clustering_type.fit_predict(features)
-    print("Number of clusters: {}".format(str(len(cluster_labels))))
+    print("Number of clusters: {}".format(str(len(list(set(cluster_labels))))))
     x = list()
     y = list()
     cluster_indices_dict = dict()
@@ -585,25 +586,38 @@ def calculate_sample_weights(X_train, y_train, batch_size, pos_variations_count,
     sample_wts = list()
     beta = 0.9999
     for seq in y_train:
-        #print(seq)
         seq_wt = 0.0
         for t, pos in enumerate(seq.split(",")):
+            '''u_var_distribution = np.array(list(pos_variations_count[str(t)].values()))
+            unique_cls = np.array(list(pos_variations_count[str(t)].keys()))
+            all_cls = tf.repeat(unique_cls, repeats=u_var_distribution).numpy()
+            random.shuffle(all_cls)
+            y = all_cls
+            classes = unique_cls
+            le = LabelEncoder()
+            y_ind = le.fit_transform(y)
+            recip_freq = len(y) / (len(le.classes_) * np.bincount(y_ind).astype(np.float64))
+            class_wt = recip_freq[le.transform(classes)]'''
+
             pos_freq = pos_variations_count[str(t)]
             pos_freq = dict(pos_freq)
+            
+            '''for idx, key in enumerate(pos_freq):
+                if str(pos) == str(key):
+                    #pos_wt = class_wt[idx] #(1 - beta) / (1 - beta ** pos_freq[key])
+                    pos_wt = (1 - beta) / (1 - beta ** pos_freq[key])
+                    seq_wt += pos_wt
+                    seq_wt += pos_wt
+            '''
             for key in pos_freq:
                 if str(pos) == str(key):
                     pos_wt = (1 - beta) / (1 - beta ** pos_freq[key])
                     seq_wt += pos_wt
         sample_wts.append(seq_wt)
-    #print(sample_wts)
-    #plt.plot(sample_wts)
-    #plt.show()
+    for i, x in enumerate(sample_wts):
+        print(i, sample_wts[i])
     unrolled_x = convert_to_array(X_train)
-    training_generator, steps_per_epoch = balanced_batch_generator(unrolled_x, cluster_labels, sample_weight=sample_wts, sampler=None, batch_size=batch_size, random_state=42)
-    #print(training_generator)
-    #for idx, item in enumerate(training_generator):
-    #    print(idx, item)
-    #    print("---")
+    training_generator, steps_per_epoch = balanced_batch_generator(unrolled_x, cluster_labels, sample_weight=sample_wts, sampler=RandomUnderSampler(), batch_size=batch_size, random_state=42)
     return training_generator
     # sampler=RandomUnderSampler()
 
@@ -656,6 +670,8 @@ def stateful_encoding(size_stateful, inputs, enc, training=False):
 
 def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful, mut_freq, pos_variations, pos_variations_count, batch_step):
     # TODO: Implement loss wrt to WU reference genome - crossentropy(Wu - true target) - crossentropy(Wu - generated target) == 0
+    # TODO: Add sample weight based on entire sample, not just per POS. Sample weight for the entire seq
+    # TODO: Collect sample weight based only on changing AAs POS and not stagnant AAs POS
     loss = tf.constant(0.0)
     true_loss = tf.constant(0.0)
     global_logits = list()
