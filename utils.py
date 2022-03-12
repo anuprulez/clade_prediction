@@ -719,8 +719,8 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
                 uniform_wts = np.zeros((batch_size))
                 for pos_idx, pos in enumerate(np.reshape(o_tokens, (batch_size,))):
                     exp_norm_u_var_distribution[pos_idx] = exp_class_var_pos[pos]
-                exp_norm_u_var_distribution = tf.convert_to_tensor(exp_norm_u_var_distribution, dtype=tf.dtypes.float32)
-                exp_norm_u_var_distribution = tf.reshape(exp_norm_u_var_distribution, (batch_size, 1))
+                #exp_norm_u_var_distribution = tf.convert_to_tensor(exp_norm_u_var_distribution, dtype=tf.dtypes.float32)
+                #exp_norm_u_var_distribution = tf.reshape(exp_norm_u_var_distribution, (batch_size, 1))
 
                 '''print(t)
                 print(pos_variations_count[str(orig_t)])
@@ -734,10 +734,10 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
                 print(exp_norm_u_var_distribution)
                 print("========----=========")'''
 
-                #weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
-                weighted_loss = sparse_categorical_focal_loss(o_tokens, dec_result, gamma=5)
-                weighted_loss *= exp_norm_u_var_distribution
-                weighted_loss = tf.reduce_mean(weighted_loss)
+                weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
+                #weighted_loss = sparse_categorical_focal_loss(o_tokens, dec_result, gamma=5)
+                #weighted_loss *= exp_norm_u_var_distribution
+                #weighted_loss = tf.reduce_mean(weighted_loss)
                 true_loss += tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
                 step_loss = weighted_loss
                 loss += step_loss
