@@ -263,6 +263,7 @@ def sample_from_generator(batch_size, cluster_indices, training_generator, scatt
     #print(x)
     #print()
     #print(y)
+    
     return x, y
     
 
@@ -283,16 +284,24 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, updated_lr, e
   utils.create_dirs(enc_pre_train_save_folder)
   utils.create_dirs(dec_pre_train_save_folder)
 
-
   #cluster_ctr = 0
   #n_clusters = len(cluster_indices)
   #curr_c_idx = list(np.arange(0, n_clusters))
   #curr_c_idx_re = np.tile(curr_c_idx, int((n_batches * batch_size) / float(n_clusters) + 1))
   #print(curr_c_idx_re, len(curr_c_idx_re))
-  for step in range(n_batches):
+
+  print(training_generator)
+  #for step in range(n_batches):
+  for step, batch_x_y in enumerate(training_generator):
+      
       #updated_lr = utils.decayed_learning_rate(updated_lr, (epo_step + 1) * (step + 1))
       pretrain_generator_optimizer = tf.keras.optimizers.Adam(learning_rate=updated_lr)
-      unrolled_x, unrolled_y = sample_from_generator(batch_size, pre_train_cluster_indices, training_generator, scatter_df)
+      #x_y = #training_generator[step] #sample_from_generator(batch_size, pre_train_cluster_indices, training_generator, scatter_df)
+      unrolled_x, unrolled_y = batch_x_y[0].numpy(), batch_x_y[1].numpy()
+      #print("batch size: {}".format(str(unrolled_x.shape[0])))
+      if unrolled_x.shape[0] < batch_size:
+          print("batch size malformed")
+          break
       #sys.exit()
       #cluster_idx = curr_c_idx_re[cluster_ctr:cluster_ctr + batch_size]
       #print(cluster_idx)

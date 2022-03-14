@@ -26,6 +26,8 @@ from imblearn.under_sampling import RandomUnderSampler
 from imblearn.over_sampling import RandomOverSampler
 from imblearn.tensorflow import balanced_batch_generator
 import matplotlib.pyplot as plt
+import torch
+from torch.utils.data import WeightedRandomSampler
 
 from focal_loss import SparseCategoricalFocalLoss
 tf.keras.metrics.SparseTopKCategoricalAccuracy(k=1)
@@ -582,10 +584,11 @@ def find_cluster_indices(output_seqs, batch_size, datatype="train_y"):
     return cluster_labels, cluster_indices_dict, scatter_df
 
 
-def calculate_sample_weights(X_train, y_train, batch_size, pos_variations_count, cluster_labels):
+def calculate_sample_weights(X_train, y_train, batch_size, pos_variations_count):
     sample_wts = list()
+    weights_dict = dict()
     beta = 0.9999
-    for seq in y_train:
+    for seq_idx, seq in enumerate(y_train):
         seq_wt = 0.0
         for t, pos in enumerate(seq.split(",")):
             '''u_var_distribution = np.array(list(pos_variations_count[str(t)].values()))
@@ -602,24 +605,39 @@ def calculate_sample_weights(X_train, y_train, batch_size, pos_variations_count,
             pos_freq = pos_variations_count[str(t)]
             pos_freq = dict(pos_freq)
             
-            '''for idx, key in enumerate(pos_freq):
-                if str(pos) == str(key):
-                    #pos_wt = class_wt[idx] #(1 - beta) / (1 - beta ** pos_freq[key])
-                    pos_wt = (1 - beta) / (1 - beta ** pos_freq[key])
-                    seq_wt += pos_wt
-                    seq_wt += pos_wt
-            '''
-            for key in pos_freq:
-                if str(pos) == str(key):
-                    pos_wt = (1 - beta) / (1 - beta ** pos_freq[key])
-                    seq_wt += pos_wt
+            if len(pos_freq) > 1:
+                for key in pos_freq:
+                    all_freq_val = list(pos_freq.values())
+                    fr = pos_freq[key]
+                    if str(pos) == str(key) and fr < max(all_freq_val):
+                        pos_wt = (1 - beta) / (1 - beta ** fr) 
+                        seq_wt += pos_wt
         sample_wts.append(seq_wt)
-    for i, x in enumerate(sample_wts):
-        print(i, sample_wts[i])
+        weights_dict[seq_idx] = str(seq_wt)
+
+
     unrolled_x = convert_to_array(X_train)
-    training_generator, steps_per_epoch = balanced_batch_generator(unrolled_x, cluster_labels, sample_weight=sample_wts, sampler=RandomUnderSampler(), batch_size=batch_size, random_state=42)
-    return training_generator
-    # sampler=RandomUnderSampler()
+    unrolled_y = convert_to_array(y_train)
+
+    weighted_sampler = WeightedRandomSampler(sample_wts, len(sample_wts))
+
+    train_dataset = torch.utils.data.TensorDataset(torch.LongTensor(unrolled_x.astype(int)), torch.LongTensor(unrolled_y.astype(int)))
+    train_data_generator = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=batch_size, num_workers=1, sampler=weighted_sampler)
+
+    '''bal_fac = 0.0
+    for index, item in enumerate(trainLoader):
+        for row in item[1].numpy():
+            if 6399 in row[0:15]:
+                print(index, "present", row[0:15], item[1].shape)
+                bal_fac += 1.0
+            else:
+                print(index, "not present", row[0:5], item[1].shape)
+        print("-------")
+    print("7285 appearance factor: {}".format(str(bal_fac / float(len(sample_wts)))))'''
+
+    save_as_json("data/generated_files/weights_dict.json", weights_dict)
+    #training_generator, steps_per_epoch = balanced_batch_generator(unrolled_x, cluster_labels, sample_weight=sample_wts, sampler=RandomUnderSampler(), batch_size=batch_size, random_state=42)
+    return train_data_generator
 
 
 def pairwise_dist(A, B):

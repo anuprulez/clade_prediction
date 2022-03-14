@@ -78,7 +78,7 @@ len_final_aa_padding = len_aa_subseq - s_kmer + 1 # write 2 here when there is p
 size_stateful = 300 # 50 for 302
 # Neural network parameters
 embedding_dim = 128
-batch_size = 16
+batch_size = 8
 te_batch_size = batch_size
 n_te_batches = 20
 enc_units = 64 # 128 for 302
@@ -272,7 +272,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
 
     # pretrain generator
     if to_pretrain is True:
-        
+
         utils.create_dirs("data/generated_files/pre_train")
         pretrain_gen_train_loss = list()
         pretrain_gen_test_loss = list()
@@ -290,14 +290,16 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
         print()
         print(pos_variations_count)
 
-        pre_train_cluster_indices, pre_train_cluster_indices_dict, scatter_df = utils.find_cluster_indices(y_train, batch_size)
-
-        training_generator = utils.calculate_sample_weights(X_train, y_train, batch_size, pos_variations_count, pre_train_cluster_indices)
+        #print("Creating training data generator balanced by sample weights...")
+        #pre_train_cluster_indices, pre_train_cluster_indices_dict, scatter_df = utils.find_cluster_indices(y_train, batch_size)
+        print()
+        print("Creating training data generator balanced by sample weights...")
+        training_generator = utils.calculate_sample_weights(X_train, y_train, batch_size, pos_variations_count)
 
         #pre_train_cluster_indices, pre_train_cluster_indices_dict = utils.find_cluster_indices(y_train, batch_size)
-        #pre_train_cluster_indices_dict = dict()
+        pre_train_cluster_indices_dict = dict()
         
-        mut_pattern, mut_pattern_dist, mut_pattern_dist_freq, mut_buckets = utils.create_mut_balanced_dataset(X_train, y_train, kmer_f_dict, len_final_aa_padding, batch_size)
+        #mut_pattern, mut_pattern_dist, mut_pattern_dist_freq, mut_buckets = utils.create_mut_balanced_dataset(X_train, y_train, kmer_f_dict, len_final_aa_padding, batch_size)
 
         #sys.exit()
         
