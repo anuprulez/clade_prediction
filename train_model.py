@@ -39,7 +39,7 @@ cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 n_disc_step = 10
 n_gen_step = 5
 unrolled_steps = 0
-test_log_step = 100
+test_log_step = 50
 teacher_forcing_ratio = 0.0
 disc_clip_norm = 50.0
 gen_clip_norm = 50.0
@@ -267,7 +267,7 @@ def sample_from_generator(batch_size, cluster_indices, training_generator, scatt
     return x, y
     
 
-def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, updated_lr, enc_units, vocab_size, n_batches, batch_size, pretr_parent_child_mut_indices, epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, pos_variations, pos_variations_count, pre_train_cluster_indices, pre_train_cluster_indices_dict, training_generator, scatter_df):
+def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, updated_lr, enc_units, vocab_size, n_batches, batch_size, pretr_parent_child_mut_indices, epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, pos_variations, pos_variations_count, training_generator):
   X_train, y_train, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches = inputs
   epo_avg_tr_gen_loss = list()
   epo_te_gen_loss = list()
@@ -290,7 +290,6 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, updated_lr, e
   #curr_c_idx_re = np.tile(curr_c_idx, int((n_batches * batch_size) / float(n_clusters) + 1))
   #print(curr_c_idx_re, len(curr_c_idx_re))
 
-  print(training_generator)
   #for step in range(n_batches):
   for step, batch_x_y in enumerate(training_generator):
       

@@ -48,8 +48,8 @@ cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=F
 
 test_tf_ratio = 0.0
 enc_stddev = 1.0 #0.2
-max_norm = 50.0
-dec_stddev = 0.0001
+max_norm = 1.0 #50.0
+dec_stddev = 1.0 #0.0001
 amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"
 
 
@@ -615,7 +615,6 @@ def calculate_sample_weights(X_train, y_train, batch_size, pos_variations_count)
         sample_wts.append(seq_wt)
         weights_dict[seq_idx] = str(seq_wt)
 
-
     unrolled_x = convert_to_array(X_train)
     unrolled_y = convert_to_array(y_train)
 
@@ -704,11 +703,11 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
         s_batch = input_tokens[:, stateful_index*s_stateful: (stateful_index+1)*s_stateful]
         enc_output, enc_state_f, enc_state_b = gen_encoder([s_batch, enc_state_f, enc_state_b], training=True)
         dec_state = tf.concat([enc_state_f, enc_state_b], -1)
-        #print("Train enc norm before adding noise: ", dec_state , tf.norm(dec_state))
-        #dec_state = tf.clip_by_norm(dec_state, clip_norm=max_norm)
-        #print(dec_state[:, :5], tf.norm(dec_state))
+        #print("Train enc norm before adding noise: ", dec_state[:, :5], tf.norm(dec_state))
         loss_enc_state_norm += tf.math.abs(max_norm - tf.norm(dec_state))
         dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
+        dec_state = tf.clip_by_norm(dec_state, clip_norm=max_norm)
+        #print("Train enc norm after adding noise and clipping: ",dec_state[:, :5], tf.norm(dec_state))
         #print("Train enc norm after adding noise: ", dec_state, tf.norm(dec_state))
         #print("---")
         u_seq_len = s_batch.shape[1]
@@ -718,9 +717,9 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
         for t in range(s_batch.shape[1]):
             dec_result, dec_state = gen_decoder([i_tokens, dec_state], training=True)
             loss_dec_state_norm = tf.math.abs(max_norm - tf.norm(dec_state))
-            #dec_state = tf.clip_by_norm(dec_state, clip_norm=max_norm)
+            dec_state = tf.clip_by_norm(dec_state, clip_norm=max_norm)
             loss_dec_loop_norm += loss_dec_state_norm
-            dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
+            #dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
             orig_t = stateful_index * s_stateful + t
             if len(output_tokens) > 0:
                 o_tokens = output_tokens[:, orig_t:orig_t+1]
@@ -815,7 +814,7 @@ def loop_encode_decode_predict_stateful(seq_len, batch_size, vocab_size, input_t
             orig_t = stateful_index * s_stateful + t
             dec_result, dec_state = gen_decoder([i_tokens, dec_state], training=train_test)
             #dec_state = tf.clip_by_norm(dec_state, clip_norm=max_norm)
-            dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
+            #dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
             gen_logits.append(dec_result)
             if len(output_tokens) > 0:
                 o_tokens = output_tokens[:, orig_t:orig_t+1]
