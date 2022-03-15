@@ -22,7 +22,7 @@ seq_len = 1273 #1273 #303 #1273
 y_label_bin = 20
 ##### Best results with 18_02_22_0 22_02_22_0 # 28_02_22_0
 PATH_PRE = "data/ncov_global/"
-data_path = "test_results/08_03_22/" #"test_results/19_10_20A_20B_unrolled_GPU/" # 08_10_one_hot_3_CPU_20A_20B
+data_path = "test_results/28_02_22_0/" #"test_results/19_10_20A_20B_unrolled_GPU/" # 08_10_one_hot_3_CPU_20A_20B
 PATH_F_DICT = PATH_PRE + "f_word_dictionaries.json"
 PATH_R_DICT = PATH_PRE + "r_word_dictionaries.json"
 PATH_KMER_F_DICT = PATH_PRE + "kmer_f_word_dictionaries.json"
@@ -32,18 +32,18 @@ PATH_KMER_R_DICT = PATH_PRE + "kmer_r_word_dictionaries.json"
 
 freq_cutoff = 1
 
-'''parent_clade = "20A"
+parent_clade = "20A"
 child_clade = "20B"
 # train dataset from pretrain
 train_file = [data_path + "pretrain/pretrain.csv"]
-test_file = [data_path + "test/20A_20B.csv"]'''
+test_file = [data_path + "test/20A_20B.csv"]
 
 
 # combined dataframe for 20B (as X) and children of 20B (as Y)
-parent_clade = "20B" #"20C"
+'''parent_clade = "20B" #"20C"
 child_clade = "20J_Gamma" #"20G_H_21C_F" #20I_Alpha
 train_file = [data_path + "test_future/20B_20J (Gamma, V3)_USA.csv"]
-test_file = [data_path + "test_future/20B_20J (Gamma, V3)_USA.csv"]
+test_file = [data_path + "test_future/20B_20J (Gamma, V3)_USA.csv"]'''
 
 # combined dataframe for 20B (as X) and children of 20B (as Y)
 '''parent_clade = "20C"
@@ -321,7 +321,7 @@ def plot_true_gen_dist(tr_par_child, te_par_child, gen_par_child, tr_size, te_si
 
 
 def normalize_mat(D):
-    return D #(D - np.min(D)) / ((np.max(D) - np.min(D)) + 1e-10) #D / float(np.sum(D)) #np.log(1 + D) #(D - np.min(D)) / ((np.max(D) - np.min(D)) + 1e-10)
+    return (D - np.min(D)) / ((np.max(D) - np.min(D)) + 1e-10) #D / float(np.sum(D)) #np.log(1 + D) #(D - np.min(D)) / ((np.max(D) - np.min(D)) + 1e-10)
     
 
 def plot_mut_freq(tr_size, te_size, gen_size):
@@ -358,7 +358,7 @@ def plot_mut_freq(tr_size, te_size, gen_size):
     pos_ticks = list(np.arange(0, seq_len, y_label_bin))
     pos_labels = list(np.arange(1, seq_len+1, y_label_bin))
 
-    ax0 = axs[0].bar(y_axis, tr_freq, color="red")
+    ax0 = axs[0].bar(y_axis, tr_freq)
     axs[0].set_title("(A) Train parent-child substitution frequency")
     axs[0].set_ylabel("Total number of substitutions (normalized)")
     axs[0].set_xlabel("Spike protein genomic position (POS)")
@@ -366,7 +366,7 @@ def plot_mut_freq(tr_size, te_size, gen_size):
     #axs[0].grid(True)
     axs[0].set_xticklabels(pos_labels, rotation='vertical')
 
-    ax1 = axs[1].bar(y_axis, gen_freq, color="red")
+    ax1 = axs[1].bar(y_axis, gen_freq)
     axs[1].set_title("(B) Generated parent-generated substitution frequency")
     axs[1].set_ylabel("Total number of substitutions (normalized)")
     axs[1].set_xlabel("Spike protein genomic position (POS)")
@@ -404,7 +404,7 @@ def plot_target_mut_freq(tr_size, te_size, gen_size):
     pos_ticks = list(np.arange(0, seq_len, y_label_bin))
     pos_labels = list(np.arange(1, seq_len+1, y_label_bin))
 
-    ax0 = axs[0].bar(y_axis, tr_freq, color="red")
+    ax0 = axs[0].bar(y_axis, tr_freq, color="blue")
     axs[0].set_title("(A) Train child AA frequency")
     axs[0].set_ylabel("Total number of unique AA")
     axs[0].set_xlabel("Spike protein genomic position (POS)")
@@ -412,7 +412,7 @@ def plot_target_mut_freq(tr_size, te_size, gen_size):
     #axs[0].grid(True)
     axs[0].set_xticklabels(pos_labels, rotation='vertical')
 
-    ax1 = axs[1].bar(y_axis, gen_freq, color="red")
+    ax1 = axs[1].bar(y_axis, gen_freq, color="blue")
     axs[1].set_title("(B) Generated child AA frequency")
     axs[1].set_ylabel("Total number of unique AA")
     axs[1].set_xlabel("Spike protein genomic position (POS)")
@@ -579,7 +579,7 @@ def plot_pred_subs():
     pos_ticks = list(np.arange(0, seq_len, y_label_bin))
     pos_labels = list(np.arange(1, seq_len+1, y_label_bin))
 
-    ax0 = axs[0].bar(y_axis, gen_freq_1, color="red")
+    ax0 = axs[0].bar(y_axis, gen_freq_1, color="blue")
     axs[0].set_title("(A) {}-generated substitution frequency".format(gen_child_step_1))
     axs[0].set_ylabel("Total number of substitutions (normalized)")
     axs[0].set_xlabel("Spike protein genomic position (POS)")
@@ -587,7 +587,7 @@ def plot_pred_subs():
     #axs[0].grid(True)
     axs[0].set_xticklabels(pos_labels, rotation='vertical')
 
-    ax1 = axs[1].bar(y_axis, gen_freq_2, color="red")
+    ax1 = axs[1].bar(y_axis, gen_freq_2, color="blue")
     axs[1].set_title("(B) {}-generated substitution frequency".format(gen_child_step_2))
     axs[1].set_ylabel("Total number of substitutions (normalized)")
     axs[1].set_xlabel("Spike protein genomic position (POS)")
@@ -812,25 +812,25 @@ def loop_encode_predict_stateful(batch_size, input_tokens, gen_encoder, enc_unit
 if __name__ == "__main__":
     start_time = time.time()
     utils.create_dirs(data_path + "analysed_results/")
-    '''all_gen_paths = get_path_all_gen_files()
+    all_gen_paths = get_path_all_gen_files()
     print(all_gen_paths)
     
 
     tr_original_muts, tr_size = read_dataframe(train_file, "\t", ["X", "Y"], "train")
     te_original_muts, te_size = read_dataframe(test_file, "\t", ["X", "Y"], "test")
     gen_muts, gen_size = read_dataframe(all_gen_paths, ",", ["20A", "Generated"], "gen") #["20A", "Generated"] #["X", "Pred Y"]
-    plot_true_gen_dist(tr_original_muts, te_original_muts, gen_muts, tr_size, te_size, gen_size)
+    #plot_true_gen_dist(tr_original_muts, te_original_muts, gen_muts, tr_size, te_size, gen_size)
 
     plot_mut_freq(tr_size, te_size, gen_size)
     #plot_target_mut_freq(tr_size, te_size, gen_size)
-    plot_mut_freq_dist_parent_child_gen(tr_size, te_size, gen_size)
-    plot_mut_freq_dist_parent_child_gen_wu(tr_size, te_size, gen_size)
+    #plot_mut_freq_dist_parent_child_gen(tr_size, te_size, gen_size)
+    #plot_mut_freq_dist_parent_child_gen_wu(tr_size, te_size, gen_size)
     create_tabular_files()
     #plot_pred_subs()
     #extract_novel_pos_subs()
-    #create_fasta_file(all_gen_paths)'''
+    #create_fasta_file(all_gen_paths)
 
-    plot_embeddings()
+    #plot_embeddings()
     
     end_time = time.time()
     print("Program finished in {} seconds".format(str(np.round(end_time - start_time, 2))))
