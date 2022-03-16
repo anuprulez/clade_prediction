@@ -19,18 +19,18 @@ import utils
 
 #### Best results - 18_02_22_0, models from 16 - 20 #28_02_22_0
 
-RESULT_PATH = "test_results/18_02_22_0/" # 04_02_22_GPU # 04_02_22_local 28_02_22_0
+RESULT_PATH = "test_results/16_03_22_0/" # 04_02_22_GPU # 04_02_22_local 28_02_22_0
 
 s_kmer = 3
-#LEN_AA = 301 # It should be n - 1 (n == seq len while training)
-LEN_AA = 1273 # 1273 for considering entire seq length
+LEN_AA = 301 # It should be n - 1 (n == seq len while training)
+#LEN_AA = 1273 # 1273 for considering entire seq length
 len_aa_subseq = LEN_AA
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 1
 min_diff = 0
-max_diff = 11 #int(LEN_AA/5)
+max_diff = 32 #int(LEN_AA/5)
 train_size = 1.0
-enc_units = 256
+enc_units = 64
 random_size = 500
 
 no_models = 4
@@ -38,15 +38,15 @@ start_model_index = 2 # best results 16
 enc_stddev = 1.0
 dec_stddev = 0.0001
 start_token = 0
-size_stateful = 41
+size_stateful = 300
 batch_size = 4
 collection_start_month =  None
 
 model_type = "pre_train"
 FUTURE_GEN_TEST = "test/20A_20B.csv"
 
-clade_parent = "20B" # 20A
-clade_childen = ["20J (Gamma, V3)"]  #["20G", "20H (Beta)", "21C (Epsilon)", "21F (Iota)"] #["20D", "20F", "20I (Alpha, V1)", "20J (Gamma, V3)"]
+clade_parent = #"20A" # 20A
+clade_childen = ["20B"]  #["20G", "20H (Beta)", "21C (Epsilon)", "21F (Iota)"] #["20D", "20F", "20I (Alpha, V1)", "20J (Gamma, V3)"]
 
 
 generating_factor = 5

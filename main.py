@@ -75,13 +75,13 @@ LEN_AA = 302 # 1273 for considering entire seq length
 len_aa_subseq = LEN_AA
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 1 # write 2 here when there is padding of zero in in and out sequences
-size_stateful = 300 # 50 for 302
+size_stateful = LEN_AA - 2 #300 # 50 for 302
 # Neural network parameters
 embedding_dim = 128
-batch_size = 16
+batch_size = 8
 te_batch_size = batch_size
-n_te_batches = 10
-enc_units = 64 # 128 for 302
+n_te_batches = 20
+enc_units = 128 # 128 for 302
 pretrain_epochs = 20
 epochs = 1
 max_l_dist = 32
@@ -94,7 +94,8 @@ retrain_pretrain_start_index = 0
 gan_train = False
 start_token = 0
 
-pretr_lr = 0.01 #1e-2
+
+pretr_lr = 0.1 #1e-2
 parent_collection_start_month = "2020-01-20"
 stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/", "data/pretrain/", "data/validation/"]
 amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"
@@ -300,7 +301,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
         #pre_train_cluster_indices, pre_train_cluster_indices_dict = utils.find_cluster_indices(y_train, batch_size)
         pre_train_cluster_indices_dict = dict()
 
-        #mut_pattern, mut_pattern_dist, mut_pattern_dist_freq, mut_buckets = utils.create_mut_balanced_dataset(X_train, y_train, kmer_f_dict, len_final_aa_padding, batch_size)
+        mut_pattern, mut_pattern_dist, mut_pattern_dist_freq, mut_buckets = utils.create_mut_balanced_dataset(X_train, y_train, kmer_f_dict, len_final_aa_padding, batch_size)
 
         #sys.exit()
 

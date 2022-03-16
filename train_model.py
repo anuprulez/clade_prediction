@@ -157,13 +157,13 @@ def g_loop(seq_len, batch_size, vocab_size, enc_units, unrolled_x, unrolled_y, u
     return encoder, decoder, disc_par_enc, disc_gen_enc, discriminator, gen_true_loss, gen_fake_loss, total_gen_loss
 
 
-def sample_true_x_y(batch_size, X_train, y_train, mut_pattern_dist, mut_buckets):
-    '''rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)
+def sample_true_x_y(batch_size, X_train, y_train):
+    rand_batch_indices = np.random.randint(0, X_train.shape[0], batch_size)
     x_batch_train = X_train[rand_batch_indices]
     y_batch_train = y_train[rand_batch_indices]
     unrolled_x = utils.convert_to_array(x_batch_train)
     unrolled_y = utils.convert_to_array(y_batch_train)
-    cluster_keys = list(cluster_indices.keys())
+    '''cluster_keys = list(cluster_indices.keys())
     cluster_keys = list(np.unique(cluster_keys))
     random.shuffle(cluster_keys)
     if len(cluster_keys) >= batch_size:
@@ -174,7 +174,7 @@ def sample_true_x_y(batch_size, X_train, y_train, mut_pattern_dist, mut_buckets)
     print(rand_keys, "all keys: ", len(cluster_keys))'''
     #rand_keys = cluster_indices
     
-    rand_batch_indices = list()
+    '''rand_batch_indices = list()
     for key in mut_buckets:
         muts = mut_buckets[key]
         random.shuffle(muts)
@@ -192,7 +192,7 @@ def sample_true_x_y(batch_size, X_train, y_train, mut_pattern_dist, mut_buckets)
     x_batch_train = X_train[rand_batch_indices]
     y_batch_train = y_train[rand_batch_indices]
     unrolled_x = utils.convert_to_array(x_batch_train)
-    unrolled_y = utils.convert_to_array(y_batch_train)
+    unrolled_y = utils.convert_to_array(y_batch_train)'''
     
     return unrolled_x, unrolled_y
 
@@ -290,13 +290,14 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, updated_lr, e
   #curr_c_idx_re = np.tile(curr_c_idx, int((n_batches * batch_size) / float(n_clusters) + 1))
   #print(curr_c_idx_re, len(curr_c_idx_re))
 
-  #for step in range(n_batches):
-  for step, batch_x_y in enumerate(training_generator):
+  for step in range(n_batches):
+  #for step, batch_x_y in enumerate(training_generator):
       
       #updated_lr = utils.decayed_learning_rate(updated_lr, (epo_step + 1) * (step + 1))
       pretrain_generator_optimizer = tf.keras.optimizers.Adam(learning_rate=updated_lr)
+      unrolled_x, unrolled_y = sample_true_x_y(batch_size, X_train, y_train)
       #x_y = #training_generator[step] #sample_from_generator(batch_size, pre_train_cluster_indices, training_generator, scatter_df)
-      unrolled_x, unrolled_y = batch_x_y[0].numpy(), batch_x_y[1].numpy()
+      #unrolled_x, unrolled_y = batch_x_y[0].numpy(), batch_x_y[1].numpy()
       #print("batch size: {}".format(str(unrolled_x.shape[0])))
       if unrolled_x.shape[0] < batch_size:
           print("batch size malformed")
@@ -304,7 +305,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, updated_lr, e
       #sys.exit()
       #cluster_idx = curr_c_idx_re[cluster_ctr:cluster_ctr + batch_size]
       #print(cluster_idx)
-      #unrolled_x, unrolled_y = sample_true_x_y(batch_size, X_train, y_train, cluster_idx, cluster_indices)
+      
       #unrolled_x, unrolled_y = sample_true_x_y(batch_size, X_train, y_train, mut_pattern_dist, mut_buckets)
       #cluster_ctr += batch_size
       #unrolled_x, unrolled_y = sample_true_x_y_mut(batch_size, X_train, y_train, mut_pattern, mut_pattern_dist, mut_pattern_dist_freq)

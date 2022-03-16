@@ -47,8 +47,8 @@ cross_entropy_loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=F
 #mse = tf.keras.losses.MeanSquaredError()
 
 test_tf_ratio = 0.0
-enc_stddev = 1.0 #0.2
 max_norm = 50.0
+enc_stddev = 1.0
 dec_stddev = 0.0001
 beta = 0.9999
 amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"
@@ -524,7 +524,7 @@ def create_mut_balanced_dataset(X, Y, kmer_f_dict, seq_len, batch_size):
     for key in mut_pattern_dist:
         mut_pattern_dist_freq[key] = len(mut_pattern_dist[key])
     mut_pattern_dist_freq = {k: v for k, v in sorted(mut_pattern_dist_freq.items(), key=lambda item: item[1], reverse=True)}
-    
+
     '''key_encoded = list()
     label_encoded = list()
     label_ctr = 0
@@ -533,7 +533,7 @@ def create_mut_balanced_dataset(X, Y, kmer_f_dict, seq_len, batch_size):
         label_encoded.extend([label_ctr for i in range(mut_pattern_dist_freq[key])])    
         label_ctr += 1'''
 
-    bucket_size = 25 #int(seq_len / float(batch_size))
+    bucket_size = 30 #int(seq_len / float(batch_size))
     n_buckets = int(seq_len / float(bucket_size))
     mut_buckets = dict()
     for i in range(n_buckets):
@@ -550,13 +550,13 @@ def create_mut_balanced_dataset(X, Y, kmer_f_dict, seq_len, batch_size):
     print(mut_buckets)
     print()
     for key in mut_buckets:
-        print(key, len(mut_buckets[key]))
+        print(key, len(mut_buckets[key]), mut_buckets[key])
     save_as_json("data/generated_files/mut_pattern.json", mut_pattern)
     save_as_json("data/generated_files/mut_pattern_dist.json", mut_pattern_dist)
     save_as_json("data/generated_files/mut_pattern_dist_freq.json", mut_pattern_dist_freq)
     save_as_json("data/generated_files/mut_buckets.json", mut_buckets)
     return mut_pattern, mut_pattern_dist, mut_pattern_dist_freq, mut_buckets
-    
+
 
 def find_cluster_indices(output_seqs, batch_size, datatype="train_y"):
     ## Cluster the output set of sequences and chooose sequences randomly from each cluster
@@ -703,6 +703,7 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
         dec_state = tf.concat([enc_state_f, enc_state_b], -1)
         #print("Train enc norm before adding noise: ", dec_state[:, :5], tf.norm(dec_state))
         loss_enc_state_norm += tf.math.abs(max_norm - tf.norm(dec_state))
+        #if stateful_index == 0:
         dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
         #dec_state = tf.clip_by_norm(dec_state, clip_norm=max_norm)
         #print("Train enc norm after adding noise and clipping: ", dec_state[:, :5], tf.norm(dec_state))
@@ -812,10 +813,10 @@ def loop_encode_decode_predict_stateful(seq_len, batch_size, vocab_size, input_t
         s_batch = input_tokens[:, stateful_index*s_stateful: (stateful_index+1)*s_stateful]
         enc_output, enc_state_f, enc_state_b = gen_encoder([s_batch, enc_state_f, enc_state_b], training=train_test)
         dec_state = tf.concat([enc_state_f, enc_state_b], -1)
-        print("Test enc norm before adding noise: ", tf.norm(dec_state))
+        #print("Test enc norm before adding noise: ", tf.norm(dec_state))
         dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
         #dec_state = tf.clip_by_norm(dec_state, clip_norm=max_norm)
-        print("Test enc norm after adding noise and clipping: ", tf.norm(dec_state))
+        #print("Test enc norm after adding noise and clipping: ", tf.norm(dec_state))
         #print("Test enc norm after adding noise: ", tf.norm(dec_state))
         for t in range(s_batch.shape[1]):
             orig_t = stateful_index * s_stateful + t
