@@ -16,12 +16,13 @@ import bahdanauAttention
 
 GEN_ENC_WEIGHTS = "data/generated_files/generator_encoder_weights.h5"
 
-ENC_DROPOUT = 0.2
-ENC_RECURR_DROPOUT = 0.5
-DEC_DROPOUT = 0.2
+ENC_DROPOUT = 0.4
+ENC_RECURR_DROPOUT = 0.4
+DEC_DROPOUT = 0.4
+DEC_RECURR_DROPOUT = 0.4
 
 DISC_DROPOUT = 0.2
-DEC_RECURR_DROPOUT = 0.5
+
 RECURR_DROPOUT = 0.2
 LEAKY_ALPHA = 0.1
 
@@ -51,9 +52,12 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
                     stateful=True,
     				return_state=True))
 
+    enc_fc = tf.keras.layers.Dense(vocab_size, activation='softmax', kernel_regularizer="l2")
+
     enc_layernorm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
     enc_layernorm2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
     enc_layernorm3 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+    enc_layernorm4 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
 
     embed = gen_embedding(gen_inputs)
     embed = tf.keras.layers.SpatialDropout1D(ENC_DROPOUT)(embed)
@@ -66,11 +70,9 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
 
     enc_f = enc_layernorm2(enc_f)
     enc_b = enc_layernorm3(enc_b)
-
-    enc_fc = tf.keras.layers.Dense(vocab_size, activation='softmax',
-        kernel_regularizer="l2",
-    )
-
+    
+    enc_output = tf.keras.layers.Dropout(ENC_DROPOUT)(enc_output)
+    enc_output = enc_layernorm4(enc_output)
     enc_logits = enc_fc(enc_output)
 
     encoder_model = tf.keras.Model([gen_inputs, enc_i_state_f, enc_i_state_b], [enc_logits, enc_f, enc_b])

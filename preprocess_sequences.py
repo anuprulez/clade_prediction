@@ -91,7 +91,7 @@ def date_to_date(date):
     return datetime.datetime(int(date[0]), int(date[1]), int(date[2]))
 
 
-def filter_by_date(dataframe, clade_name, start_date=None, buffer_days=360):
+def filter_by_date(dataframe, clade_name, start_date=None, buffer_days=270):
     f_df = list()
     emer_dates = pd.read_csv(PATH_CLADE_EMERGENCE_DATES, sep="\t")
     clade_emer_date = emer_dates[emer_dates["Nextstrain_clade"] == clade_name]
@@ -153,8 +153,8 @@ def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, start_token
             print(out_clade_df)
             print(max_parent_range, max_parent_range.strftime("%Y-%m-%d"))
             print("Filtering by date...")
-            #out_clade_df, _ = filter_by_date(out_clade_df, out_clade, max_parent_range.strftime("%Y-%m-%d").split("-"))
-            out_clade_df, _ = filter_by_date(out_clade_df, out_clade, None) # "2020-2-14" Clade 20B start date
+            out_clade_df, _ = filter_by_date(out_clade_df, out_clade, max_parent_range.strftime("%Y-%m-%d").split("-"))
+            #out_clade_df, _ = filter_by_date(out_clade_df, out_clade, None) # "2020-2-14" Clade 20B start date
             
             print(out_clade_df)
             print("Normalizing by country...")

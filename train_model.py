@@ -268,7 +268,6 @@ def get_i_weights(rand_ids, inputs_tokens_weights):
     list_weights = list()
     for idx in rand_ids:
         list_weights.append(float(inputs_tokens_weights[idx]))
-    #print(list_weights)
     return np.array(list_weights)
     
 
@@ -303,7 +302,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, updated_lr, e
       unrolled_x, unrolled_y, sample_ids = sample_true_x_y(batch_size, X_train, y_train)
       #print(inputs_tokens_weights)
       i_weights = get_i_weights(sample_ids, inputs_tokens_weights)
-      print(i_weights)
+      #print(i_weights)
       #x_y = #training_generator[step] #sample_from_generator(batch_size, pre_train_cluster_indices, training_generator, scatter_df)
       #unrolled_x, unrolled_y = batch_x_y[0].numpy(), batch_x_y[1].numpy()
       #print("batch size: {}".format(str(unrolled_x.shape[0])))
