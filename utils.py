@@ -582,7 +582,7 @@ def find_cluster_indices(output_seqs, batch_size, datatype="train_y"):
     return cluster_labels, cluster_indices_dict, scatter_df
 
 
-def calculate_sample_weights(X_train, y_train, batch_size, pos_variations_count):
+def calculate_sample_weights(X_train, y_train, pos_variations_count):
     sample_wts = list()
     weights_dict = dict()
     beta = 0.9999
@@ -637,37 +637,28 @@ def calculate_sample_weights(X_train, y_train, batch_size, pos_variations_count)
     return train_data_generator
 
 
-def pairwise_dist(A, B):
-    # https://gist.github.com/mbsariyildiz/34cdc26afb630e8cae079048eef91865
-    # squared norms of each row in A and B
-    na = tf.reduce_sum(tf.square(A), 1)
-    nb = tf.reduce_sum(tf.square(B), 1)
-    # na as a row and nb as a co"lumn vectors
-    na = tf.reshape(na, [-1, 1])
-    nb = tf.reshape(nb, [1, -1])
-    # return pairwise euclidead difference matrix
-    D = na - 2*tf.matmul(A, B, False, True) + nb
-    
-    D_min = tf.math.reduce_min(D)
-    D_max = tf.math.reduce_max(D)
-
-    D = (D - D_min) / ((D_max - D_min) + 1e-10)
-    D = 1.0 - D
-    zeros = tf.fill([A.shape[0]], 0.0)
-    D = tf.linalg.set_diag(D, zeros)
-    D_mean = tf.math.abs(tf.reduce_mean(D))
-    D_norm = tf.math.abs(1.0 - tf.norm(D))
-
-    return D_mean, D_norm, D
-
-
-def get_pearson_coeff(enc_matr):
-    pearson_coeff = list()
-    for i, x in enumerate(enc_matr):
-        for j, y in enumerate(enc_matr):
-            pearson_coeff.append(pearsonr(x, y)[0])
-    return np.mean(np.array(pearson_coeff))
-
+def calculate_input_sample_weights(input_seq, x_pos_variations_count):
+    sample_wts = list()
+    weights_dict = dict()
+    beta = 0.9999
+    for seq_idx, seq in enumerate(input_seq):
+        seq_wt = 0.0
+        for t, pos in enumerate(seq.split(",")):
+            pos_freq = x_pos_variations_count[str(t)]
+            pos_freq = dict(pos_freq)
+            #if len(pos_freq) > 1:
+            for key in pos_freq:
+                all_freq_val = list(pos_freq.values())
+                fr = pos_freq[key]
+                if str(pos) == str(key) and fr < max(all_freq_val):
+                    pos_wt = (1 - beta) / (1 - beta ** fr) 
+                    seq_wt += pos_wt
+        sample_wts.append(seq_wt)
+        weights_dict[seq_idx] = str(seq_wt)
+    print(weights_dict)
+    save_as_json("data/generated_files/x_weights_dict.json", weights_dict)
+    return weights_dict
+   
 
 def create_dirs(folder_path):
     if not os.path.isdir(folder_path):
@@ -683,12 +674,13 @@ def stateful_encoding(size_stateful, inputs, enc, training=False):
     return enc_out, enc_state, enc
 
 
-def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful, mut_freq, pos_variations, pos_variations_count, batch_step):
+def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful, mut_freq, i_weights, y_pos_variations_count, batch_step):
+    #print("loop_encode_decode_stateful", i_weights)
     # TODO: Implement loss wrt to WU reference genome - crossentropy(Wu - true target) - crossentropy(Wu - generated target) == 0
     # TODO: Add sample weight based on entire sample, not just per POS. Sample weight for the entire seq
     # TODO: Collect sample weight based only on changing AAs POS and not stagnant AAs POS
-    loss = tf.constant(0.0)
-    true_loss = tf.constant(0.0)
+    dec_loss = tf.constant(0.0)
+    dec_true_loss = tf.constant(0.0)
     global_logits = list()
     # reset state after each batch training
     enc_state_f = tf.zeros((batch_size, enc_units))
@@ -700,6 +692,8 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
     for stateful_index in range(n_stateful_batches):
         s_batch = input_tokens[:, stateful_index*s_stateful: (stateful_index+1)*s_stateful]
         enc_output, enc_state_f, enc_state_b = gen_encoder([s_batch, enc_state_f, enc_state_b], training=True)
+        print(input_tokens.shape, enc_output.shape)
+        enc_loss = tf.reduce_mean(cross_entropy_loss(input_tokens, enc_output, sample_weight=i_weights))
         dec_state = tf.concat([enc_state_f, enc_state_b], -1)
         #print("Train enc norm before adding noise: ", dec_state[:, :5], tf.norm(dec_state))
         loss_enc_state_norm += tf.math.abs(max_norm - tf.norm(dec_state))
@@ -722,9 +716,10 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
             orig_t = stateful_index * s_stateful + t
             if len(output_tokens) > 0:
                 o_tokens = output_tokens[:, orig_t:orig_t+1]
+                unique_cls = np.array(list(y_pos_variations_count[str(orig_t)].keys()))
                 # collect different variations at each POS
-                u_var_distribution = np.array(list(pos_variations_count[str(orig_t)].values()))
-                unique_cls = np.array(list(pos_variations_count[str(orig_t)].keys()))
+                '''u_var_distribution = np.array(list(y_pos_variations_count[str(orig_t)].values()))
+                unique_cls = np.array(list(y_pos_variations_count[str(orig_t)].keys()))
                 all_cls = tf.repeat(unique_cls, repeats=u_var_distribution).numpy()
                 random.shuffle(all_cls)
                 y = all_cls
@@ -739,20 +734,21 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
                 #print(u_var_distribution)
                 #print(pos_variations_count[str(orig_t)])
                 #print()
-                #print(class_wt)
+                #print(class_wt)'''
 
-                class_var_pos = dict()
-                norm_class_var_pos = dict()
+                #class_var_pos = dict()
+                #norm_class_var_pos = dict()
                 exp_class_var_pos = dict()
-                real_class_wts = list()
+                exp_norm_u_var_distribution = np.zeros((batch_size))
+                #real_class_wts = list()
                 for k_i, key in enumerate(unique_cls):
                     # loss input taken from paper: https://arxiv.org/pdf/1901.05555.pdf
-                    class_var_pos[key] = class_wt[k_i] #/ float(s_wts)
-                    norm_class_var_pos[key] = class_wt[k_i] / float(s_wts)
-                    exp_class_var_pos[key] = (1 - beta) / (1 - beta ** pos_variations_count[str(orig_t)][key])
-                    real_class_wts.append(exp_class_var_pos[key])
+                    #class_var_pos[key] = class_wt[k_i] #/ float(s_wts)
+                    #norm_class_var_pos[key] = class_wt[k_i] / float(s_wts)
+                    exp_class_var_pos[key] = (1 - beta) / (1 - beta ** y_pos_variations_count[str(orig_t)][key])
+                    #real_class_wts.append(exp_class_var_pos[key])
 
-                exp_norm_u_var_distribution = np.zeros((batch_size))
+                
                 #uniform_wts = np.zeros((batch_size))
 
                 for pos_idx, pos in enumerate(np.reshape(o_tokens, (batch_size,))):
@@ -778,9 +774,9 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
                 #weighted_loss = sparse_categorical_focal_loss(o_tokens, dec_result, gamma=5)
                 #weighted_loss *= exp_norm_u_var_distribution
                 #weighted_loss = tf.reduce_mean(weighted_loss)
-                true_loss += tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
+                dec_true_loss += tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
                 step_loss = weighted_loss
-                loss += step_loss
+                dec_loss += step_loss
                 global_logits.append(dec_result)
 
             '''if t in list(range(free_run_s_index, free_run_s_index + free_run_loops)):
@@ -795,9 +791,10 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
     loss_dec_loop_norm = loss_dec_loop_norm / seq_len
     loss_enc_state_norm = loss_enc_state_norm / n_stateful_batches
     #loss = loss / seq_len
-    #true_loss = true_loss / seq_len
-    total_loss = loss #+ loss_dec_loop_norm + loss_enc_state_norm
-    print("True loss: {}, Weighted loss: {}".format(str(true_loss.numpy()), str(total_loss.numpy())))
+    #dec_true_loss = dec_true_loss / seq_len
+    total_loss = enc_loss + dec_loss #+ loss_dec_loop_norm + loss_enc_state_norm
+    #total_loss = dec_loss
+    print("True loss: {}, Enc loss: {}, Weighted dec loss: {}".format(str(dec_true_loss.numpy()), str(enc_loss.numpy()), str(dec_loss.numpy())))
     #print("Losses: (total, true, enc norm, dec norm)", total_loss.numpy(), loss.numpy(), loss_enc_state_norm.numpy(), loss_dec_loop_norm.numpy())
     return global_logits, gen_encoder, gen_decoder, total_loss
 
@@ -973,6 +970,115 @@ def generated_output_seqs(seq_len, batch_size, vocab_size, gen_decoder, dec_stat
     return pred_logits, gen_decoder, step_loss
 
 
+def save_batch(batch_x, batch_y, batch_mut_distribution):
+    for index, (x, y) in enumerate(zip(batch_x, batch_y)):
+        true_x = x.split(",")
+        true_y = y.split(",")
+        for i in range(len(true_x)):
+            first = true_x[i:i+1]
+            sec = true_y[i:i+1]
+            first_mut = first[0]
+            second_mut = sec[0]
+            if first_mut != second_mut:
+                key = "{}>{}".format(first_mut, second_mut)
+                if key not in batch_mut_distribution:
+                    batch_mut_distribution[key] = 0
+                batch_mut_distribution[key] += 1
+    return batch_mut_distribution
+
+
+def get_mutation_tr_indices(seq, kmer_f_dict, kmer_r_dict, f_dict, r_dict, type_seq="x"):
+    parent_child_mut_indices = dict()
+    parent_child_pos_vars=dict()
+    parent_child_pos_vars_count=dict()
+    for index, y in enumerate(seq):
+        true_y = y.split(",")
+        re_true_y = true_y
+        for i in range(len(true_y)):
+            sec = re_true_y[i:i+1][0]
+            key = "{}>{}".format((i+1), sec)
+            if key not in parent_child_mut_indices:
+                parent_child_mut_indices[key] = list()
+            parent_child_mut_indices[key].append(index)
+
+            key_pos_var = "{}".format(str(i))
+            if key_pos_var not in parent_child_pos_vars:
+                parent_child_pos_vars[key_pos_var] = list()
+                parent_child_pos_vars_count[key_pos_var] = dict()
+
+            if int(sec) not in parent_child_pos_vars[key_pos_var]:
+                parent_child_pos_vars[key_pos_var].append(int(sec))
+
+            if int(sec) not in parent_child_pos_vars_count[key_pos_var]:
+                parent_child_pos_vars_count[key_pos_var][int(sec)] = 0
+            parent_child_pos_vars_count[key_pos_var][int(sec)] += 1
+    save_as_json("data/generated_files/{}_parent_child_pos_vars_{}.txt".format(type_seq, str(np.random.randint(0, 1e10, 1)[0])), parent_child_pos_vars)
+    save_as_json("data/generated_files/{}_parent_child_pos_vars_count_{}.txt".format(type_seq, str(np.random.randint(0, 1e10, 1)[0])), parent_child_pos_vars_count)
+    return parent_child_mut_indices, parent_child_pos_vars, parent_child_pos_vars_count
+
+
+'''def get_mutation_tr_indices(train_in, train_out, kmer_f_dict, kmer_r_dict, f_dict, r_dict, parent_child_pos_vars=dict(), parent_child_pos_vars_count=dict()):
+    parent_child_mut_indices = dict()
+    for index, (x, y) in enumerate(zip(train_in, train_out)):
+        true_x = x.split(",")
+        true_y = y.split(",")
+        re_true_x = true_x
+        re_true_y = true_y
+        for i in range(len(true_x)):
+            first = re_true_x[i:i+1][0]
+            sec = re_true_y[i:i+1][0]
+            if first != sec:
+                key = "{}>{}>{}".format(first, (i+1), sec)
+                if key not in parent_child_mut_indices:
+                    parent_child_mut_indices[key] = list()
+                parent_child_mut_indices[key].append(index)
+            key_pos_var = "{}".format(str(i))
+            if key_pos_var not in parent_child_pos_vars:
+                parent_child_pos_vars[key_pos_var] = list()
+                parent_child_pos_vars_count[key_pos_var] = dict()
+
+            if int(sec) not in parent_child_pos_vars[key_pos_var]:
+                parent_child_pos_vars[key_pos_var].append(int(sec))
+
+            if int(sec) not in parent_child_pos_vars_count[key_pos_var]:
+                parent_child_pos_vars_count[key_pos_var][int(sec)] = 0
+            parent_child_pos_vars_count[key_pos_var][int(sec)] += 1
+    save_as_json("data/generated_files/parent_child_pos_vars_{}.txt".format(str(np.random.randint(0, 1e10, 1)[0])), parent_child_pos_vars)
+    save_as_json("data/generated_files/parent_child_pos_vars_count_{}.txt".format(str(np.random.randint(0, 1e10, 1)[0])), parent_child_pos_vars_count)
+    return parent_child_mut_indices, parent_child_pos_vars, parent_child_pos_vars_count
+
+def pairwise_dist(A, B):
+    # https://gist.github.com/mbsariyildiz/34cdc26afb630e8cae079048eef91865
+    # squared norms of each row in A and B
+    na = tf.reduce_sum(tf.square(A), 1)
+    nb = tf.reduce_sum(tf.square(B), 1)
+    # na as a row and nb as a co"lumn vectors
+    na = tf.reshape(na, [-1, 1])
+    nb = tf.reshape(nb, [1, -1])
+    # return pairwise euclidead difference matrix
+    D = na - 2*tf.matmul(A, B, False, True) + nb
+    
+    D_min = tf.math.reduce_min(D)
+    D_max = tf.math.reduce_max(D)
+
+    D = (D - D_min) / ((D_max - D_min) + 1e-10)
+    D = 1.0 - D
+    zeros = tf.fill([A.shape[0]], 0.0)
+    D = tf.linalg.set_diag(D, zeros)
+    D_mean = tf.math.abs(tf.reduce_mean(D))
+    D_norm = tf.math.abs(1.0 - tf.norm(D))
+
+    return D_mean, D_norm, D
+
+
+def get_pearson_coeff(enc_matr):
+    pearson_coeff = list()
+    for i, x in enumerate(enc_matr):
+        for j, y in enumerate(enc_matr):
+            pearson_coeff.append(pearsonr(x, y)[0])
+    return np.mean(np.array(pearson_coeff))
+
+
 def balance_train_dataset_by_levenshtein_dist(x, y, x_y_l):
     lst_x = x
     lst_y = y
@@ -1008,50 +1114,4 @@ def balance_train_dataset_by_levenshtein_dist(x, y, x_y_l):
     bal_y_bs = tf.convert_to_tensor(bal_y_bs, dtype=tf.int32)
     return bal_x_bs, bal_y_bs
 
-
-def save_batch(batch_x, batch_y, batch_mut_distribution):
-    for index, (x, y) in enumerate(zip(batch_x, batch_y)):
-        true_x = x.split(",")
-        true_y = y.split(",")
-        for i in range(len(true_x)):
-            first = true_x[i:i+1]
-            sec = true_y[i:i+1]
-            first_mut = first[0]
-            second_mut = sec[0]
-            if first_mut != second_mut:
-                key = "{}>{}".format(first_mut, second_mut)
-                if key not in batch_mut_distribution:
-                    batch_mut_distribution[key] = 0
-                batch_mut_distribution[key] += 1
-    return batch_mut_distribution
-
-
-def get_mutation_tr_indices(train_in, train_out, kmer_f_dict, kmer_r_dict, f_dict, r_dict, parent_child_pos_vars=dict(), parent_child_pos_vars_count=dict()):
-    parent_child_mut_indices = dict()
-    for index, (x, y) in enumerate(zip(train_in, train_out)):
-        true_x = x.split(",")
-        true_y = y.split(",")
-        re_true_x = true_x
-        re_true_y = true_y
-        for i in range(len(true_x)):
-            first = re_true_x[i:i+1][0]
-            sec = re_true_y[i:i+1][0]
-            if first != sec:
-                key = "{}>{}>{}".format(first, (i+1), sec)
-                if key not in parent_child_mut_indices:
-                    parent_child_mut_indices[key] = list()
-                parent_child_mut_indices[key].append(index)
-            key_pos_var = "{}".format(str(i))
-            if key_pos_var not in parent_child_pos_vars:
-                parent_child_pos_vars[key_pos_var] = list()
-                parent_child_pos_vars_count[key_pos_var] = dict()
-
-            if int(sec) not in parent_child_pos_vars[key_pos_var]:
-                parent_child_pos_vars[key_pos_var].append(int(sec))
-
-            if int(sec) not in parent_child_pos_vars_count[key_pos_var]:
-                parent_child_pos_vars_count[key_pos_var][int(sec)] = 0
-            parent_child_pos_vars_count[key_pos_var][int(sec)] += 1
-    save_as_json("data/generated_files/parent_child_pos_vars_{}.txt".format(str(np.random.randint(0, 1e10, 1)[0])), parent_child_pos_vars)
-    save_as_json("data/generated_files/parent_child_pos_vars_count_{}.txt".format(str(np.random.randint(0, 1e10, 1)[0])), parent_child_pos_vars_count)
-    return parent_child_mut_indices, parent_child_pos_vars, parent_child_pos_vars_count
+'''
