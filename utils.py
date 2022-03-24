@@ -22,12 +22,12 @@ from sklearn.cluster import KMeans
 from sklearn import metrics
 from Levenshtein import distance as lev_dist
 from focal_loss import sparse_categorical_focal_loss
-from imblearn.under_sampling import RandomUnderSampler
-from imblearn.over_sampling import RandomOverSampler
-from imblearn.tensorflow import balanced_batch_generator
+#from imblearn.under_sampling import RandomUnderSampler
+#from imblearn.over_sampling import RandomOverSampler
+#from imblearn.tensorflow import balanced_batch_generator
 import matplotlib.pyplot as plt
-import torch
-from torch.utils.data import WeightedRandomSampler
+#import torch
+#from torch.utils.data import WeightedRandomSampler
 
 from focal_loss import SparseCategoricalFocalLoss
 tf.keras.metrics.SparseTopKCategoricalAccuracy(k=1)
