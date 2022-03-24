@@ -71,34 +71,33 @@ enc_units = 128
 '''
 
 s_kmer = 3
-LEN_AA = 52 # 1273 for considering entire seq length
+LEN_AA = 302 # 1273 for considering entire seq length
 len_aa_subseq = LEN_AA
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 1 # write 2 here when there is padding of zero in in and out sequences
-size_stateful = 50 # 50 for 302
+size_stateful = 50 #LEN_AA - 2 #300 # 50 for 302
 # Neural network parameters
 embedding_dim = 128
 batch_size = 8
 te_batch_size = batch_size
 n_te_batches = 20
 enc_units = 64 # 128 for 302
-pretrain_epochs = 20
+pretrain_epochs = 2
 epochs = 1
-max_l_dist = 11
+max_l_dist = 32
 test_train_size = 0.8
-pretrain_train_size = 0.01 # all dataset as pretrain and not as test
-random_clade_size = 500
+#pretrain_train_size = 0.01 # all dataset as pretrain and not as test
+random_clade_size = 20
 to_pretrain = True
 pretrained_model = False
 retrain_pretrain_start_index = 0
 gan_train = False
 start_token = 0
 
-pretr_lr = 1e-2
-generator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) # learning_rate=1e-3, beta_1=0.5
-discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=3e-5) # learning_rate=3e-5, beta_1=0.5
+
+pretr_lr = 0.01 #1e-2
 parent_collection_start_month = "2020-01-20"
-stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/", "data/pretrain/"]
+stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/", "data/pretrain/", "data/validation/"]
 amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"
 
 
@@ -157,29 +156,28 @@ def read_files():
             encoder = tf.keras.models.load_model(enc_path)
             decoder = tf.keras.models.load_model(dec_path)
 
-    
     start_training(forward_dict, rev_dict, encoder, decoder)
 
 
 def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
-    pos_variations = dict()
-    pos_variations_count = dict()
+    #pos_variations = dict()
+    #pos_variations_count = dict()
     start_time = time.time()
     print("Loading datasets...")
-    pretr_clade_files = glob.glob('data/pretrain/*.csv')
+    #pretr_clade_files = glob.glob('data/pretrain/*.csv')
     tr_clade_files = glob.glob('data/train/*.csv')
     te_clade_files = glob.glob('data/test/*.csv')
     
     pretr_combined_X = list()
     pretr_combined_y = list()
 
-    print("Loading pre-training datasets...")
+    '''print("Loading pre-training datasets...")
     for name in pretr_clade_files:
         pretr_clade_df = pd.read_csv(name, sep="\t")
         pretr_X = pretr_clade_df["X"].tolist()
         pretr_y = pretr_clade_df["Y"].tolist()
         pretr_combined_X.extend(pretr_X)
-        pretr_combined_y.extend(pretr_y)
+        pretr_combined_y.extend(pretr_y)'''
 
     combined_X = list()
     combined_y = list()
@@ -248,9 +246,9 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
         encoder = gen_encoder
         decoder = gen_decoder
 
-    print(len(pretr_combined_X))
+    #print(len(pretr_combined_X))
 
-    if len(pretr_combined_X) == 0:
+    '''if len(pretr_combined_X) == 0:
         X_pretrain, X_train, y_pretrain, y_train  = train_test_split(combined_X, combined_y, test_size=pretrain_train_size)
         X_pretrain = np.array(X_pretrain)
         y_pretrain = np.array(y_pretrain)
@@ -260,12 +258,12 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
         # save update train dataset
         df_train = pd.DataFrame(list(zip(X_train, y_train)), columns=["X", "Y"])
         df_train.to_csv(tr_clade_files[0], sep="\t", index=None)
-    else: 
-        X_pretrain = np.array(pretr_combined_X)
-        y_pretrain = np.array(pretr_combined_y)
+    else: '''
+    #X_pretrain = np.array(pretr_combined_X)
+    #y_pretrain = np.array(pretr_combined_y)
 
-    print("Pretrain data sizes")
-    print(X_pretrain.shape, y_pretrain.shape)
+    #print("Pretrain data sizes")
+    #print(X_pretrain.shape, y_pretrain.shape)
 
     # divide into pretrain and train
     print("Train data sizes")
@@ -273,12 +271,9 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     X_train = np.array(X_train)
     y_train = np.array(y_train)
 
-    #sys.exit()
-    #train_cluster_indices, train_cluster_indices_dict = utils.find_cluster_indices(y_train, batch_size)
-
     # pretrain generator
     if to_pretrain is True:
-        
+
         utils.create_dirs("data/generated_files/pre_train")
         pretrain_gen_train_loss = list()
         pretrain_gen_test_loss = list()
@@ -289,22 +284,47 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
         pretrain_gen_batch_test_seq_var = list()
 
         print("Pretraining generator...")
-        pre_train_cluster_indices, pre_train_cluster_indices_dict = utils.find_cluster_indices(y_pretrain, batch_size)
+
         # balance tr data by mutations
-        pretr_parent_child_mut_indices, pos_variations, pos_variations_count = utils.get_mutation_tr_indices(X_pretrain, y_pretrain, kmer_f_dict, kmer_r_dict, forward_dict, rev_dict, pos_variations, pos_variations_count)
-        print(pos_variations)
+        x_pretr_parent_child_mut_indices, x_pos_variations, x_pos_variations_count = utils.get_mutation_tr_indices(X_train, kmer_f_dict, kmer_r_dict, forward_dict, rev_dict, "x")
+        print(x_pos_variations)
         print()
-        print(pos_variations_count)
-        #pre_train_cluster_indices_dict = dict()
-        utils.save_as_json(PRETR_MUT_INDICES, pretr_parent_child_mut_indices)
+        print(x_pos_variations_count)
+
+        y_pretr_parent_child_mut_indices, y_pos_variations, y_pos_variations_count = utils.get_mutation_tr_indices(y_train, kmer_f_dict, kmer_r_dict, forward_dict, rev_dict, "y")
+        print(y_pos_variations)
+        print()
+        print(y_pos_variations_count)
+
+        #sys.exit()
+
+        #print("Creating training data generator balanced by sample weights...")
+        #pre_train_cluster_indices, pre_train_cluster_indices_dict, scatter_df = utils.find_cluster_indices(y_train, batch_size)
+
+        print()
+        print("Creating training data generator balanced by sample weights...")
+        #training_generator = utils.calculate_sample_weights(y_train, batch_size, pos_variations_count)
+
+        inputs_tokens_weights = utils.calculate_input_sample_weights(X_train, x_pos_variations_count)
+
+        #pre_train_cluster_indices, pre_train_cluster_indices_dict = utils.find_cluster_indices(y_train, batch_size)
+        pre_train_cluster_indices_dict = dict()
+
+        mut_pattern, mut_pattern_dist, mut_pattern_dist_freq, mut_buckets = utils.create_mut_balanced_dataset(X_train, y_train, kmer_f_dict, len_final_aa_padding, batch_size)
+
+        #sys.exit()
+
+        #utils.save_as_json(PRETR_MUT_INDICES, pretr_parent_child_mut_indices)
+        utils.save_as_json(PRETR_MUT_INDICES, y_pretr_parent_child_mut_indices)
+        #utils.save_as_json(PRETR_MUT_INDICES, pretr_parent_child_mut_indices)
         # get pretraining dataset as sliced tensors
-        n_pretrain_batches = int(X_pretrain.shape[0]/float(batch_size))
+        n_pretrain_batches = int(X_train.shape[0]/float(batch_size))
         print("Num of pretrain batches: {}".format(str(n_pretrain_batches)))
         #updated_lr = pretr_lr
         for i in range(retrain_pretrain_start_index, pretrain_epochs):
             #pretrain_generator_optimizer = tf.keras.optimizers.Adam(learning_rate=pretr_lr)
             print("Pre training epoch {}/{}...".format(str(i+1), str(pretrain_epochs)))
-            pretrain_gen_tr_loss, bat_te_gen_loss, bat_te_seq_var, bat_tr_seq_var, encoder, decoder, _ = train_model.pretrain_generator([X_pretrain, y_pretrain, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches], i, encoder, decoder, pretr_lr, enc_units, vocab_size, n_pretrain_batches, batch_size, pretr_parent_child_mut_indices, pretrain_epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, pos_variations, pos_variations_count, pre_train_cluster_indices_dict)
+            pretrain_gen_tr_loss, bat_te_gen_loss, bat_te_seq_var, bat_tr_seq_var, encoder, decoder, _ = train_model.pretrain_generator([X_train, y_train, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches], i, encoder, decoder, pretr_lr, enc_units, vocab_size, n_pretrain_batches, batch_size, pretrain_epochs, size_stateful, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict, y_pos_variations_count, inputs_tokens_weights)
             print("Pre training loss at epoch {}/{}: Generator loss: {}, variation score: {}".format(str(i+1), str(pretrain_epochs), str(pretrain_gen_tr_loss), str(np.mean(bat_tr_seq_var))))
             pretrain_gen_train_loss.append(pretrain_gen_tr_loss)
             pretrain_gen_batch_test_loss.append(bat_te_gen_loss)
@@ -338,6 +358,7 @@ def start_training(forward_dict, rev_dict, gen_encoder=None, gen_decoder=None):
     # create discriminator model
 
     utils.create_dirs("data/generated_files/gan_train")
+    train_cluster_indices, train_cluster_indices_dict = utils.find_cluster_indices(y_train, batch_size)
     disc_parent_encoder_model, disc_gen_encoder_model = neural_network.make_disc_par_gen_model(len_final_aa_padding, vocab_size, embedding_dim, enc_units, batch_size, size_stateful)
 
     discriminator = neural_network.make_discriminator_model(enc_units)

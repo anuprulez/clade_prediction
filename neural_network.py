@@ -15,11 +15,19 @@ import bahdanauAttention
 
 
 GEN_ENC_WEIGHTS = "data/generated_files/generator_encoder_weights.h5"
-ENC_DROPOUT = 0.2
-DEC_DROPOUT = 0.2
+
+ENC_DROPOUT = 0.4
+ENC_RECURR_DROPOUT = 0.4
+DEC_DROPOUT = 0.4
+DEC_RECURR_DROPOUT = 0.4
+
 DISC_DROPOUT = 0.2
+
 RECURR_DROPOUT = 0.2
 LEAKY_ALPHA = 0.1
+
+
+### Layer norm: https://www.tensorflow.org/text/tutorials/transformer
 
 
 def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_size, s_stateful):
@@ -37,14 +45,37 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
                     recurrent_regularizer="l2",
                     recurrent_initializer='glorot_normal',
                     kernel_initializer="glorot_normal",
+                    recurrent_dropout=ENC_RECURR_DROPOUT,
+                    #activation="relu",
+                    #recurrent_activation="relu",
     				return_sequences=True,
                     stateful=True,
     				return_state=True))
 
+    enc_fc = tf.keras.layers.Dense(vocab_size, activation='softmax', kernel_regularizer="l2")
+
+    enc_layernorm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+    enc_layernorm2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+    enc_layernorm3 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+    enc_layernorm4 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+
     embed = gen_embedding(gen_inputs)
     embed = tf.keras.layers.SpatialDropout1D(ENC_DROPOUT)(embed)
+    embed = enc_layernorm1(embed)
+
     enc_output, enc_f, enc_b = gen_gru(embed, initial_state=[enc_i_state_f, enc_i_state_b])
-    encoder_model = tf.keras.Model([gen_inputs, enc_i_state_f, enc_i_state_b], [enc_output, enc_f, enc_b])
+
+    enc_f = tf.keras.layers.Dropout(ENC_DROPOUT)(enc_f)
+    enc_b = tf.keras.layers.Dropout(ENC_DROPOUT)(enc_b)
+
+    enc_f = enc_layernorm2(enc_f)
+    enc_b = enc_layernorm3(enc_b)
+    
+    enc_output = tf.keras.layers.Dropout(ENC_DROPOUT)(enc_output)
+    enc_output = enc_layernorm4(enc_output)
+    enc_logits = enc_fc(enc_output)
+
+    encoder_model = tf.keras.Model([gen_inputs, enc_i_state_f, enc_i_state_b], [enc_logits, enc_f, enc_b])
 
     # Create decoder for Generator
     dec_input_state = tf.keras.Input(shape=(2 * enc_units,))
@@ -59,6 +90,9 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
                                    recurrent_regularizer="l2",
                                    recurrent_initializer='glorot_normal',
                                    kernel_initializer="glorot_normal",
+                                   recurrent_dropout=DEC_RECURR_DROPOUT,
+                                   #activation="relu",
+                                   #recurrent_activation="relu",
                                    return_sequences=True,
                                    return_state=True)
 
@@ -70,13 +104,31 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
         kernel_regularizer="l2",
     )
 
+
+    dec_layernorm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+    dec_layernorm2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+    dec_layernorm3 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+
     vectors = dec_embedding(new_tokens)
     vectors = tf.keras.layers.SpatialDropout1D(DEC_DROPOUT)(vectors)
+    vectors = dec_layernorm1(vectors)
+
     rnn_output, dec_state = dec_gru(vectors, initial_state=dec_input_state)
+
     rnn_output = tf.keras.layers.Dropout(DEC_DROPOUT)(rnn_output)
-    rnn_output = dec_dense(rnn_output)
-    rnn_output = tf.keras.layers.Dropout(DEC_DROPOUT)(rnn_output)
+    rnn_output = dec_layernorm2(rnn_output)
+
+    dec_state = dec_layernorm3(dec_state)
+
+    #rnn_output = dec_dense(rnn_output)
+
+    #rnn_output = tf.keras.layers.Dropout(DEC_DROPOUT)(rnn_output)
+    #rnn_output = tf.keras.layers.BatchNormalization()(rnn_output)
+
     logits = dec_fc(rnn_output)
+    #logits = tf.keras.layers.Dropout(DEC_DROPOUT)(logits)
+    #logits = dec_layernorm3(logits)
+
     decoder_model = tf.keras.Model([new_tokens, dec_input_state], [logits, dec_state])
     encoder_model.save_weights(GEN_ENC_WEIGHTS)
     return encoder_model, decoder_model
@@ -84,7 +136,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
 
 def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units, batch_size, s_stateful):
     # parent seq encoder model
-    parent_inputs = tf.keras.Input(shape=(seq_len,)) #batch_size, s_stateful
+    parent_inputs = tf.keras.Input(batch_shape=(batch_size, s_stateful)) #batch_size, s_stateful
     enc_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim, embeddings_regularizer="l1_l2")
 
     par_gen_enc_GRU = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(enc_units,
@@ -93,7 +145,7 @@ def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units, batch
                     recurrent_initializer='glorot_normal',
                     kernel_initializer="glorot_normal",
     				return_sequences=True,
-                    #stateful=True,
+                    stateful=True,
     				return_state=True))
 
     parent_inputs_embedding = enc_embedding(parent_inputs)
@@ -103,7 +155,7 @@ def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units, batch
     disc_par_encoder_model = tf.keras.Model([parent_inputs], [enc_out, state_f, state_b])
 
     # generated seq encoder model
-    gen_inputs = tf.keras.Input(shape=(None, vocab_size))
+    gen_inputs = tf.keras.Input(batch_shape=(batch_size, s_stateful, vocab_size)) # shape=None, vocab_size
     gen_enc_inputs = tf.keras.layers.Dense(embedding_dim, use_bias=False, activation="linear")(gen_inputs)
     gen_enc_inputs = tf.keras.layers.Dropout(ENC_DROPOUT)(gen_enc_inputs)
     gen_enc_GRU = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(enc_units,
@@ -112,7 +164,7 @@ def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units, batch
                     recurrent_initializer='glorot_normal',
                     kernel_initializer="glorot_normal",
     				return_sequences=True,
-                    #stateful=True,
+                    stateful=True,
     				return_state=True))
 
     gen_bi_output, gen_state_f, gen_state_b = gen_enc_GRU(gen_enc_inputs)

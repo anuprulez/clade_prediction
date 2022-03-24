@@ -91,7 +91,7 @@ def date_to_date(date):
     return datetime.datetime(int(date[0]), int(date[1]), int(date[2]))
 
 
-def filter_by_date(dataframe, clade_name, start_date=None, buffer_days=180):
+def filter_by_date(dataframe, clade_name, start_date=None, buffer_days=270):
     f_df = list()
     emer_dates = pd.read_csv(PATH_CLADE_EMERGENCE_DATES, sep="\t")
     clade_emer_date = emer_dates[emer_dates["Nextstrain_clade"] == clade_name]
@@ -131,72 +131,46 @@ def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, start_token
         print("Filtering by date...")
         in_clade_df, max_parent_range = filter_by_date(in_clade_df, in_clade, None)
         print(in_clade_df)
-        print("Remove duplicate sequences...")
-        in_clade_df = in_clade_df.drop_duplicates(subset=['Sequence'])
-        print(in_clade_df)
         print("Normalizing by country...")
         in_clade_df = filter_by_country(in_clade_df)
         print(in_clade_df)
-        try:
-            in_clade_df = in_clade_df.sample(n=random_size, replace=False)
-        except:
-            in_clade_df = in_clade_df.sample(n=random_size, replace=True)
-        print(in_clade_df.groupby(['Country']).count())
+        print("Remove duplicate sequences...")
+        in_clade_df = in_clade_df.drop_duplicates(subset=['Sequence'])
+        print(in_clade_df)
         in_len = len(in_clade_df.index)
+        if random_size <= in_len:
+            in_clade_df = in_clade_df.sample(n=random_size, replace=False).reset_index(drop=True)
+        print(in_clade_df.groupby(['Country']).count())
         print("Size of clade {}: {}".format(in_clade, str(in_len)))
-        in_clade_df.to_csv("data/generated_files/in_clade_df.csv")
-        in_clade_seq = in_clade_df["Sequence"]
-        u_in_clade = in_clade_seq.drop_duplicates()
-        # divide into train and test
-        
-        #train_x = train_x.tolist()
-        #test_x = test_x.tolist()
+        in_clade_df.to_csv("data/generated_files/in_clade_df_{}.csv".format(in_clade))
 
-        u_in_clade = u_in_clade.tolist()
-        print("Unique in clade size: ", len(u_in_clade))
-        print(clade_in_clade_out[in_clade])
         out_clades = clade_in_clade_out[in_clade]
         for out_clade in out_clades:
             if not out_clade in all_clades:
                 print("{} not present in dataframe".format(out_clade))
                 continue
-            '''if unrelated is False:
-                te_filename = "data/test/{}_{}.csv".format(in_clade, out_clade)
-                tr_filename = "data/train/{}_{}.csv".format(in_clade, out_clade)
-            else:
-               te_filename = "data/te_unrelated/{}_{}.csv".format(in_clade, out_clade)
-               tr_filename = "data/tr_unrelated/{}_{}.csv".format(in_clade, out_clade)'''
             out_clade_df = dataframe[dataframe["Clade"].replace("/", "_") == out_clade]
             print(out_clade_df)
             print(max_parent_range, max_parent_range.strftime("%Y-%m-%d"))
             print("Filtering by date...")
             out_clade_df, _ = filter_by_date(out_clade_df, out_clade, max_parent_range.strftime("%Y-%m-%d").split("-"))
-            print(out_clade_df)
-            print("Remove duplicate sequences...")
-            out_clade_df = out_clade_df.drop_duplicates(subset=['Sequence'])
+            #out_clade_df, _ = filter_by_date(out_clade_df, out_clade, None) # "2020-2-14" Clade 20B start date
+            
             print(out_clade_df)
             print("Normalizing by country...")
             out_clade_df = filter_by_country(out_clade_df)
-            out_clade_df.to_csv("data/generated_files/out_clade_df.csv")
-            
-            try:
-                out_clade_df = out_clade_df.sample(n=random_size, replace=False)
-            except:
-                out_clade_df = out_clade_df.sample(n=random_size, replace=True)
+            print("Remove duplicate sequences...")
+            out_clade_df = out_clade_df.drop_duplicates(subset=['Sequence'])
+            print(out_clade_df)
+            out_clade_df.to_csv("data/generated_files/out_clade_df_{}.csv".format(out_clade))
             out_len = len(out_clade_df.index)
+            if random_size <= out_len:
+                out_clade_df = out_clade_df.sample(n=random_size, replace=False).reset_index(drop=True)
 
             print(out_clade_df.groupby(['Country']).count())
             print("Size of clade {}: {}".format(out_clade, str(out_len)))
-            #out_clade_seq = out_clade_df["Sequence"]
-            #u_out_clade = out_clade_seq.drop_duplicates()
-            #u_out_clade = u_out_clade.tolist()
-            # divide into train and test
-            
-            #train_y = train_y.tolist()
-            #test_y = test_y.tolist()
+            #sys.exit()
 
-            #print(u_in_clade)
-            #u_filtered_x_y, kmer_f_dict, kmer_r_dict = utils.generate_cross_product(u_in_clade, u_out_clade, edit_threshold, len_aa_subseq, forward_dict, start_token, unrelated=unrelated)
             u_filtered_x_y_train, u_filtered_x_y_test, kmer_f_dict, kmer_r_dict = utils.generate_cross_product(in_clade_df, out_clade_df, in_clade, out_clade, edit_threshold, len_aa_subseq, forward_dict, rev_dict, start_token, unrelated=unrelated, train_pairs=train_pairs, train_size=train_size)
             print("Unique size of train clade combination {}_{}: {}".format(in_clade, out_clade, str(len(u_filtered_x_y_train.index))))
             print("Unique size of test clade combination {}_{}: {}".format(in_clade, out_clade, str(len(u_filtered_x_y_test.index))))
@@ -217,7 +191,6 @@ def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, start_token
     print()
     print("Total number of train samples: {}".format(str(total_samples_train)))
     print("Total number of test samples: {}".format(str(total_samples_test)))
-    #sys.exit()
 ####################### OLD preprocessing #######################
 
 
