@@ -682,6 +682,8 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
     # TODO: Collect sample weight based only on changing AAs POS and not stagnant AAs POS
     dec_loss = tf.constant(0.0)
     dec_true_loss = tf.constant(0.0)
+    enc_loss = tf.constant(0.0)
+    enc_true_loss = tf.constant(0.0)
     #enc_true_loss = tf.constant(0.0)
     global_logits = list()
     # reset state after each batch training
@@ -695,8 +697,8 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
         s_batch = input_tokens[:, stateful_index*s_stateful: (stateful_index+1)*s_stateful]
         enc_output, enc_state_f, enc_state_b = gen_encoder([s_batch, enc_state_f, enc_state_b], training=True)
         #print(input_tokens.shape, enc_output.shape)
-        enc_loss = tf.reduce_mean(cross_entropy_loss(s_batch, enc_output, sample_weight=i_weights))
-        enc_true_loss = tf.reduce_mean(cross_entropy_loss(s_batch, enc_output))
+        enc_loss += tf.reduce_mean(cross_entropy_loss(s_batch, enc_output, sample_weight=i_weights))
+        enc_true_loss += tf.reduce_mean(cross_entropy_loss(s_batch, enc_output))
         dec_state = tf.concat([enc_state_f, enc_state_b], -1)
         #print("Train enc norm before adding noise: ", dec_state[:, :5], tf.norm(dec_state))
         loss_enc_state_norm += tf.math.abs(max_norm - tf.norm(dec_state))
@@ -704,10 +706,10 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
         #dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
         #print("Train enc norm after adding noise: ", dec_state[:, :5], tf.norm(dec_state))
         dec_state = tf.clip_by_norm(dec_state, clip_norm=max_norm)
-        print("Train enc norm after clipping: ", dec_state[:, :5], tf.norm(dec_state))
+        #print("Train enc norm after clipping: ", dec_state[:, :5], tf.norm(dec_state))
         #print("Train enc norm after adding noise and clipping: ", dec_state[:, :5], tf.norm(dec_state))
         #print("Train enc norm after adding noise: ", dec_state, tf.norm(dec_state))
-        print("---")
+        #print("---")
         u_seq_len = s_batch.shape[1]
         free_run_loops = int(0.2 * u_seq_len)
         free_run_s_index = np.random.randint(0, u_seq_len - free_run_loops + 1, 1)[0]
@@ -781,20 +783,15 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
                 step_loss = weighted_loss
                 dec_loss += step_loss
                 global_logits.append(dec_result)
-
-            '''if t in list(range(free_run_s_index, free_run_s_index + free_run_loops)):
-                #print("Free run...")
-                i_tokens = tf.argmax(dec_result, axis=-1)
-            else:
-                #print("Fixed run...")
-                i_tokens = o_tokens'''
             i_tokens = o_tokens
-    #sys.exit()
+        #print("===============")
     global_logits = tf.concat(global_logits, axis=-2)
     loss_dec_loop_norm = loss_dec_loop_norm / seq_len
     loss_enc_state_norm = loss_enc_state_norm / n_stateful_batches
     #dec_loss = dec_loss / seq_len
+    #enc_loss = enc_loss / seq_len
     #dec_true_loss = dec_true_loss / seq_len
+    #enc_true_loss = enc_true_loss / seq_len
     total_loss = enc_loss + dec_loss #+ loss_dec_loop_norm + loss_enc_state_norm
     #total_loss = dec_loss
     print("Enc true loss: {}, Dec true loss: {}, Weighted enc loss: {}, Weighted dec loss: {}".format(str(enc_true_loss.numpy()), str(dec_true_loss.numpy()), str(enc_loss.numpy()), str(dec_loss.numpy())))
