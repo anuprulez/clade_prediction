@@ -691,8 +691,8 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
     enc_state_b = tf.zeros((batch_size, enc_units))
     n_stateful_batches = int(input_tokens.shape[1]/float(s_stateful))
     i_tokens = tf.fill([batch_size, 1], 0)
-    loss_dec_loop_norm = tf.constant(0.0)
-    loss_enc_state_norm = tf.constant(0.0)
+    #loss_dec_loop_norm = tf.constant(0.0)
+    #loss_enc_state_norm = tf.constant(0.0)
     uniform_sample_wts = np.repeat(1/float(batch_size), batch_size)
     for stateful_index in range(n_stateful_batches):
         s_batch = input_tokens[:, stateful_index*s_stateful: (stateful_index+1)*s_stateful]
@@ -702,7 +702,7 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
         enc_true_loss += tf.reduce_mean(cross_entropy_loss(s_batch, enc_output, sample_weight=uniform_sample_wts))
         dec_state = tf.concat([enc_state_f, enc_state_b], -1)
         #print("Train enc norm before adding noise: ", dec_state[:, :5], tf.norm(dec_state))
-        loss_enc_state_norm += tf.math.abs(max_norm - tf.norm(dec_state))
+        #loss_enc_state_norm += tf.math.abs(max_norm - tf.norm(dec_state))
         #if stateful_index == 0:
         #dec_state = tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev)
         dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
@@ -712,16 +712,16 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
         #print("Train enc norm after adding noise and clipping: ", dec_state[:, :5], tf.norm(dec_state))
         #print("Train enc norm after adding noise: ", dec_state, tf.norm(dec_state))
         #print("---")
-        u_seq_len = s_batch.shape[1]
-        free_run_loops = int(0.2 * u_seq_len)
-        free_run_s_index = np.random.randint(0, u_seq_len - free_run_loops + 1, 1)[0]
+        #u_seq_len = s_batch.shape[1]
+        #free_run_loops = int(0.2 * u_seq_len)
+        #free_run_s_index = np.random.randint(0, u_seq_len - free_run_loops + 1, 1)[0]
         #print(free_run_loops, free_run_s_index)
         for t in range(s_batch.shape[1]):
             dec_result, dec_state = gen_decoder([i_tokens, dec_state], training=True)
-            loss_dec_state_norm = tf.math.abs(max_norm - tf.norm(dec_state))
+            #loss_dec_state_norm = tf.math.abs(max_norm - tf.norm(dec_state))
             #dec_state = tf.clip_by_norm(dec_state, clip_norm=max_norm)
-            loss_dec_loop_norm += loss_dec_state_norm
-            dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
+            #loss_dec_loop_norm += loss_dec_state_norm
+            #dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
             #dec_state = tf.clip_by_norm(dec_state, clip_norm=max_norm)
             #dec_state = tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev)
             orig_t = stateful_index * s_stateful + t
@@ -750,15 +750,15 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
                 step_loss = weighted_loss
                 dec_loss += step_loss
                 global_logits.append(dec_result)
-            if t in list(range(free_run_s_index, free_run_s_index + free_run_loops)):
+            '''if t in list(range(free_run_s_index, free_run_s_index + free_run_loops)):
                 i_tokens = tf.argmax(dec_result, axis=-1)
             else:
-                i_tokens = o_tokens
-            #i_tokens = o_tokens
+                i_tokens = o_tokens'''
+            i_tokens = o_tokens
         #print("===============")
     global_logits = tf.concat(global_logits, axis=-2)
-    loss_dec_loop_norm = loss_dec_loop_norm / seq_len
-    loss_enc_state_norm = loss_enc_state_norm / n_stateful_batches
+    #loss_dec_loop_norm = loss_dec_loop_norm / seq_len
+    #loss_enc_state_norm = loss_enc_state_norm / n_stateful_batches
     #dec_loss = dec_loss / seq_len
     #enc_loss = enc_loss / seq_len
     #dec_true_loss = dec_true_loss / seq_len
@@ -781,17 +781,11 @@ def loop_encode_decode_predict_stateful(seq_len, batch_size, vocab_size, input_t
         s_batch = input_tokens[:, stateful_index*s_stateful: (stateful_index+1)*s_stateful]
         _, enc_state_f, enc_state_b = gen_encoder([s_batch, enc_state_f, enc_state_b], training=train_test)
         dec_state = tf.concat([enc_state_f, enc_state_b], -1)
-        #print("Test enc norm before adding noise: ", tf.norm(dec_state))
         dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
-        #dec_state = tf.clip_by_norm(dec_state, clip_norm=max_norm)
-        #print("Test enc norm after adding noise and clipping: ", tf.norm(dec_state))
-        #print("Test enc norm after adding noise: ", tf.norm(dec_state))
-        #dec_state = tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev)
         for t in range(s_batch.shape[1]):
             orig_t = stateful_index * s_stateful + t
             dec_result, dec_state = gen_decoder([i_tokens, dec_state], training=train_test)
-            dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
-            #dec_state = tf.clip_by_norm(dec_state, clip_norm=max_norm)
+            #dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
             gen_logits.append(dec_result)
             if len(output_tokens) > 0:
                 o_tokens = output_tokens[:, orig_t:orig_t+1]
