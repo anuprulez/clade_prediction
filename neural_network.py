@@ -16,10 +16,10 @@ import bahdanauAttention
 
 GEN_ENC_WEIGHTS = "data/generated_files/generator_encoder_weights.h5"
 
-ENC_DROPOUT = 0.4
-ENC_RECURR_DROPOUT = 0.4
-DEC_DROPOUT = 0.4
-DEC_RECURR_DROPOUT = 0.4
+ENC_DROPOUT = 0.2
+ENC_RECURR_DROPOUT = 0.2
+DEC_DROPOUT = 0.2
+DEC_RECURR_DROPOUT = 0.2
 
 DISC_DROPOUT = 0.2
 
@@ -78,14 +78,14 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     encoder_model = tf.keras.Model([gen_inputs, enc_i_state_f, enc_i_state_b], [enc_logits, enc_f, enc_b])
 
     # Create decoder for Generator
-    dec_input_state = tf.keras.Input(shape=(2 * enc_units,))
+    dec_input_state = tf.keras.Input(shape=(enc_units,))
     new_tokens = tf.keras.Input(shape=(1,)) # batch_size, seq_len
     # define layers
     dec_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim, 
         embeddings_regularizer="l2", #mask_zero=True
     )
 
-    dec_gru = tf.keras.layers.GRU(2 * enc_units,
+    dec_gru = tf.keras.layers.GRU(enc_units,
                                    kernel_regularizer="l2",
                                    recurrent_regularizer="l2",
                                    recurrent_initializer='glorot_normal',
@@ -121,13 +121,11 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     dec_state = dec_layernorm3(dec_state)
 
     #rnn_output = dec_dense(rnn_output)
-
     #rnn_output = tf.keras.layers.Dropout(DEC_DROPOUT)(rnn_output)
     #rnn_output = tf.keras.layers.BatchNormalization()(rnn_output)
 
     logits = dec_fc(rnn_output)
-    #logits = tf.keras.layers.Dropout(DEC_DROPOUT)(logits)
-    #logits = dec_layernorm3(logits)
+
 
     decoder_model = tf.keras.Model([new_tokens, dec_input_state], [logits, dec_state])
     encoder_model.save_weights(GEN_ENC_WEIGHTS)

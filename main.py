@@ -78,7 +78,7 @@ len_final_aa_padding = len_aa_subseq - s_kmer + 1 # write 2 here when there is p
 size_stateful = 50 #LEN_AA - 2 #300 # 50 for 302
 # Neural network parameters
 embedding_dim = 128
-batch_size = 32
+batch_size = 8
 te_batch_size = batch_size
 n_te_batches = 10
 enc_units = 128 # 128 for 302
