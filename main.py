@@ -82,12 +82,12 @@ batch_size = 8
 te_batch_size = batch_size
 n_te_batches = 10
 enc_units = 128 # 128 for 302
-pretrain_epochs = 20
+pretrain_epochs = 2
 epochs = 1
 max_l_dist = 11
 test_train_size = 0.8
 #pretrain_train_size = 0.01 # all dataset as pretrain and not as test
-random_clade_size = 1000
+random_clade_size = 100
 to_pretrain = True
 pretrained_model = False
 retrain_pretrain_start_index = 0
@@ -95,7 +95,7 @@ gan_train = False
 start_token = 0
 
 
-pretr_lr = 0.01 #1e-2
+pretr_lr = 1e-2
 parent_collection_start_month = "2020-01-20"
 stale_folders = ["data/generated_files/", "data/train/", "data/test/", "data/tr_unrelated/", "data/te_unrelated/", "data/pretrain/", "data/validation/"]
 amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"
