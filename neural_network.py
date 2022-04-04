@@ -85,7 +85,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
         embeddings_regularizer="l2", #mask_zero=True
     )
 
-    dec_gru = tf.keras.layers.GRU(enc_units,
+    dec_gru = tf.keras.layers.GRU(2 * enc_units,
                                    kernel_regularizer="l2",
                                    recurrent_regularizer="l2",
                                    recurrent_initializer='glorot_normal',
@@ -96,14 +96,13 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
                                    return_sequences=True,
                                    return_state=True)
 
-    dec_dense = tf.keras.layers.Dense(2 * enc_units, activation='relu',
+    dec_dense = tf.keras.layers.Dense(enc_units, activation='relu',
         kernel_regularizer="l2",
     )
 
     dec_fc = tf.keras.layers.Dense(vocab_size, activation='softmax',
         kernel_regularizer="l2",
     )
-
 
     dec_layernorm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
     dec_layernorm2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)

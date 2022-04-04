@@ -725,20 +725,10 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
                 step_loss = weighted_loss
                 dec_loss += step_loss
                 global_logits.append(dec_result)
-
             i_tokens = o_tokens
-        #print("===============")
     global_logits = tf.concat(global_logits, axis=-2)
-    #loss_dec_loop_norm = loss_dec_loop_norm / seq_len
-    #loss_enc_state_norm = loss_enc_state_norm / n_stateful_batches
-    #dec_loss = dec_loss / seq_len
-    #enc_loss = enc_loss / seq_len
-    #dec_true_loss = dec_true_loss / seq_len
-    #enc_true_loss = enc_true_loss / seq_len
-    total_loss = enc_loss + dec_loss #+ dec_true_loss + enc_true_loss #+ loss_dec_loop_norm + loss_enc_state_norm
-    #total_loss = dec_loss
+    total_loss = enc_loss + dec_loss
     print("Enc true loss: {}, Dec true loss: {}, Weighted enc loss: {}, Weighted dec loss: {}".format(str(enc_true_loss.numpy()), str(dec_true_loss.numpy()), str(enc_loss.numpy()), str(dec_loss.numpy())))
-    #print("Losses: (total, true, enc norm, dec norm)", total_loss.numpy(), loss.numpy(), loss_enc_state_norm.numpy(), loss_dec_loop_norm.numpy())
     return global_logits, gen_encoder, gen_decoder, total_loss
 
 
