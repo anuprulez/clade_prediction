@@ -741,12 +741,12 @@ def loop_encode_decode_predict_stateful(seq_len, batch_size, vocab_size, input_t
     loss = tf.constant(0.0)
     for stateful_index in range(n_stateful_batches):
         s_batch = input_tokens[:, stateful_index*s_stateful: (stateful_index+1)*s_stateful]
-        _, enc_state_f, enc_state_b = gen_encoder([s_batch, enc_state_f, enc_state_b]) #, training=train_test
+        _, enc_state_f, enc_state_b = gen_encoder([s_batch, enc_state_f, enc_state_b], training=train_test)
         dec_state = tf.concat([enc_state_f, enc_state_b], -1)
         dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
         for t in range(s_batch.shape[1]):
             orig_t = stateful_index * s_stateful + t
-            dec_result, dec_state = gen_decoder([i_tokens, dec_state]) #, training=train_test
+            dec_result, dec_state = gen_decoder([i_tokens, dec_state], training=train_test)
             dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
             gen_logits.append(dec_result)
             if len(output_tokens) > 0:

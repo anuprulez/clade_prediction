@@ -334,7 +334,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, updated_lr, e
       print()
       gen_trainable_vars = gen_encoder.trainable_variables + gen_decoder.trainable_variables
       gradients_of_generator = gen_tape.gradient(gen_loss, gen_trainable_vars)
-      #gradients_of_generator = [(tf.clip_by_norm(grad, clip_norm=pretrain_clip_norm)) for grad in gradients_of_generator]
+      gradients_of_generator = [(tf.clip_by_norm(grad, clip_norm=pretrain_clip_norm)) for grad in gradients_of_generator]
       pretrain_generator_optimizer.apply_gradients(zip(gradients_of_generator, gen_trainable_vars))
 
       # optimize pf discriminator

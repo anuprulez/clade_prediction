@@ -106,7 +106,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
 
     dec_layernorm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
     dec_layernorm2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
-    dec_layernorm3 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+    #dec_layernorm3 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
 
     vectors = dec_embedding(new_tokens)
     vectors = tf.keras.layers.SpatialDropout1D(DEC_DROPOUT)(vectors)
@@ -117,7 +117,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     rnn_output = tf.keras.layers.Dropout(DEC_DROPOUT)(rnn_output)
     rnn_output = dec_layernorm2(rnn_output)
 
-    dec_state = dec_layernorm3(dec_state)
+    #dec_state = dec_layernorm3(dec_state)
 
     #rnn_output = dec_dense(rnn_output)
     #rnn_output = tf.keras.layers.Dropout(DEC_DROPOUT)(rnn_output)
