@@ -78,7 +78,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     encoder_model = tf.keras.Model([gen_inputs, enc_i_state_f, enc_i_state_b], [enc_logits, enc_f, enc_b])
 
     # Create decoder for Generator
-    dec_input_state = tf.keras.Input(shape=(enc_units,))
+    dec_input_state = tf.keras.Input(shape=(2 * enc_units,))
     new_tokens = tf.keras.Input(shape=(1,)) # batch_size, seq_len
     # define layers
     dec_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim, 
@@ -96,7 +96,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
                                    return_sequences=True,
                                    return_state=True)
 
-    dec_dense = tf.keras.layers.Dense(enc_units, activation='relu',
+    dec_dense = tf.keras.layers.Dense(2 * enc_units, activation='relu',
         kernel_regularizer="l2",
     )
 
