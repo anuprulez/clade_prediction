@@ -42,7 +42,7 @@ cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
 n_disc_step = 6
 n_gen_step = 3
 unrolled_steps = 0
-test_log_step = 200
+test_log_step = 10
 teacher_forcing_ratio = 0.0
 disc_clip_norm = 1.0
 gen_clip_norm = 1.0
@@ -338,6 +338,7 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, enc_units, vo
   tf.keras.models.save_model(gen_decoder, dec_pre_train_save_folder)
 
   utils.save_as_json("data/generated_files/pretr_ave_batch_x_y_mut_epo_{}.json".format(str(epo_step)), batch_mut_distribution)
+  # pretrain_gen_tr_loss, bat_te_gen_loss, bat_te_seq_var, bat_tr_seq_var, encoder, decoder, _
   return np.mean(epo_avg_tr_gen_loss), np.mean(epo_te_gen_loss), np.mean(epo_te_seq_var), np.mean(epo_tr_seq_var), gen_encoder, gen_decoder
 
 
