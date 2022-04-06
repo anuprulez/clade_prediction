@@ -52,7 +52,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
                     stateful=True,
     				return_state=True))
 
-    enc_fc = tf.keras.layers.Dense(vocab_size, activation='softmax', kernel_regularizer="l2")
+    #enc_fc = tf.keras.layers.Dense(vocab_size, activation='softmax', kernel_regularizer="l2")
 
     #enc_layernorm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
     #enc_layernorm2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
@@ -71,11 +71,11 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     #enc_f = enc_layernorm2(enc_f)
     #enc_b = enc_layernorm3(enc_b)
     
-    enc_output = tf.keras.layers.Dropout(ENC_DROPOUT)(enc_output)
+    #enc_output = tf.keras.layers.Dropout(ENC_DROPOUT)(enc_output)
     #enc_output = enc_layernorm4(enc_output)
-    enc_logits = enc_fc(enc_output)
+    #enc_logits = enc_fc(enc_output)
 
-    encoder_model = tf.keras.Model([gen_inputs, enc_i_state_f, enc_i_state_b], [enc_logits, enc_f, enc_b])
+    encoder_model = tf.keras.Model([gen_inputs, enc_i_state_f, enc_i_state_b], [enc_output, enc_f, enc_b])
 
     # Create decoder for Generator
     dec_input_state = tf.keras.Input(shape=(2 * enc_units,))
