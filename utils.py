@@ -702,7 +702,7 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
             dec_result, dec_state = gen_decoder([i_tokens, dec_state], training=True)
             dec_state = tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev)
             orig_t = stateful_index * s_stateful + t
-            if len(output_tokens) > 0:
+            #if len(output_tokens) > 0:
             o_tokens = output_tokens[:, orig_t:orig_t+1]
             unique_cls = np.array(list(y_pos_variations_count[str(orig_t)].keys()))
             # collect different variations at each POS
