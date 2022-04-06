@@ -45,7 +45,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
                     recurrent_regularizer="l2",
                     recurrent_initializer='glorot_normal',
                     kernel_initializer="glorot_normal",
-                    recurrent_dropout=ENC_RECURR_DROPOUT,
+                    #recurrent_dropout=ENC_RECURR_DROPOUT,
                     #activation="relu",
                     #recurrent_activation="relu",
     				return_sequences=True,
@@ -54,25 +54,25 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
 
     enc_fc = tf.keras.layers.Dense(vocab_size, activation='softmax', kernel_regularizer="l2")
 
-    enc_layernorm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
-    enc_layernorm2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
-    enc_layernorm3 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
-    enc_layernorm4 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+    #enc_layernorm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+    #enc_layernorm2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+    #enc_layernorm3 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+    #enc_layernorm4 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
 
     embed = gen_embedding(gen_inputs)
     embed = tf.keras.layers.SpatialDropout1D(ENC_DROPOUT)(embed)
-    embed = enc_layernorm1(embed)
+    #embed = enc_layernorm1(embed)
 
     enc_output, enc_f, enc_b = gen_gru(embed, initial_state=[enc_i_state_f, enc_i_state_b])
 
     enc_f = tf.keras.layers.Dropout(ENC_DROPOUT)(enc_f)
     enc_b = tf.keras.layers.Dropout(ENC_DROPOUT)(enc_b)
 
-    enc_f = enc_layernorm2(enc_f)
-    enc_b = enc_layernorm3(enc_b)
+    #enc_f = enc_layernorm2(enc_f)
+    #enc_b = enc_layernorm3(enc_b)
     
     enc_output = tf.keras.layers.Dropout(ENC_DROPOUT)(enc_output)
-    enc_output = enc_layernorm4(enc_output)
+    #enc_output = enc_layernorm4(enc_output)
     enc_logits = enc_fc(enc_output)
 
     encoder_model = tf.keras.Model([gen_inputs, enc_i_state_f, enc_i_state_b], [enc_logits, enc_f, enc_b])
@@ -90,7 +90,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
                                    recurrent_regularizer="l2",
                                    recurrent_initializer='glorot_normal',
                                    kernel_initializer="glorot_normal",
-                                   recurrent_dropout=DEC_RECURR_DROPOUT,
+                                   #recurrent_dropout=DEC_RECURR_DROPOUT,
                                    #activation="relu",
                                    #recurrent_activation="relu",
                                    return_sequences=True,
@@ -104,18 +104,22 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
         kernel_regularizer="l2",
     )
 
-    dec_layernorm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
-    dec_layernorm2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+    #dec_layernorm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+    #dec_layernorm2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
     #dec_layernorm3 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
 
     vectors = dec_embedding(new_tokens)
     vectors = tf.keras.layers.SpatialDropout1D(DEC_DROPOUT)(vectors)
-    vectors = dec_layernorm1(vectors)
+    #vectors = dec_layernorm1(vectors)
 
     rnn_output, dec_state = dec_gru(vectors, initial_state=dec_input_state)
-
     rnn_output = tf.keras.layers.Dropout(DEC_DROPOUT)(rnn_output)
-    rnn_output = dec_layernorm2(rnn_output)
+    dec_state = tf.keras.layers.Dropout(DEC_DROPOUT)(dec_state)
+
+    rnn_output = dec_dense(rnn_output)
+    rnn_output = tf.keras.layers.Dropout(DEC_DROPOUT)(rnn_output)
+
+    #rnn_output = dec_layernorm2(rnn_output)
 
     #dec_state = dec_layernorm3(dec_state)
 
@@ -124,7 +128,6 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
     #rnn_output = tf.keras.layers.BatchNormalization()(rnn_output)
 
     logits = dec_fc(rnn_output)
-
 
     decoder_model = tf.keras.Model([new_tokens, dec_input_state], [logits, dec_state])
     encoder_model.save_weights(GEN_ENC_WEIGHTS)

@@ -703,28 +703,29 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
             dec_state = tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev)
             orig_t = stateful_index * s_stateful + t
             if len(output_tokens) > 0:
-                o_tokens = output_tokens[:, orig_t:orig_t+1]
-                unique_cls = np.array(list(y_pos_variations_count[str(orig_t)].keys()))
-                # collect different variations at each POS
-                exp_class_var_pos = dict()
-                exp_norm_u_var_distribution = np.zeros((batch_size))
-                real_class_wts = list()
-                for k_i, key in enumerate(unique_cls):
-                    # loss input taken from paper: https://arxiv.org/pdf/1901.05555.pdf
-                    #class_var_pos[key] = class_wt[k_i] #/ float(s_wts)
-                    #norm_class_var_pos[key] = class_wt[k_i] / float(s_wts)
-                    exp_class_var_pos[key] = (1 - beta) / (1 - beta ** y_pos_variations_count[str(orig_t)][key])
-                    real_class_wts.append(exp_class_var_pos[key])
+            o_tokens = output_tokens[:, orig_t:orig_t+1]
+            unique_cls = np.array(list(y_pos_variations_count[str(orig_t)].keys()))
+            # collect different variations at each POS
+            exp_class_var_pos = dict()
+            exp_norm_u_var_distribution = np.zeros((batch_size))
+            real_class_wts = list()
+            for k_i, key in enumerate(unique_cls):
+                # loss input taken from paper: https://arxiv.org/pdf/1901.05555.pdf
+                #class_var_pos[key] = class_wt[k_i] #/ float(s_wts)
+                #norm_class_var_pos[key] = class_wt[k_i] / float(s_wts)
+                exp_class_var_pos[key] = (1 - beta) / (1 - beta ** y_pos_variations_count[str(orig_t)][key])
+                real_class_wts.append(exp_class_var_pos[key])
 
-                for pos_idx, pos in enumerate(np.reshape(o_tokens, (batch_size,))):
-                    exp_norm_u_var_distribution[pos_idx] = exp_class_var_pos[pos]
+            for pos_idx, pos in enumerate(np.reshape(o_tokens, (batch_size,))):
+                exp_norm_u_var_distribution[pos_idx] = exp_class_var_pos[pos]
 
-                exp_norm_u_var_distribution = exp_norm_u_var_distribution / np.sum(exp_norm_u_var_distribution)
-                weighted_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
-                dec_true_loss += tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=uniform_sample_wts))
-                step_loss = weighted_loss
-                dec_loss += step_loss
-                global_logits.append(dec_result)
+            exp_norm_u_var_distribution = exp_norm_u_var_distribution / np.sum(exp_norm_u_var_distribution)
+
+            step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
+
+            dec_true_loss += tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=uniform_sample_wts))
+            dec_loss += step_loss
+            global_logits.append(dec_result)
             i_tokens = o_tokens
     global_logits = tf.concat(global_logits, axis=-2)
     total_loss = enc_loss + dec_loss
@@ -738,10 +739,12 @@ def loop_encode_decode_predict_stateful(seq_len, batch_size, vocab_size, input_t
     n_stateful_batches = int(input_tokens.shape[1]/float(s_stateful))
     i_tokens = tf.fill([batch_size, 1], 0)
     gen_logits = list()
-    loss = tf.constant(0.0)
+    enc_loss = tf.constant(0.0)
+    dec_loss = tf.constant(0.0)
     for stateful_index in range(n_stateful_batches):
         s_batch = input_tokens[:, stateful_index*s_stateful: (stateful_index+1)*s_stateful]
-        _, enc_state_f, enc_state_b = gen_encoder([s_batch, enc_state_f, enc_state_b], training=train_test)
+        enc_output, enc_state_f, enc_state_b = gen_encoder([s_batch, enc_state_f, enc_state_b], training=train_test)
+        enc_loss += tf.reduce_mean(cross_entropy_loss(s_batch, enc_output))
         dec_state = tf.concat([enc_state_f, enc_state_b], -1)
         dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
         for t in range(s_batch.shape[1]):
@@ -752,11 +755,12 @@ def loop_encode_decode_predict_stateful(seq_len, batch_size, vocab_size, input_t
             if len(output_tokens) > 0:
                 o_tokens = output_tokens[:, orig_t:orig_t+1]
                 step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
-                loss += step_loss
+                dec_loss += step_loss
             i_tokens = tf.argmax(dec_result, axis=-1)
     gen_logits = tf.concat(gen_logits, axis=-2)
-    loss = loss / seq_len
-    return gen_logits, loss
+    total_test_loss = enc_loss + dec_loss
+    #loss = loss / seq_len
+    return gen_logits, total_test_loss
 
 
 def predict_sequence(tr_epoch, tr_batch, test_dataset_in, test_dataset_out, te_batch_size, n_te_batches, seq_len, vocab_size, enc_units, loaded_encoder, loaded_generator, s_stateful, train_type, save=False):
