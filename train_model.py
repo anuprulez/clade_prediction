@@ -299,9 +299,9 @@ def pretrain_generator(inputs, epo_step, gen_encoder, gen_decoder, updated_lr, e
       
       #updated_lr = utils.decayed_learning_rate(updated_lr, (epo_step + 1) * (step + 1))
       pretrain_generator_optimizer = tf.keras.optimizers.Adam(learning_rate=updated_lr)
-      unrolled_x, unrolled_y, sample_ids = sample_true_x_y(batch_size, X_train, y_train)
+      unrolled_x, unrolled_y, _ = sample_true_x_y(batch_size, X_train, y_train)
       #print(inputs_tokens_weights)
-      i_weights = get_i_weights(sample_ids, inputs_tokens_weights)
+      i_weights = [] #get_i_weights(sample_ids, inputs_tokens_weights)
       #print(i_weights)
       #x_y = #training_generator[step] #sample_from_generator(batch_size, pre_train_cluster_indices, training_generator, scatter_df)
       #unrolled_x, unrolled_y = batch_x_y[0].numpy(), batch_x_y[1].numpy()

@@ -719,17 +719,19 @@ def loop_encode_decode_stateful(seq_len, batch_size, vocab_size, input_tokens, o
 
             for pos_idx, pos in enumerate(np.reshape(o_tokens, (batch_size,))):
                 exp_norm_u_var_distribution[pos_idx] = exp_class_var_pos[pos]
+            print(o_tokens)
+            print(exp_norm_u_var_distribution)
 
             exp_norm_u_var_distribution = exp_norm_u_var_distribution / np.sum(exp_norm_u_var_distribution)
-
             step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=exp_norm_u_var_distribution))
-
             dec_true_loss += tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result, sample_weight=uniform_sample_wts))
+
             dec_loss += step_loss
             global_logits.append(dec_result)
             i_tokens = o_tokens
     global_logits = tf.concat(global_logits, axis=-2)
-    total_loss = enc_loss + dec_loss
+    total_loss = dec_loss #+ dec_true_loss
+    sys.exit()
     #print("Enc true loss: {}, Dec true loss: {}, Weighted enc loss: {}, Weighted dec loss: {}".format(str(enc_true_loss.numpy()), str(dec_true_loss.numpy()), str(enc_loss.numpy()), str(dec_loss.numpy())))
     print("True dec loss: {}, Weighted dec loss: {}".format(str(dec_true_loss.numpy()), str(dec_loss.numpy())))
     return global_logits, gen_encoder, gen_decoder, total_loss
