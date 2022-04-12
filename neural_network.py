@@ -15,19 +15,83 @@ import bahdanauAttention
 
 
 GEN_ENC_WEIGHTS = "data/generated_files/generator_encoder_weights.h5"
-
-ENC_DROPOUT = 0.4
-ENC_RECURR_DROPOUT = 0.4
-DEC_DROPOUT = 0.4
-DEC_RECURR_DROPOUT = 0.4
-
+ENC_DROPOUT = 0.2
+DEC_DROPOUT = 0.2
 DISC_DROPOUT = 0.2
-
 RECURR_DROPOUT = 0.2
 LEAKY_ALPHA = 0.1
 
 
-### Layer norm: https://www.tensorflow.org/text/tutorials/transformer
+class MaskedLoss(tf.keras.losses.Loss):
+  def __init__(self):
+    self.name = 'masked_loss'
+    self.loss = tf.keras.losses.SparseCategoricalCrossentropy(
+        from_logits=True, reduction='none')
+
+  def __call__(self, y_true, y_pred):
+    #shape_checker = ShapeChecker()
+    #shape_checker(y_true, ('batch', 't'))
+    #shape_checker(y_pred, ('batch', 't', 'logits'))
+
+    # Calculate the loss for each item in the batch.
+    loss = self.loss(y_true, y_pred)
+    #shape_checker(loss, ('batch', 't'))
+
+    # Mask off the losses on padding.
+    #mask = tf.cast(y_true != 0, tf.float32)
+    #shape_checker(mask, ('batch', 't'))
+    #loss *= mask
+
+    # Return the total.
+    return tf.reduce_sum(loss)
+
+
+class ScatterEncodings(tf.keras.layers.Layer):
+  def __init__(self):
+    super(ScatterEncodings, self).__init__()
+
+  def call(self, A):
+    na = tf.reduce_sum(tf.square(A), 1)
+    nb = tf.reduce_sum(tf.square(A), 1)
+    # na as a row and nb as a co"lumn vectors
+    na = tf.reshape(na, [-1, 1])
+    nb = tf.reshape(nb, [1, -1])
+    # return pairwise euclidead difference matrix
+    D = 1 - tf.reduce_mean(tf.sqrt(tf.maximum(na - 2*tf.matmul(A, A, False, True) + nb, 0.0))) 
+    return D
+
+
+def create_pf_model(seq_len, vocab_size, embedding_dim, enc_units, batch_size):
+
+    pf_inputs = tf.keras.Input(shape=(seq_len,))
+    pf_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim, 
+        embeddings_regularizer="l2",
+    )
+
+    pf_gru = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(enc_units,
+                    kernel_regularizer="l2",
+                    recurrent_regularizer="l2",
+                    recurrent_initializer='glorot_normal',
+                    kernel_initializer="glorot_normal",
+    				return_sequences=True,
+    				return_state=True))
+
+    pf_fc = tf.keras.layers.Dense(enc_units, activation='relu',
+        kernel_regularizer="l2",
+    )
+
+    pf_out = tf.keras.layers.Dense(1, activation='softmax',
+        kernel_regularizer="l2",
+    )
+
+    pf_emb_out = pf_embedding(pf_inputs)
+    pf_gru_out, pf_gru_state_f, pf_gru_state_b  = pf_gru(pf_emb_out)
+    pf_fc_out = pf_fc(pf_gru_out)
+    class_out = pf_out(pf_fc_out)
+
+    prof_forcing_model = tf.keras.Model([pf_inputs], [class_out])
+
+    return prof_forcing_model
 
 
 def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_size, s_stateful):
@@ -45,37 +109,14 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
                     recurrent_regularizer="l2",
                     recurrent_initializer='glorot_normal',
                     kernel_initializer="glorot_normal",
-                    recurrent_dropout=ENC_RECURR_DROPOUT,
-                    #activation="relu",
-                    #recurrent_activation="relu",
     				return_sequences=True,
                     stateful=True,
     				return_state=True))
 
-    enc_fc = tf.keras.layers.Dense(vocab_size, activation='softmax', kernel_regularizer="l2")
-
-    enc_layernorm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
-    enc_layernorm2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
-    enc_layernorm3 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
-    enc_layernorm4 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
-
     embed = gen_embedding(gen_inputs)
     embed = tf.keras.layers.SpatialDropout1D(ENC_DROPOUT)(embed)
-    embed = enc_layernorm1(embed)
-
     enc_output, enc_f, enc_b = gen_gru(embed, initial_state=[enc_i_state_f, enc_i_state_b])
-
-    enc_f = tf.keras.layers.Dropout(ENC_DROPOUT)(enc_f)
-    enc_b = tf.keras.layers.Dropout(ENC_DROPOUT)(enc_b)
-
-    enc_f = enc_layernorm2(enc_f)
-    enc_b = enc_layernorm3(enc_b)
-    
-    enc_output = tf.keras.layers.Dropout(ENC_DROPOUT)(enc_output)
-    enc_output = enc_layernorm4(enc_output)
-    enc_logits = enc_fc(enc_output)
-
-    encoder_model = tf.keras.Model([gen_inputs, enc_i_state_f, enc_i_state_b], [enc_logits, enc_f, enc_b])
+    encoder_model = tf.keras.Model([gen_inputs, enc_i_state_f, enc_i_state_b], [enc_output, enc_f, enc_b])
 
     # Create decoder for Generator
     dec_input_state = tf.keras.Input(shape=(2 * enc_units,))
@@ -90,9 +131,6 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
                                    recurrent_regularizer="l2",
                                    recurrent_initializer='glorot_normal',
                                    kernel_initializer="glorot_normal",
-                                   recurrent_dropout=DEC_RECURR_DROPOUT,
-                                   #activation="relu",
-                                   #recurrent_activation="relu",
                                    return_sequences=True,
                                    return_state=True)
 
@@ -104,31 +142,13 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
         kernel_regularizer="l2",
     )
 
-
-    dec_layernorm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
-    dec_layernorm2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
-    dec_layernorm3 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
-
     vectors = dec_embedding(new_tokens)
     vectors = tf.keras.layers.SpatialDropout1D(DEC_DROPOUT)(vectors)
-    vectors = dec_layernorm1(vectors)
-
     rnn_output, dec_state = dec_gru(vectors, initial_state=dec_input_state)
-
     rnn_output = tf.keras.layers.Dropout(DEC_DROPOUT)(rnn_output)
-    rnn_output = dec_layernorm2(rnn_output)
-
-    dec_state = dec_layernorm3(dec_state)
-
-    #rnn_output = dec_dense(rnn_output)
-
-    #rnn_output = tf.keras.layers.Dropout(DEC_DROPOUT)(rnn_output)
-    #rnn_output = tf.keras.layers.BatchNormalization()(rnn_output)
-
+    rnn_output = dec_dense(rnn_output)
+    rnn_output = tf.keras.layers.Dropout(DEC_DROPOUT)(rnn_output)
     logits = dec_fc(rnn_output)
-    #logits = tf.keras.layers.Dropout(DEC_DROPOUT)(logits)
-    #logits = dec_layernorm3(logits)
-
     decoder_model = tf.keras.Model([new_tokens, dec_input_state], [logits, dec_state])
     encoder_model.save_weights(GEN_ENC_WEIGHTS)
     return encoder_model, decoder_model
@@ -136,7 +156,7 @@ def make_generator_model(seq_len, vocab_size, embedding_dim, enc_units, batch_si
 
 def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units, batch_size, s_stateful):
     # parent seq encoder model
-    parent_inputs = tf.keras.Input(batch_shape=(batch_size, s_stateful)) #batch_size, s_stateful
+    parent_inputs = tf.keras.Input(shape=(seq_len,)) #batch_size, s_stateful
     enc_embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim, embeddings_regularizer="l1_l2")
 
     par_gen_enc_GRU = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(enc_units,
@@ -145,26 +165,28 @@ def make_disc_par_gen_model(seq_len, vocab_size, embedding_dim, enc_units, batch
                     recurrent_initializer='glorot_normal',
                     kernel_initializer="glorot_normal",
     				return_sequences=True,
-                    stateful=True,
+                    #stateful=True,
     				return_state=True))
 
     parent_inputs_embedding = enc_embedding(parent_inputs)
     parent_inputs_embedding = tf.keras.layers.SpatialDropout1D(ENC_DROPOUT)(parent_inputs_embedding)
+    #parent_inputs_embedding = tf.keras.layers.LayerNormalization()(parent_inputs_embedding)
     enc_out, state_f, state_b = par_gen_enc_GRU(parent_inputs_embedding)
 
     disc_par_encoder_model = tf.keras.Model([parent_inputs], [enc_out, state_f, state_b])
 
     # generated seq encoder model
-    gen_inputs = tf.keras.Input(batch_shape=(batch_size, s_stateful, vocab_size)) # shape=None, vocab_size
+    gen_inputs = tf.keras.Input(shape=(None, vocab_size))
     gen_enc_inputs = tf.keras.layers.Dense(embedding_dim, use_bias=False, activation="linear")(gen_inputs)
     gen_enc_inputs = tf.keras.layers.Dropout(ENC_DROPOUT)(gen_enc_inputs)
+    #gen_enc_inputs = tf.keras.layers.LayerNormalization()(gen_enc_inputs)
     gen_enc_GRU = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(enc_units,
                    kernel_regularizer="l2",
                     recurrent_regularizer="l2",
                     recurrent_initializer='glorot_normal',
                     kernel_initializer="glorot_normal",
     				return_sequences=True,
-                    stateful=True,
+                    #stateful=True,
     				return_state=True))
 
     gen_bi_output, gen_state_f, gen_state_b = gen_enc_GRU(gen_enc_inputs)
@@ -207,3 +229,84 @@ def make_discriminator_model(enc_units):
     output_class = tf.keras.layers.Dense(1, activation="softmax")(x)
     disc_model = tf.keras.Model([parent_state, generated_state], [output_class])
     return disc_model
+
+'''def create_seq2seq(features_num, latent_dim):
+    #features_num=5 
+    #latent_dim=40
+
+    ##
+    encoder_inputs = Input(shape=(None, features_num))
+    encoded = LSTM(latent_dim, return_state=False ,return_sequences=True)(encoder_inputs)
+    encoded = LSTM(latent_dim, return_state=False ,return_sequences=True)(encoded)
+    encoded = LSTM(latent_dim, return_state=False ,return_sequences=True)(encoded)
+    encoded = LSTM(latent_dim, return_state=True)(encoded)
+
+    encoder = Model(input=encoder_inputs, output=encoded)
+    ##
+
+    encoder_outputs, state_h, state_c = encoder(encoder_inputs)
+    encoder_states = [state_h, state_c]
+
+    decoder_inputs=Input(shape=(1, features_num))
+    decoder_lstm_1 = LSTM(latent_dim, return_sequences=True, return_state=True)
+    decoder_lstm_2 = LSTM(latent_dim, return_sequences=True, return_state=True)
+    decoder_lstm_3 = LSTM(latent_dim, return_sequences=True, return_state=True)
+    decoder_lstm_4 = LSTM(latent_dim, return_sequences=True, return_state=True)
+
+    decoder_dense = Dense(features_num)
+
+    all_outputs = []
+    inputs = decoder_inputs
+
+
+    states_1=encoder_states
+    # Placeholder values:
+    states_2=states_1; states_3=states_1; states_4=states_1
+    ###
+
+    for _ in range(1):
+        # Run the decoder on the first timestep
+        outputs_1, state_h_1, state_c_1 = decoder_lstm_1(inputs, initial_state=states_1)
+        outputs_2, state_h_2, state_c_2 = decoder_lstm_2(outputs_1)
+        outputs_3, state_h_3, state_c_3 = decoder_lstm_3(outputs_2)
+        outputs_4, state_h_4, state_c_4 = decoder_lstm_4(outputs_3)
+
+        # Store the current prediction (we will concatenate all predictions later)
+        outputs = decoder_dense(outputs_4)
+        all_outputs.append(outputs)
+        # Reinject the outputs as inputs for the next loop iteration
+        # as well as update the states
+        inputs = outputs
+        states_1 = [state_h_1, state_c_1]
+        states_2 = [state_h_2, state_c_2]
+        states_3 = [state_h_3, state_c_3]
+        states_4 = [state_h_4, state_c_4]
+
+
+    for _ in range(149):
+        # Run the decoder on each timestep
+        outputs_1, state_h_1, state_c_1 = decoder_lstm_1(inputs, initial_state=states_1)
+        outputs_2, state_h_2, state_c_2 = decoder_lstm_2(outputs_1, initial_state=states_2)
+        outputs_3, state_h_3, state_c_3 = decoder_lstm_3(outputs_2, initial_state=states_3)
+        outputs_4, state_h_4, state_c_4 = decoder_lstm_4(outputs_3, initial_state=states_4)
+
+        # Store the current prediction (we will concatenate all predictions later)
+        outputs = decoder_dense(outputs_4)
+        all_outputs.append(outputs)
+        # Reinject the outputs as inputs for the next loop iteration
+        # as well as update the states
+        inputs = outputs
+        states_1 = [state_h_1, state_c_1]
+        states_2 = [state_h_2, state_c_2]
+        states_3 = [state_h_3, state_c_3]
+        states_4 = [state_h_4, state_c_4]
+
+
+    # Concatenate all predictions
+    decoder_outputs = Lambda(lambda x: K.concatenate(x, axis=1))(all_outputs)   
+
+    model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
+
+    return model
+
+    #model = load_model('pre_model.h5')'''
