@@ -12,18 +12,18 @@ import itertools
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 import matplotlib.pyplot as plt
-from nltk.translate.bleu_score import sentence_bleu
+#from nltk.translate.bleu_score import sentence_bleu
 
 import preprocess_sequences
 import utils
 
 #### Best results - 18_02_22_0, models from 16 - 20 #28_02_22_0
 
-RESULT_PATH = "test_results/16_03_22_0/" # 04_02_22_GPU # 04_02_22_local 28_02_22_0
+RESULT_PATH = "test_results/11_04_22_1/" # 04_02_22_GPU # 04_02_22_local 28_02_22_0
 
 s_kmer = 3
-LEN_AA = 301 # It should be n - 1 (n == seq len while training)
-#LEN_AA = 1273 # 1273 for considering entire seq length
+#LEN_AA = 301 # It should be n - 1 (n == seq len while training)
+LEN_AA = 1273 # 1273 for considering entire seq length
 len_aa_subseq = LEN_AA
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 1
@@ -40,13 +40,13 @@ dec_stddev = 0.0001
 start_token = 0
 size_stateful = 300
 batch_size = 4
-collection_start_month =  None
+collection_start_month =  "2020-11-01" # 20B = 20A starting date + 9 months (270 days)
 
 model_type = "pre_train"
 FUTURE_GEN_TEST = "test/20A_20B.csv"
 
-clade_parent = #"20A" # 20A
-clade_childen = ["20B"]  #["20G", "20H (Beta)", "21C (Epsilon)", "21F (Iota)"] #["20D", "20F", "20I (Alpha, V1)", "20J (Gamma, V3)"]
+clade_parent = "20B" # 20A
+clade_childen = ["20D", "20F", "20I (Alpha, V1)", "20J (Gamma, V3)"] #["20B"]  #["20G", "20H (Beta)", "21C (Epsilon)", "21F (Iota)"] #["20D", "20F", "20I (Alpha, V1)", "20J (Gamma, V3)"]
 
 
 generating_factor = 5
