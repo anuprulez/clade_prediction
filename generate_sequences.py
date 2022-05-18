@@ -19,7 +19,7 @@ import utils
 
 #### Best results - 18_02_22_0, models from 16 - 20 #28_02_22_0
 
-RESULT_PATH = "test_results/11_04_22_1/" # 04_02_22_GPU # 04_02_22_local 28_02_22_0
+RESULT_PATH = "test_results/17_05_22_1/" # 04_02_22_GPU # 04_02_22_local 28_02_22_0
 
 s_kmer = 3
 #LEN_AA = 301 # It should be n - 1 (n == seq len while training)
@@ -28,26 +28,26 @@ len_aa_subseq = LEN_AA
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 1
 min_diff = 0
-max_diff = 32 #int(LEN_AA/5)
+max_diff = 11 #int(LEN_AA/5)
 train_size = 1.0
-enc_units = 64
-random_size = 500
+enc_units = 256
+random_size = 350
 
-no_models = 4
-start_model_index = 2 # best results 16
+no_models = 1
+start_model_index = 1 # best results 16
 enc_stddev = 1.0
 dec_stddev = 0.0001
 start_token = 0
-size_stateful = 300
-batch_size = 4
-collection_start_month =  "2020-11-01" # 20B = 20A starting date + 9 months (270 days)
+size_stateful = 41
+batch_size = 32 # 32
+collection_start_month =  "2020-01-20" # 20B = 20A starting date + 9 months (270 days)
 
 model_type = "pre_train"
 FUTURE_GEN_TEST = "test/20A_20B.csv"
 
-clade_parent = "20B" # 20A
-clade_childen = ["20D", "20F", "20I (Alpha, V1)", "20J (Gamma, V3)"] #["20B"]  #["20G", "20H (Beta)", "21C (Epsilon)", "21F (Iota)"] #["20D", "20F", "20I (Alpha, V1)", "20J (Gamma, V3)"]
-
+clade_parent = "20A" # 20A
+clade_childen = ["20B"] 
+#["20D", "20F", "20I (Alpha, V1)", "20J (Gamma, V3)"] #["20B"]  #["20G", "20H (Beta)", "21C (Epsilon)", "21F (Iota)"] #["20D", "20F", "20I (Alpha, V1)", "20J (Gamma, V3)"]
 
 generating_factor = 5
 
@@ -151,7 +151,7 @@ def create_parent_child_true_seq_test():
     children_combined_y = list()
 
     print(tr_clade_files)
-    
+
     # load train data
     print("Loading true y datasets...")
     for name in tr_clade_files:
@@ -169,7 +169,6 @@ def create_parent_child_true_seq_test():
     combined_dataframe = generated_cross_prod(list_true_y_test, children_combined_y, max_diff, len_aa_subseq, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict)
     # u_filtered_x_y, kmer_f_dict, kmer_r_dict = utils.generate_cross_product(u_in_clade, u_out_clade, edit_threshold, len_aa_subseq, forward_dict, rev_dict, start_token, unrelated=unrelated)
     combined_dataframe.to_csv(COMBINED_FILE, sep="\t", index=None)
-    #sys.exit()
 
 
 def load_model_generated_sequences(file_path):
@@ -203,18 +202,20 @@ def predict_multiple(test_x, test_y, len_final_aa_padding, vocab_size, encoded_w
     print(batch_size, len(test_x), len(test_y))
     test_dataset_in = tf.data.Dataset.from_tensor_slices((test_x)).batch(batch_size)
     #test_dataset_out = tf.data.Dataset.from_tensor_slices((test_y)).batch(batch_size)
-    true_x = list()
-    #true_y = list()
-    predicted_y = list()
+
     test_tf_ratio = 0.0
-    
+
     num_te_batches = int(len(test_x) / float(batch_size)) 
     #num_te_batches = 1
-    
+    utils.create_dirs(RESULT_PATH + "model_generated_sequences")
+    child_clades = "_".join(clade_childen)
     print("Num test batches: {}".format(str(num_te_batches)))
 
     for iter_model in range(start_model_index, start_model_index + no_models):
- 
+
+        true_x = list()
+        predicted_y = list()
+
         enc_model_path = RESULT_PATH + model_type + "/" + str(iter_model) + "/enc"
         dec_model_path = RESULT_PATH + model_type + "/" + str(iter_model) + "/dec"
 
@@ -238,11 +239,10 @@ def predict_multiple(test_x, test_y, len_final_aa_padding, vocab_size, encoded_w
                 l_ld_wuhan = list()
                 print("Generating for iter {}/{}".format(str(i+1), str(generating_factor)))
                 #generated_logits, _, _, loss = loop_encode_decode_predict(len_final_aa_padding, batch_size, vocab_size, batch_x_test, [], loaded_encoder, loaded_decoder, enc_units, test_tf_ratio, False, size_stateful, dict())
-                generated_logits, loss = utils.loop_encode_decode_predict_stateful(len_final_aa_padding, batch_size, vocab_size, batch_x_test, [], loaded_encoder, loaded_decoder, enc_units, test_tf_ratio, False, size_stateful, dict())
+                generated_logits, loss = loop_encode_decode_predict_stateful(len_final_aa_padding, batch_size, vocab_size, batch_x_test, [], loaded_encoder, loaded_decoder, enc_units, test_tf_ratio, False, size_stateful, dict())
                 variation_score = utils.get_sequence_variation_percentage(batch_x_test, generated_logits)
                 print("Generated sequence variation score: {}".format(str(variation_score)))
                 p_y = tf.math.argmax(generated_logits, axis=-1)
-
                 one_x = utils.convert_to_string_list(batch_x_test)
                 pred_y = utils.convert_to_string_list(p_y)
                 for k in range(0, len(one_x)):
@@ -256,10 +256,9 @@ def predict_multiple(test_x, test_y, len_final_aa_padding, vocab_size, encoded_w
                     print()
                     print(re_pred_y)
                     #print(pred_y[k])
-                    
 
                     l_dist_x_pred = utils.compute_Levenshtein_dist(re_true_x, re_pred_y)
-                    
+
                     print(l_dist_x_pred)
                     print("----------")
                     #ld_wuhan_gen = utils.compute_Levenshtein_dist(encoded_wuhan_seq, pred_y[k])
@@ -280,12 +279,43 @@ def predict_multiple(test_x, test_y, len_final_aa_padding, vocab_size, encoded_w
                 print("----------")
             print("Batch {} finished".format(str(step)))
             print()
-    print(len(true_x), len(predicted_y))
-    child_clades = "_".join(clade_childen)
-    true_predicted_multiple = pd.DataFrame(list(zip(true_x, predicted_y)), columns=[clade_parent, "Generated"])
-    utils.create_dirs(RESULT_PATH + "model_generated_sequences")
-    df_path = "{}model_generated_sequences/generated_seqs_{}_{}_{}_{}.csv".format(RESULT_PATH, clade_parent, child_clades, str(np.random.randint(0, 2000000, 1)[0]), model_type)
-    true_predicted_multiple.to_csv(df_path, index=None)
+        print(len(true_x), len(predicted_y))
+        true_predicted_multiple = pd.DataFrame(list(zip(true_x, predicted_y)), columns=[clade_parent, "Generated"])
+        df_path = "{}model_generated_sequences/generated_seqs_{}_{}_{}_{}_model_{}.csv".format(RESULT_PATH, clade_parent, child_clades, str(np.random.randint(0, 2000000, 1)[0]), model_type, str(iter_model))
+        true_predicted_multiple.to_csv(df_path, index=None)
+
+    #print(len(true_x), len(predicted_y))
+
+    #true_predicted_multiple = pd.DataFrame(list(zip(true_x, predicted_y)), columns=[clade_parent, "Generated"])
+    #df_path = "{}model_generated_sequences/generated_seqs_{}_{}_{}_{}.csv".format(RESULT_PATH, clade_parent, child_clades, str(np.random.randint(0, 2000000, 1)[0]), model_type)
+    #true_predicted_multiple.to_csv(df_path, index=None)
+
+
+def loop_encode_decode_predict_stateful(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful, mut_freq): 
+    enc_state_f = tf.zeros((batch_size, enc_units))
+    enc_state_b = tf.zeros((batch_size, enc_units))
+    n_stateful_batches = int(input_tokens.shape[1]/float(s_stateful))
+    i_tokens = tf.fill([batch_size, 1], 0)
+    gen_logits = list()
+    loss = tf.constant(0.0)
+    for stateful_index in range(n_stateful_batches):
+        s_batch = input_tokens[:, stateful_index*s_stateful: (stateful_index+1)*s_stateful]
+        enc_output, enc_state_f, enc_state_b = gen_encoder([s_batch, enc_state_f, enc_state_b], training=train_test)
+        dec_state = tf.concat([enc_state_f, enc_state_b], -1)
+        dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
+        for t in range(s_batch.shape[1]):
+            orig_t = stateful_index * s_stateful + t
+            dec_result, dec_state = gen_decoder([i_tokens, dec_state], training=train_test)
+            dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
+            gen_logits.append(dec_result)
+            if len(output_tokens) > 0:
+                o_tokens = output_tokens[:, orig_t:orig_t+1]
+                step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
+                loss += step_loss
+            i_tokens = tf.argmax(dec_result, axis=-1)
+    gen_logits = tf.concat(gen_logits, axis=-2)
+    loss = loss / seq_len
+    return gen_logits, loss
 
 
 '''def loop_encode_decode_predict_stateful(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful, mut_freq): 
@@ -367,11 +397,11 @@ def create_parent_child_true_seq(forward_dict, rev_dict):
 if __name__ == "__main__":
     start_time = time.time()
     # enable only when predicting future sequences
-    prepare_pred_future_seq()
+    #prepare_pred_future_seq()
     # when not gen_future, file_path = RESULT_PATH + "test/*.csv"
     # when gen_future, file_path = COMBINED_FILE
-    file_path = COMBINED_FILE
-    #file_path = RESULT_PATH + "test/20A_20B.csv"
-    #load_model_generated_sequences(file_path)
+    #file_path = COMBINED_FILE
+    file_path = RESULT_PATH + "test/20A_20B.csv"
+    load_model_generated_sequences(file_path)
     end_time = time.time()
     print("Program finished in {} seconds".format(str(np.round(end_time - start_time, 2))))
