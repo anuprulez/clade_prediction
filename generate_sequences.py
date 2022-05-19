@@ -33,7 +33,7 @@ train_size = 1.0
 enc_units = 256
 random_size = 350
 
-no_models = 1
+no_models = 20
 start_model_index = 1 # best results 16
 enc_stddev = 1.0
 dec_stddev = 0.0001
