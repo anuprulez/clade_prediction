@@ -28,7 +28,7 @@ len_aa_subseq = LEN_AA
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 1
 min_diff = 0
-max_diff = 11 #int(LEN_AA/5)
+max_diff = 33 #int(LEN_AA/5)
 train_size = 1.0
 enc_units = 256
 random_size = 350
@@ -40,13 +40,14 @@ dec_stddev = 0.0001
 start_token = 0
 size_stateful = 41
 batch_size = 32 # 32
-collection_start_month =  "2020-01-20" # 20B = 20A starting date + 9 months (270 days)
+collection_start_month =  "2020-10-16" # 20B = 20A starting date ("2020-01-20") + 9 months (270 days) ("2020-10-20")
+# buffer days = 90, set in preprocess_sequences
 
 model_type = "pre_train"
 FUTURE_GEN_TEST = "test/20A_20B.csv"
 
-clade_parent = "20A" # 20A
-clade_childen = ["20B"] 
+clade_parent = "20B" # 20A
+clade_childen = ["20D", "20F", "20I (Alpha, V1)", "20J (Gamma, V3)"]
 #["20D", "20F", "20I (Alpha, V1)", "20J (Gamma, V3)"] #["20B"]  #["20G", "20H (Beta)", "21C (Epsilon)", "21F (Iota)"] #["20D", "20F", "20I (Alpha, V1)", "20J (Gamma, V3)"]
 
 generating_factor = 5
@@ -397,11 +398,11 @@ def create_parent_child_true_seq(forward_dict, rev_dict):
 if __name__ == "__main__":
     start_time = time.time()
     # enable only when predicting future sequences
-    #prepare_pred_future_seq()
+    prepare_pred_future_seq()
     # when not gen_future, file_path = RESULT_PATH + "test/*.csv"
     # when gen_future, file_path = COMBINED_FILE
-    #file_path = COMBINED_FILE
-    file_path = RESULT_PATH + "test/20A_20B.csv"
+    file_path = COMBINED_FILE
+    #file_path = RESULT_PATH + "test/20A_20B.csv"
     load_model_generated_sequences(file_path)
     end_time = time.time()
     print("Program finished in {} seconds".format(str(np.round(end_time - start_time, 2))))

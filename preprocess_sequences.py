@@ -91,22 +91,23 @@ def date_to_date(date):
     return datetime.datetime(int(date[0]), int(date[1]), int(date[2]))
 
 
-def filter_by_date(dataframe, clade_name, start_date=None, buffer_days=270):
+def filter_by_date(dataframe, clade_name, start_date=None, buffer_days=90):
+    # buffer days 270 for 20A-20B and 180 for 20B - children of 20B
     f_df = list()
     emer_dates = pd.read_csv(PATH_CLADE_EMERGENCE_DATES, sep="\t")
     clade_emer_date = emer_dates[emer_dates["Nextstrain_clade"] == clade_name]
+    
     if start_date is None:
-        start_date = date_to_date(clade_emer_date.iloc[0]["first_sequence"].split("-"))
+        dt_start_date = date_to_date(clade_emer_date.iloc[0]["first_sequence"].split("-"))
     else:
-        start_date = date_to_date(start_date)
-    max_date_range = start_date + datetime.timedelta(days=buffer_days)
-    print(start_date, max_date_range)
+        dt_start_date = date_to_date(start_date.split("-"))
+    max_date_range = dt_start_date + datetime.timedelta(days=buffer_days)
     for index, item in dataframe.iterrows():
         try:
             sample_name = item["SampleName"].split("/")
             row_date = sample_name[3].split("|")
             sample_date = date_to_date(row_date[1].split("-"))
-            if sample_date >= start_date and sample_date <= max_date_range:
+            if sample_date >= dt_start_date and sample_date <= max_date_range:
                 f_df.append(item.tolist())
         except:
             continue
@@ -129,7 +130,7 @@ def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, start_token
         print("Clade name: {}".format(in_clade))
         print(in_clade_df)
         print("Filtering by date...")
-        in_clade_df, max_parent_range = filter_by_date(in_clade_df, in_clade, None)
+        in_clade_df, max_parent_range = filter_by_date(in_clade_df, in_clade, collection_start_month)
         print(in_clade_df)
         print("Normalizing by country...")
         in_clade_df = filter_by_country(in_clade_df)
@@ -151,11 +152,10 @@ def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, start_token
                 continue
             out_clade_df = dataframe[dataframe["Clade"].replace("/", "_") == out_clade]
             print(out_clade_df)
-            print(max_parent_range, max_parent_range.strftime("%Y-%m-%d"))
+            #print("child: ", collection_start_month, max_parent_range)
             print("Filtering by date...")
-            out_clade_df, _ = filter_by_date(out_clade_df, out_clade, max_parent_range.strftime("%Y-%m-%d").split("-"))
+            out_clade_df, _ = filter_by_date(out_clade_df, out_clade, max_parent_range.strftime("%Y-%m-%d"))
             #out_clade_df, _ = filter_by_date(out_clade_df, out_clade, None) # "2020-2-14" Clade 20B start date
-            
             print(out_clade_df)
             print("Normalizing by country...")
             out_clade_df = filter_by_country(out_clade_df)
@@ -166,16 +166,15 @@ def make_cross_product(clade_in_clade_out, dataframe, len_aa_subseq, start_token
             out_len = len(out_clade_df.index)
             if random_size <= out_len:
                 out_clade_df = out_clade_df.sample(n=random_size, replace=False).reset_index(drop=True)
-
             print(out_clade_df.groupby(['Country']).count())
             print("Size of clade {}: {}".format(out_clade, str(out_len)))
-            #sys.exit()
 
             u_filtered_x_y_train, u_filtered_x_y_test, kmer_f_dict, kmer_r_dict = utils.generate_cross_product(in_clade_df, out_clade_df, in_clade, out_clade, edit_threshold, len_aa_subseq, forward_dict, rev_dict, start_token, unrelated=unrelated, train_pairs=train_pairs, train_size=train_size)
             print("Unique size of train clade combination {}_{}: {}".format(in_clade, out_clade, str(len(u_filtered_x_y_train.index))))
             print("Unique size of test clade combination {}_{}: {}".format(in_clade, out_clade, str(len(u_filtered_x_y_test.index))))
             total_samples_train += len(u_filtered_x_y_train.index)
             total_samples_test += len(u_filtered_x_y_test.index)
+            print("--------------------------------------------------")
             #train_df = u_filtered_x_y.sample(frac=train_size, random_state=200)
             #test_df = u_filtered_x_y.drop(train_df.index)
             # convert to original seq and then to Kmers
