@@ -112,66 +112,6 @@ def prepare_pred_future_seq():
     #return encoded_wuhan_seq
 
 
-def generated_cross_prod(list_true_y_test, children_combined_y, max_diff, len_aa_subseq, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict):
-    print("Generating cross product...")
-    print(len(list_true_y_test), len(children_combined_y))
-    x_y = list(itertools.product(list_true_y_test, children_combined_y))
-    print(len(x_y))
-    fil_x = list()
-    fil_y = list()
-    l_distance = list()
-    filtered_l_distance = list()
-    for i, (enc_i, enc_j) in enumerate(x_y):
-        re_x = utils.reconstruct_seq([kmer_f_dict[pos] for pos in enc_i.split(",")[1:]])
-        re_y = utils.reconstruct_seq([kmer_f_dict[pos] for pos in enc_j.split(",")[1:]])
-        l_dist = utils.compute_Levenshtein_dist(re_x, re_y)
-        l_distance.append(l_dist)
-        if l_dist > 0 and l_dist < max_diff:
-            filtered_l_distance.append(l_dist)
-            fil_x.append(enc_i)
-            fil_y.append(enc_j)
-    filtered_dataframe = pd.DataFrame(list(zip(fil_x, fil_y)), columns=["X", "Y"])
-    return filtered_dataframe
-
-
-def create_parent_child_true_seq_test():
-    
-    #print(forward_dict)
-    print("Loading test datasets...")
-    list_true_y_test = list()
-    true_test_file = glob.glob(RESULT_PATH + FUTURE_GEN_TEST)
-    for name in true_test_file:
-        test_df = pd.read_csv(name, sep="\t")
-        true_Y_test = test_df["Y"].drop_duplicates() # Corresponds to 20B for 20A - 20B training
-        true_Y_test = true_Y_test.tolist()
-        #print(len(true_Y_test))
-        list_true_y_test.extend(true_Y_test)
-    print(len(list_true_y_test))
-
-    tr_clade_files = glob.glob('data/train/*.csv')
-    children_combined_y = list()
-
-    print(tr_clade_files)
-
-    # load train data
-    print("Loading true y datasets...")
-    for name in tr_clade_files:
-        tr_clade_df = pd.read_csv(name, sep="\t")
-        y = tr_clade_df["Y"].drop_duplicates()
-        y = y.tolist() # Corresponds to children of 20B for 20A - 20B training
-        print(len(y))
-        children_combined_y.extend(y)
-        print()
-    print(len(list_true_y_test), len(children_combined_y))
-    #print(list_true_y_test)
-    #print()
-    #print(children_combined_y)
-    #combined_dataframe, _, _ = utils.generate_cross_product(list_true_y_test, children_combined_y, max_diff, len_aa_subseq, forward_dict, rev_dict, start_token, unrelated=False)
-    combined_dataframe = generated_cross_prod(list_true_y_test, children_combined_y, max_diff, len_aa_subseq, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict)
-    # u_filtered_x_y, kmer_f_dict, kmer_r_dict = utils.generate_cross_product(u_in_clade, u_out_clade, edit_threshold, len_aa_subseq, forward_dict, rev_dict, start_token, unrelated=unrelated)
-    combined_dataframe.to_csv(COMBINED_FILE, sep="\t", index=None)
-
-
 def load_model_generated_sequences(file_path):
     # load test data
     te_clade_files = glob.glob(file_path)
@@ -196,6 +136,33 @@ def load_model_generated_sequences(file_path):
 
         with tf.device('/device:cpu:0'):
             predict_multiple(te_X, te_y, len_final_aa_padding, vocab_size, encoded_wuhan_seq, forward_dict, kmer_f_dict, kmer_r_dict)
+
+
+def loop_encode_decode_predict_stateful(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful, mut_freq): 
+    enc_state_f = tf.zeros((batch_size, enc_units))
+    enc_state_b = tf.zeros((batch_size, enc_units))
+    n_stateful_batches = int(input_tokens.shape[1]/float(s_stateful))
+    i_tokens = tf.fill([batch_size, 1], 0)
+    gen_logits = list()
+    loss = tf.constant(0.0)
+    for stateful_index in range(n_stateful_batches):
+        s_batch = input_tokens[:, stateful_index*s_stateful: (stateful_index+1)*s_stateful]
+        enc_output, enc_state_f, enc_state_b = gen_encoder([s_batch, enc_state_f, enc_state_b], training=train_test)
+        dec_state = tf.concat([enc_state_f, enc_state_b], -1)
+        dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
+        for t in range(s_batch.shape[1]):
+            orig_t = stateful_index * s_stateful + t
+            dec_result, dec_state = gen_decoder([i_tokens, dec_state], training=train_test)
+            dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
+            gen_logits.append(dec_result)
+            if len(output_tokens) > 0:
+                o_tokens = output_tokens[:, orig_t:orig_t+1]
+                step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
+                loss += step_loss
+            i_tokens = tf.argmax(dec_result, axis=-1)
+    gen_logits = tf.concat(gen_logits, axis=-2)
+    loss = loss / seq_len
+    return gen_logits, loss
 
 
 def predict_multiple(test_x, test_y, len_final_aa_padding, vocab_size, encoded_wuhan_seq, forward_dict, kmer_f_dict, kmer_r_dict):
@@ -292,33 +259,6 @@ def predict_multiple(test_x, test_y, len_final_aa_padding, vocab_size, encoded_w
     #true_predicted_multiple.to_csv(df_path, index=None)
 
 
-def loop_encode_decode_predict_stateful(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful, mut_freq): 
-    enc_state_f = tf.zeros((batch_size, enc_units))
-    enc_state_b = tf.zeros((batch_size, enc_units))
-    n_stateful_batches = int(input_tokens.shape[1]/float(s_stateful))
-    i_tokens = tf.fill([batch_size, 1], 0)
-    gen_logits = list()
-    loss = tf.constant(0.0)
-    for stateful_index in range(n_stateful_batches):
-        s_batch = input_tokens[:, stateful_index*s_stateful: (stateful_index+1)*s_stateful]
-        enc_output, enc_state_f, enc_state_b = gen_encoder([s_batch, enc_state_f, enc_state_b], training=train_test)
-        dec_state = tf.concat([enc_state_f, enc_state_b], -1)
-        dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=enc_stddev))
-        for t in range(s_batch.shape[1]):
-            orig_t = stateful_index * s_stateful + t
-            dec_result, dec_state = gen_decoder([i_tokens, dec_state], training=train_test)
-            dec_state = tf.math.add(dec_state, tf.random.normal((dec_state.shape[0], dec_state.shape[1]), stddev=dec_stddev))
-            gen_logits.append(dec_result)
-            if len(output_tokens) > 0:
-                o_tokens = output_tokens[:, orig_t:orig_t+1]
-                step_loss = tf.reduce_mean(cross_entropy_loss(o_tokens, dec_result))
-                loss += step_loss
-            i_tokens = tf.argmax(dec_result, axis=-1)
-    gen_logits = tf.concat(gen_logits, axis=-2)
-    loss = loss / seq_len
-    return gen_logits, loss
-
-
 '''def loop_encode_decode_predict_stateful(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful, mut_freq): 
     enc_state_f = tf.zeros((batch_size, enc_units))
     enc_state_b = tf.zeros((batch_size, enc_units))
@@ -346,7 +286,7 @@ def loop_encode_decode_predict_stateful(seq_len, batch_size, vocab_size, input_t
     return gen_logits, loss'''
 
 
-def loop_encode_decode_predict(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful, mut_freq): 
+'''def loop_encode_decode_predict(seq_len, batch_size, vocab_size, input_tokens, output_tokens, gen_encoder, gen_decoder, enc_units, tf_ratio, train_test, s_stateful, mut_freq): 
     show = 2
     enc_output, enc_state = gen_encoder(input_tokens) #, training=False
     enc_norm = tf.norm(enc_state)
@@ -370,10 +310,10 @@ def loop_encode_decode_predict(seq_len, batch_size, vocab_size, input_tokens, ou
     loss = loss / seq_len
     print("Encoder norm: {}".format(str(tf.norm(enc_state))))
     print("Decoder norm: {}".format(str(np.mean(o_state_norm))))
-    return gen_logits, gen_encoder, gen_decoder, loss
+    return gen_logits, gen_encoder, gen_decoder, loss'''
 
 
-def create_parent_child_true_seq(forward_dict, rev_dict):
+'''def create_parent_child_true_seq(forward_dict, rev_dict):
     tr_clade_files = glob.glob('data/train/*.csv')
     combined_X = list()
     combined_y = list()
@@ -392,7 +332,68 @@ def create_parent_child_true_seq(forward_dict, rev_dict):
     print(len(combined_X), len(combined_y))
     combined_dataframe = pd.DataFrame(list(zip(combined_X, combined_y)), columns=["X", "Y"])
     print(combined_dataframe)
-    combined_dataframe.to_csv(COMBINED_FILE, sep="\t", index=None)
+    combined_dataframe.to_csv(COMBINED_FILE, sep="\t", index=None)'''
+
+
+'''def generated_cross_prod(list_true_y_test, children_combined_y, max_diff, len_aa_subseq, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict):
+    print("Generating cross product...")
+    print(len(list_true_y_test), len(children_combined_y))
+    x_y = list(itertools.product(list_true_y_test, children_combined_y))
+    print(len(x_y))
+    fil_x = list()
+    fil_y = list()
+    l_distance = list()
+    filtered_l_distance = list()
+    for i, (enc_i, enc_j) in enumerate(x_y):
+        re_x = utils.reconstruct_seq([kmer_f_dict[pos] for pos in enc_i.split(",")[1:]])
+        re_y = utils.reconstruct_seq([kmer_f_dict[pos] for pos in enc_j.split(",")[1:]])
+        l_dist = utils.compute_Levenshtein_dist(re_x, re_y)
+        l_distance.append(l_dist)
+        if l_dist > 0 and l_dist < max_diff:
+            filtered_l_distance.append(l_dist)
+            fil_x.append(enc_i)
+            fil_y.append(enc_j)
+    filtered_dataframe = pd.DataFrame(list(zip(fil_x, fil_y)), columns=["X", "Y"])
+    return filtered_dataframe'''
+
+
+'''def create_parent_child_true_seq_test():
+    
+    #print(forward_dict)
+    print("Loading test datasets...")
+    list_true_y_test = list()
+    true_test_file = glob.glob(RESULT_PATH + FUTURE_GEN_TEST)
+    for name in true_test_file:
+        test_df = pd.read_csv(name, sep="\t")
+        true_Y_test = test_df["Y"].drop_duplicates() # Corresponds to 20B for 20A - 20B training
+        true_Y_test = true_Y_test.tolist()
+        #print(len(true_Y_test))
+        list_true_y_test.extend(true_Y_test)
+    print(len(list_true_y_test))
+
+    tr_clade_files = glob.glob('data/train/*.csv')
+    children_combined_y = list()
+
+    print(tr_clade_files)
+
+    # load train data
+    print("Loading true y datasets...")
+    for name in tr_clade_files:
+        tr_clade_df = pd.read_csv(name, sep="\t")
+        y = tr_clade_df["Y"].drop_duplicates()
+        y = y.tolist() # Corresponds to children of 20B for 20A - 20B training
+        print(len(y))
+        children_combined_y.extend(y)
+        print()
+    print(len(list_true_y_test), len(children_combined_y))
+    #print(list_true_y_test)
+    #print()
+    #print(children_combined_y)
+    #combined_dataframe, _, _ = utils.generate_cross_product(list_true_y_test, children_combined_y, max_diff, len_aa_subseq, forward_dict, rev_dict, start_token, unrelated=False)
+    combined_dataframe = generated_cross_prod(list_true_y_test, children_combined_y, max_diff, len_aa_subseq, forward_dict, rev_dict, kmer_f_dict, kmer_r_dict)
+    # u_filtered_x_y, kmer_f_dict, kmer_r_dict = utils.generate_cross_product(u_in_clade, u_out_clade, edit_threshold, len_aa_subseq, forward_dict, rev_dict, start_token, unrelated=unrelated)
+    combined_dataframe.to_csv(COMBINED_FILE, sep="\t", index=None)'''
+
 
 
 if __name__ == "__main__":
