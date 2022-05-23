@@ -251,7 +251,7 @@ def generate_cross_product(x_df, y_df, in_clade, out_clade, max_l_dist, len_aa_s
     test_df.to_csv(te_filename, sep="\t", index=None)
 
 
-    '''print("Test and validation: For rest of the world")
+    print("Validation: For rest of the world")
     x_val = x_df[x_df["Country"] != train_nation]
     y_val = y_df[y_df["Country"] != train_nation]
 
@@ -266,14 +266,16 @@ def generate_cross_product(x_df, y_df, in_clade, out_clade, max_l_dist, len_aa_s
     y_val_seq = y_val["Sequence"].tolist()
 
     # validation
-    print("Filtering for validation...")
+    '''print("Filtering for validation...")
     create_dirs("data/validation")
     filtered_x_val, filtered_y_val, _, _, l_distance, filtered_l_distance = get_u_kmers(x_val_seq, y_val_seq, max_l_dist, len_aa_subseq, forward_dict, start_token, unrelated)
     filtered_dataframe_validation = pd.DataFrame(list(zip(filtered_x_val, filtered_y_val)), columns=["X", "Y"])
     filtered_dataframe_validation = filtered_dataframe_validation.drop_duplicates()
     filtered_dataframe_validation = filtered_dataframe_validation.sample(frac=1).reset_index(drop=True)
+    print("Validation dataframe from rest of the world\n")
+    print(filtered_dataframe_validation)
     filtered_dataframe_validation.to_csv(val_filename, sep="\t", index=None)
-    filtered_dataframe_validation.to_csv(te_filename, sep="\t", index=None)
+    #filtered_dataframe_validation.to_csv(te_filename, sep="\t", index=None)
     print(len(filtered_l_distance), np.mean(filtered_l_distance))
     print("Validation Combined dataframe size: {}".format(str(len(filtered_dataframe_validation.index))))
     np.savetxt("data/generated_files/validation_l_distance.txt", l_distance)

@@ -71,23 +71,23 @@ enc_units = 128
 '''
 
 s_kmer = 3
-LEN_AA = 302 # 1273 for considering entire seq length
+LEN_AA = 1273 # 1273 for considering entire seq length
 len_aa_subseq = LEN_AA
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 1 # write 2 here when there is padding of zero in in and out sequences
-size_stateful = 50 #LEN_AA - 2 #300 # 50 for 302
+size_stateful = 41 #LEN_AA - 2 #300 # 50 for 302
 # Neural network parameters
 embedding_dim = 128
-batch_size = 8
+batch_size = 32
 te_batch_size = batch_size
 n_te_batches = 10
-enc_units = 128 # 128 for 302
-pretrain_epochs = 2
+enc_units = 256 # 128 for 302
+pretrain_epochs = 20
 epochs = 1
 max_l_dist = 11
 test_train_size = 0.8
 #pretrain_train_size = 0.01 # all dataset as pretrain and not as test
-random_clade_size = 200
+random_clade_size = 350
 to_pretrain = True
 pretrained_model = False
 retrain_pretrain_start_index = 0

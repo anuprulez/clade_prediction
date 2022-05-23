@@ -18,11 +18,11 @@ import utils
 
 
 aa_list = list('QNKWFPYLMTEIARGHSDVC')
-seq_len = 1273 #1273 #303 #1273
+seq_len = 302 #1273 #303 #1273
 y_label_bin = 20
 ##### Best results with 18_02_22_0 22_02_22_0 # 28_02_22_0
 PATH_PRE = "data/ncov_global/"
-data_path = "test_results/28_02_22_0/" #"test_results/19_10_20A_20B_unrolled_GPU/" # 08_10_one_hot_3_CPU_20A_20B
+data_path = "test_results/18_02_22_0/" #"test_results/19_10_20A_20B_unrolled_GPU/" # 08_10_one_hot_3_CPU_20A_20B
 PATH_F_DICT = PATH_PRE + "f_word_dictionaries.json"
 PATH_R_DICT = PATH_PRE + "r_word_dictionaries.json"
 PATH_KMER_F_DICT = PATH_PRE + "kmer_f_word_dictionaries.json"
@@ -30,12 +30,19 @@ PATH_KMER_R_DICT = PATH_PRE + "kmer_r_word_dictionaries.json"
 
 ### 22_02_22_0
 
+font = {'family': 'serif', 'size': 24}
+plt.rc('font', **font)
+
+size_title = 28
+size_label = 24
+
+
 freq_cutoff = 1
 
 parent_clade = "20A"
 child_clade = "20B"
 # train dataset from pretrain
-train_file = [data_path + "pretrain/pretrain.csv"]
+train_file = [data_path + "train/20A_20B.csv"]
 test_file = [data_path + "test/20A_20B.csv"]
 
 
@@ -285,8 +292,8 @@ def plot_true_gen_dist(tr_par_child, te_par_child, gen_par_child, tr_size, te_si
     compute_common_muts(tr_par_child, te_par_child, tr_size, te_size, "train-test")
     compute_common_muts(te_par_child, gen_par_child, te_size, gen_size, "test-gen")
 
-    cmap = "Blues" #"Blues" #"RdYlBu" Spectral
-    plt.rcParams.update({'font.size': 10})
+    cmap = "Reds" #"Blues" #"RdYlBu" Spectral #gist_yarg
+    #plt.rcParams.update({'font.size': 20})
 
     fig, axs = plt.subplots(2)
 
@@ -296,27 +303,27 @@ def plot_true_gen_dist(tr_par_child, te_par_child, gen_par_child, tr_size, te_si
     interpolation = "none"
 
     ax0 = axs[0].imshow(tr_par_child_mat, cmap=cmap, interpolation=interpolation, aspect='auto')
-    axs[0].set_title("(A) Train parent-child substitution frequency")
+    axs[0].set_title("(A) Train parent-child substitution frequency", size=size_label)
     axs[0].set_ylabel("From source clade ({})".format(parent_clade))
     axs[0].set_xlabel("To target clade ({})".format(child_clade))
     axs[0].set_xticks(pos_ticks)
-    axs[0].set_xticklabels(pos_labels, rotation='horizontal')
+    axs[0].set_xticklabels(pos_labels, rotation='horizontal', size=size_label - 12)
     axs[0].set_yticks(pos_ticks)
-    axs[0].set_yticklabels(pos_labels, rotation='horizontal')
+    axs[0].set_yticklabels(pos_labels, rotation='horizontal', size=size_label - 12)
 
     ax1 = axs[1].imshow(par_gen_mat, cmap=cmap, interpolation=interpolation, aspect='auto')
     axs[1].set_title("(B) Generated (test) substitution frequency")
     axs[1].set_ylabel("From source clade ({})".format(parent_clade))
     axs[1].set_xlabel("To target clade ({})".format(child_clade))
     axs[1].set_xticks(pos_ticks)
-    axs[1].set_xticklabels(pos_labels, rotation='horizontal')
+    axs[1].set_xticklabels(pos_labels, rotation='horizontal', size=size_label - 12)
     axs[1].set_yticks(pos_ticks)
-    axs[1].set_yticklabels(pos_labels, rotation='horizontal')
+    axs[1].set_yticklabels(pos_labels, rotation='horizontal', size=size_label - 12)
 
     cbar_ax = fig.add_axes([0.92, 0.15, 0.03, 0.7])
     cbar = fig.colorbar(ax0, cax=cbar_ax)
     #plt.suptitle("Substitution frequency among train, test and generated datasets. Pearson correlation of A & B: {}, Pearson correlation of B & C: {}, Pearson correlation of A & C: {}".format(str(np.round(pearson_corr_tr_te_mut[0], 2)), str(np.round(pearson_corr_te_gen_mut[0], 2)), str(np.round(pearson_corr_tr_gen_mut[0], 2))))
-    plt.suptitle("Substitution frequency between train and generated datasets. Pearson correlation of A & B: {}".format(str(np.round(pearson_corr_tr_gen_mut[0], 2)), str(np.round(pearson_corr_te_gen_mut[0], 2)), str(np.round(pearson_corr_tr_gen_mut[0], 2))))
+    plt.suptitle("Substitution frequency between train and generated datasets. Pearson correlation of A & B: {}".format(str(np.round(pearson_corr_tr_gen_mut[0], 2)), str(np.round(pearson_corr_te_gen_mut[0], 2)), str(np.round(pearson_corr_tr_gen_mut[0], 2))), size=size_title)
     plt.show()
 
 
@@ -351,7 +358,7 @@ def plot_mut_freq(tr_size, te_size, gen_size):
     pearson_corr_tr_gen_mut_pos_freq = pearsonr(tr_freq, gen_freq)
     #print(pearson_corr_tr_gen_mut_pos_freq)
 
-    plt.rcParams.update({'font.size': 10})
+    #plt.rcParams.update({'font.size': 10})
 
     fig, axs = plt.subplots(2)
 
@@ -359,21 +366,21 @@ def plot_mut_freq(tr_size, te_size, gen_size):
     pos_labels = list(np.arange(1, seq_len+1, y_label_bin))
 
     ax0 = axs[0].bar(y_axis, tr_freq)
-    axs[0].set_title("(A) Train parent-child substitution frequency")
-    axs[0].set_ylabel("Total number of substitutions (normalized)")
-    axs[0].set_xlabel("Spike protein genomic position (POS)")
+    axs[0].set_title("(A) Train parent-child substitution frequency", size=size_label)
+    axs[0].set_ylabel("Total number of substitutions (normalized)", size=size_label)
+    axs[0].set_xlabel("Spike protein genomic position (POS)", size=size_label)
     axs[0].set_xticks(pos_ticks)
     #axs[0].grid(True)
-    axs[0].set_xticklabels(pos_labels, rotation='vertical')
+    axs[0].set_xticklabels(pos_labels, rotation='vertical', size=size_label - 12)
 
     ax1 = axs[1].bar(y_axis, gen_freq)
-    axs[1].set_title("(B) Generated parent-generated substitution frequency")
-    axs[1].set_ylabel("Total number of substitutions (normalized)")
-    axs[1].set_xlabel("Spike protein genomic position (POS)")
+    axs[1].set_title("(B) Generated parent-generated substitution frequency", size=size_label)
+    axs[1].set_ylabel("Total number of substitutions (normalized)", size=size_label)
+    axs[1].set_xlabel("Spike protein genomic position (POS)", size=size_label)
     axs[1].set_xticks(pos_ticks)
-    axs[1].set_xticklabels(pos_labels, rotation='vertical')
+    axs[1].set_xticklabels(pos_labels, rotation='vertical', size=size_label - 12)
     #axs[1].grid(True)
-    plt.suptitle("Substitution frequency in train and generated datasets per genomic position (POS), Pearson correlation (A & B): {}".format(str(np.round(pearson_corr_tr_gen_mut_pos_freq[0], 2))))
+    plt.suptitle("Substitution frequency in train and generated datasets per genomic position (POS), Pearson correlation (A & B): {}".format(str(np.round(pearson_corr_tr_gen_mut_pos_freq[0], 2))), size=size_title)
     plt.show()
 
 
@@ -397,7 +404,7 @@ def plot_target_mut_freq(tr_size, te_size, gen_size):
     pearson_corr_tr_gen_mut_pos_freq = pearsonr(tr_freq, gen_freq)
     #print(pearson_corr_tr_gen_mut_pos_freq)
 
-    plt.rcParams.update({'font.size': 10})
+    #plt.rcParams.update({'font.size': 10})
 
     fig, axs = plt.subplots(2)
 
@@ -405,21 +412,21 @@ def plot_target_mut_freq(tr_size, te_size, gen_size):
     pos_labels = list(np.arange(1, seq_len+1, y_label_bin))
 
     ax0 = axs[0].bar(y_axis, tr_freq, color="blue")
-    axs[0].set_title("(A) Train child AA frequency")
-    axs[0].set_ylabel("Total number of unique AA")
-    axs[0].set_xlabel("Spike protein genomic position (POS)")
+    axs[0].set_title("(A) Train child AA frequency", size=size_label)
+    axs[0].set_ylabel("Total number of unique AA", size=size_label)
+    axs[0].set_xlabel("Spike protein genomic position (POS)", size=size_label)
     axs[0].set_xticks(pos_ticks)
     #axs[0].grid(True)
     axs[0].set_xticklabels(pos_labels, rotation='vertical')
 
     ax1 = axs[1].bar(y_axis, gen_freq, color="blue")
-    axs[1].set_title("(B) Generated child AA frequency")
-    axs[1].set_ylabel("Total number of unique AA")
-    axs[1].set_xlabel("Spike protein genomic position (POS)")
+    axs[1].set_title("(B) Generated child AA frequency", size=size_label)
+    axs[1].set_ylabel("Total number of unique AA", size=size_label)
+    axs[1].set_xlabel("Spike protein genomic position (POS)", size=size_label)
     axs[1].set_xticks(pos_ticks)
-    axs[1].set_xticklabels(pos_labels, rotation='vertical')
+    axs[1].set_xticklabels(pos_labels, rotation='vertical', size=size_label - 12)
     #axs[1].grid(True)
-    plt.suptitle("AA frequency in train and generated datasets per genomic position (POS), Pearson correlation (A & B): {}".format(str(np.round(pearson_corr_tr_gen_mut_pos_freq[0], 2))))
+    plt.suptitle("AA frequency in train and generated datasets per genomic position (POS), Pearson correlation (A & B): {}".format(str(np.round(pearson_corr_tr_gen_mut_pos_freq[0], 2))), size=size_title)
     plt.show()
 
 
@@ -449,42 +456,27 @@ def plot_mut_freq_dist_parent_child_gen_wu(tr_size, te_size, gen_size):
     tr_freq = normalize_mat(tr_freq)
     gen_freq = normalize_mat(gen_freq)
 
-    '''print(tr_freq[613])
-    print(gen_freq[613])
-    print(max(tr_freq))
-    print(max(gen_freq))'''
-
     pearson_corr_tr_gen_mut_pos_freq = pearsonr(tr_freq, gen_freq)
-    #print(pearson_corr_tr_gen_mut_pos_freq)
-
-    plt.rcParams.update({'font.size': 10})
 
     fig, axs = plt.subplots(2)
 
     pos_ticks = list(np.arange(0, seq_len, y_label_bin))
     pos_labels = list(np.arange(1, seq_len+1, y_label_bin))
 
-    '''for i in range(len(list(aa_list))):
-        ax0 = axs[0].bar(y_axis, tr_freq[:, i])
-        ax1 = axs[1].bar(y_axis, gen_freq[:, i])'''
-
     ax0 = axs[0].bar(y_axis, tr_freq)
-    axs[0].set_title("(A) Train parent-child (Wu-{}) substitution frequency".format(child_clade))
-    axs[0].set_ylabel("Total number of substitutions (normalized)")
-    axs[0].set_xlabel("Spike protein genomic position (POS)")
+    axs[0].set_title("(A) Train parent-child (Wu-{}) substitution frequency".format(child_clade), size=size_label)
+    axs[0].set_ylabel("Total number of substitutions (normalized)", size=size_label)
+    axs[0].set_xlabel("Spike protein genomic position (POS)", size=size_label)
     axs[0].set_xticks(pos_ticks)
-    axs[0].set_xticklabels(pos_labels, rotation='vertical')
+    axs[0].set_xticklabels(pos_labels, rotation='vertical', size=size_label - 12)
 
     ax1 = axs[1].bar(y_axis, gen_freq)
-    axs[1].set_title("(B) Generated parent-generated (Wu-{}-generated) substitution frequency".format(child_clade))
-    axs[1].set_ylabel("Total number of substitutions (normalized)")
-    axs[1].set_xlabel("Spike protein genomic position (POS)")
-    #axs[1].set_ylim(0, 2500)
+    axs[1].set_title("(B) Generated parent-generated (Wu-{}-generated) substitution frequency".format(child_clade), size=size_label)
+    axs[1].set_ylabel("Total number of substitutions (normalized)", size=size_label)
+    axs[1].set_xlabel("Spike protein genomic position (POS)", size=size_label)
     axs[1].set_xticks(pos_ticks)
-    axs[1].set_xticklabels(pos_labels, rotation='vertical')
-    #axs[2].grid(True)
-    plt.suptitle("Wu-target: Substitution frequency in true target ({}) and generated target datasets per genomic position (POS), Pearson correlation (A & B):{}".format(child_clade, str(np.round(pearson_corr_tr_gen_mut_pos_freq[0], 2))))
-    #plt.grid(True)
+    axs[1].set_xticklabels(pos_labels, rotation='vertical', size=size_label - 12)
+    plt.suptitle("Wu-target: Substitution frequency in true target ({}) and generated target datasets per genomic position (POS), Pearson correlation (A & B):{}".format(child_clade, str(np.round(pearson_corr_tr_gen_mut_pos_freq[0], 2))), size=size_title)
     plt.show()
 
 
@@ -515,10 +507,8 @@ def plot_mut_freq_dist_parent_child_gen(tr_size, te_size, gen_size):
     gen_freq = normalize_mat(gen_freq)
 
     pearson_corr_tr_gen_mut_pos_freq = pearsonr(tr_freq, gen_freq)
-    #print(pearson_corr_tr_gen_mut_pos_freq)
 
     y_axis = list(np.arange(1, seq_len+1))
-    plt.rcParams.update({'font.size': 10})
     fig, axs = plt.subplots(2)
 
     pos_ticks = list(np.arange(1, seq_len, y_label_bin))
@@ -528,18 +518,18 @@ def plot_mut_freq_dist_parent_child_gen(tr_size, te_size, gen_size):
         ax0 = axs[0].bar(y_axis, tr_freq[:, i])
         ax1 = axs[1].bar(y_axis, gen_freq[:, i])
 
-    axs[0].set_title("(A) Train parent-child ({}-{}) substitution frequency".format(parent_clade, child_clade))
-    axs[0].set_ylabel("Total number of substitutions (normalized)")
-    axs[0].set_xlabel("Spike protein genomic position (POS)")
+    axs[0].set_title("(A) Train parent-child ({}-{}) substitution frequency".format(parent_clade, child_clade), size=size_label)
+    axs[0].set_ylabel("Total number of substitutions (normalized)", size=size_label)
+    axs[0].set_xlabel("Spike protein genomic position (POS)", size=size_label)
     axs[0].set_xticks(pos_ticks)
-    axs[0].set_xticklabels(pos_labels, rotation='horizontal')
+    axs[0].set_xticklabels(pos_labels, rotation='horizontal', size=size_label - 12)
 
-    axs[1].set_title("(B) Generated parent-generated ({}-predicted/generated) substitution frequency".format(parent_clade))
-    axs[1].set_ylabel("Total number of substitutions (normalized)")
-    axs[1].set_xlabel("Spike protein genomic position (POS)")
+    axs[1].set_title("(B) Generated parent-generated ({}-predicted/generated) substitution frequency".format(parent_clade), size=size_label)
+    axs[1].set_ylabel("Total number of substitutions (normalized)", size=size_label)
+    axs[1].set_xlabel("Spike protein genomic position (POS)", size=size_label)
     axs[1].set_xticks(pos_ticks)
-    axs[1].set_xticklabels(pos_labels, rotation='horizontal')
-    plt.suptitle("Substitution frequency in train and generated datasets per genomic position (POS), Pearson correlation (A & B): {}".format(str(np.round(pearson_corr_tr_gen_mut_pos_freq[0], 2))))
+    axs[1].set_xticklabels(pos_labels, rotation='horizontal', size=size_label - 12)
+    plt.suptitle("Substitution frequency in train and generated datasets per genomic position (POS), Pearson correlation (A & B): {}".format(str(np.round(pearson_corr_tr_gen_mut_pos_freq[0], 2))), size=size_title)
     plt.show()
 
 
@@ -570,9 +560,6 @@ def plot_pred_subs():
     gen_freq_2 = normalize_mat(gen_freq_2)
 
     pearson_corr_tr_gen_mut_pos_freq = pearsonr(gen_freq_1, gen_freq_2)
-    #print(pearson_corr_tr_gen_mut_pos_freq)
-
-    plt.rcParams.update({'font.size': 10})
 
     fig, axs = plt.subplots(2)
 
@@ -580,23 +567,20 @@ def plot_pred_subs():
     pos_labels = list(np.arange(1, seq_len+1, y_label_bin))
 
     ax0 = axs[0].bar(y_axis, gen_freq_1, color="blue")
-    axs[0].set_title("(A) {}-generated substitution frequency".format(gen_child_step_1))
-    axs[0].set_ylabel("Total number of substitutions (normalized)")
-    axs[0].set_xlabel("Spike protein genomic position (POS)")
+    axs[0].set_title("(A) {}-generated substitution frequency".format(gen_child_step_1), size=size_label)
+    axs[0].set_ylabel("Total number of substitutions (normalized)", size=size_label)
+    axs[0].set_xlabel("Spike protein genomic position (POS)", size=size_label)
     axs[0].set_xticks(pos_ticks)
-    #axs[0].grid(True)
-    axs[0].set_xticklabels(pos_labels, rotation='vertical')
+    axs[0].set_xticklabels(pos_labels, rotation='vertical', size=size_label - 12)
 
     ax1 = axs[1].bar(y_axis, gen_freq_2, color="blue")
-    axs[1].set_title("(B) {}-generated substitution frequency".format(gen_child_step_2))
-    axs[1].set_ylabel("Total number of substitutions (normalized)")
-    axs[1].set_xlabel("Spike protein genomic position (POS)")
+    axs[1].set_title("(B) {}-generated substitution frequency".format(gen_child_step_2), size=size_label)
+    axs[1].set_ylabel("Total number of substitutions (normalized)", size=size_label)
+    axs[1].set_xlabel("Spike protein genomic position (POS)", size=size_label)
     axs[1].set_xticks(pos_ticks)
-    axs[1].set_xticklabels(pos_labels, rotation='vertical')
-    #axs[1].grid(True)
-    plt.suptitle("Substitution frequency for generated datasets using {} (A) and {} (B) as input datasets to models, Pearson correlation (A & B): {}".format(gen_child_step_1, gen_child_step_2, str(np.round(pearson_corr_tr_gen_mut_pos_freq[0], 2))))
+    axs[1].set_xticklabels(pos_labels, rotation='vertical', size=size_label - 12)
+    plt.suptitle("Substitution frequency for generated datasets using {} (A) and {} (B) as input datasets to models, Pearson correlation (A & B): {}".format(gen_child_step_1, gen_child_step_2, str(np.round(pearson_corr_tr_gen_mut_pos_freq[0], 2))), size=size_title)
     plt.show()
-    
 
 
 def parse_mut_keys_freq(json_file, save_file_path):
@@ -819,14 +803,14 @@ if __name__ == "__main__":
     tr_original_muts, tr_size = read_dataframe(train_file, "\t", ["X", "Y"], "train")
     te_original_muts, te_size = read_dataframe(test_file, "\t", ["X", "Y"], "test")
     gen_muts, gen_size = read_dataframe(all_gen_paths, ",", ["20A", "Generated"], "gen") #["20A", "Generated"] #["X", "Pred Y"]
-    #plot_true_gen_dist(tr_original_muts, te_original_muts, gen_muts, tr_size, te_size, gen_size)
+    plot_true_gen_dist(tr_original_muts, te_original_muts, gen_muts, tr_size, te_size, gen_size)
 
     plot_mut_freq(tr_size, te_size, gen_size)
-    #plot_target_mut_freq(tr_size, te_size, gen_size)
+    plot_target_mut_freq(tr_size, te_size, gen_size)
     #plot_mut_freq_dist_parent_child_gen(tr_size, te_size, gen_size)
-    #plot_mut_freq_dist_parent_child_gen_wu(tr_size, te_size, gen_size)
-    create_tabular_files()
-    #plot_pred_subs()
+    plot_mut_freq_dist_parent_child_gen_wu(tr_size, te_size, gen_size)
+    '''create_tabular_files()
+    plot_pred_subs()'''
     #extract_novel_pos_subs()
     #create_fasta_file(all_gen_paths)
 
