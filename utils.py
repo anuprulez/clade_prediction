@@ -251,7 +251,7 @@ def generate_cross_product(x_df, y_df, in_clade, out_clade, max_l_dist, len_aa_s
     test_df.to_csv(te_filename, sep="\t", index=None)
 
 
-    print("Validation: For rest of the world")
+    '''print("Validation: For rest of the world")
     x_val = x_df[x_df["Country"] != train_nation]
     y_val = y_df[y_df["Country"] != train_nation]
 
@@ -266,7 +266,7 @@ def generate_cross_product(x_df, y_df, in_clade, out_clade, max_l_dist, len_aa_s
     y_val_seq = y_val["Sequence"].tolist()
 
     # validation
-    '''print("Filtering for validation...")
+    print("Filtering for validation...")
     create_dirs("data/validation")
     filtered_x_val, filtered_y_val, _, _, l_distance, filtered_l_distance = get_u_kmers(x_val_seq, y_val_seq, max_l_dist, len_aa_subseq, forward_dict, start_token, unrelated)
     filtered_dataframe_validation = pd.DataFrame(list(zip(filtered_x_val, filtered_y_val)), columns=["X", "Y"])
@@ -422,11 +422,37 @@ def read_wuhan_seq(wu_path, rev_dict):
 def get_words_indices(word_list):
     forward_dictionary = {i + 1: word_list[i] for i in range(0, len(word_list))}
     reverse_dictionary = {word_list[i]: i + 1  for i in range(0, len(word_list))}
-
-    forward_dictionary["0"] = "<start>"
-    reverse_dictionary["<start>"] = "0"
-
+    #forward_dictionary["0"] = "<start>"
+    #reverse_dictionary["<start>"] = "0"
     return forward_dictionary, reverse_dictionary
+
+
+def fix_genbank_samplename(s_name, if_dict=True):
+    # Spike|hCoV-19/Wuhan/WIV04/2019|2019-12-30|EPI_ISL_402124|Original|hCoV-19^^Hubei|Human|Wuhan
+    # ON170431.1 |Severe acute respiratory syndrome coronavirus 2 isolate SARS-CoV-2/human/USA/NV-NSPHL-399280/2021, complete genome||Gumbleton,L.|2022-04-07T00:00:00Z||NV-NSPHL-399280|GenBank|2021-08-17|USA|USA'
+    # 0,
+    '''
+    UKP08758.1
+	ID: UKP08770.1
+	Name: UKP08770.1
+	Description: UKP08770.1 |surface glycoprotein [Severe acute respiratory syndrome coronavirus 2]||Howard,D., Batra,D., Cook,P.W., Caravas,J., Rambo-Martin,B., Sammons,S., Unoarumhi,Y., Schmerer,M., Lacek,K.A., Kendall,T., Caban Figueroa,V., Morrison,S., Gulvick,C., Sula,E., Rosenthal,S.H., Gerasimova,A., Kagan,R.M., Anderson,B., Hua,M., Liu,Y., Bernstein,L.E., Livingston,K.E., Perez,A., Shlyakhter,I.A., Rolando,R.V., Owen,R., Tanpaiboon,P., Lacbawan,F., Paden,C.R., MacCannell,D.|2022-02-08T00:00:00Z|BA.1|CA-CDC-QDX33117788|GenBank|2022-01-21|USA|USA: California
+	Number of features: 0
+	Seq('MFVFLVLLPLVSSQCVNLTTRTQLPPAYTNSFTRGVYYPDKVFRSSVLHSTQDL...HYT')
+
+    '''
+    #print(s_name.split("|"))
+    if if_dict is True:
+        split_name = s_name.split("|")
+        new_name = "|".join([split_name[0], split_name[6], split_name[7], split_name[8], split_name[9], split_name[10]])
+    else:
+        split_name = s_name.description.split("|")
+        print(split_name)
+        new_name = ""
+        # fix_genbank_samplename
+    #print(new_name)
+    #print("--")
+    return new_name
+    
 
 
 def save_as_json(filepath, data):

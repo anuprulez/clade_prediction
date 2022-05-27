@@ -19,9 +19,17 @@ import train_model
 
 
 PATH_PRE = "data/ncov_global/"
-PATH_SEQ = PATH_PRE + "spikeprot0815.fasta"
-GALAXY_CLADE_ASSIGNMENT = PATH_PRE + "clade_assignment_2.9_Mil_samples.tabular"
-PATH_SAMPLES_CLADES = PATH_PRE + "sample_clade_sequence_df.csv"
+
+# Use GISAID dataset
+#PATH_SEQ = PATH_PRE + "spikeprot0815.fasta"
+#GALAXY_CLADE_ASSIGNMENT = PATH_PRE + "clade_assignment_2.9_Mil_samples.tabular"
+#PATH_SAMPLES_CLADES = PATH_PRE + "sample_clade_sequence_df.csv"
+
+# change to Gen bank dataset
+PATH_SEQ = PATH_PRE + "spike_protein_genbank_apr_22.fasta"
+GALAXY_CLADE_ASSIGNMENT = PATH_PRE + "clade_assignment_genbank.tabular"
+PATH_SAMPLES_CLADES = PATH_PRE + "sample_clade_sequence_df_genbank.csv"
+
 PATH_F_DICT = PATH_PRE + "f_word_dictionaries.json"
 PATH_R_DICT = PATH_PRE + "r_word_dictionaries.json"
 PATH_KMER_F_DICT = "data/ncov_global/kmer_f_word_dictionaries.json"
@@ -71,7 +79,7 @@ enc_units = 128
 '''
 
 s_kmer = 3
-LEN_AA = 1273 # 1273 for considering entire seq length
+LEN_AA = 302 # 1273 for considering entire seq length
 len_aa_subseq = LEN_AA
 #len_final_aa_padding = len_aa_subseq + 1
 len_final_aa_padding = len_aa_subseq - s_kmer + 1 # write 2 here when there is padding of zero in in and out sequences
@@ -124,7 +132,8 @@ def get_samples_clades():
 
 def read_files():
     #to preprocess once, uncomment get_samples_clades
-    #get_samples_clades()
+    get_samples_clades()
+    sys.exit()
     forward_dict = utils.read_json(PATH_F_DICT)
     rev_dict = utils.read_json(PATH_R_DICT)
     encoder = None
@@ -137,7 +146,6 @@ def read_files():
         print("Preprocessing sample-clade assignment file...")
         dataf = pd.read_csv(PATH_SAMPLES_CLADES, sep=",")
         filtered_dataf = preprocess_sequences.filter_samples_clades(dataf)
-        
         
         unrelated_clades = utils.read_json(PATH_UNRELATED_CLADES)
         print("Generating cross product of real parent child...")
@@ -155,7 +163,7 @@ def read_files():
             dec_path = "data/generated_files/pre_train/" + str(retrain_pretrain_start_index) + "/dec"
             encoder = tf.keras.models.load_model(enc_path)
             decoder = tf.keras.models.load_model(dec_path)
-
+    sys.exit()
     start_training(forward_dict, rev_dict, encoder, decoder)
 
 

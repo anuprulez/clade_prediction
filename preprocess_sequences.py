@@ -6,38 +6,58 @@ import datetime
 import utils
 
 l_dist_name = "levenshtein_distance"
-PATH_SAMPLES_CLADES = "data/ncov_global/sample_clade_sequence_df.csv"
+#PATH_SAMPLES_CLADES = "data/ncov_global/sample_clade_sequence_df.csv"
+#PATH_ALL_SAMPLES_CLADES = "data/ncov_global/samples_clades.json"
+# For genbank dataset, uncomment next line
+PATH_SAMPLES_CLADES = "data/ncov_global/sample_clade_sequence_df_genbank.csv"
+PATH_ALL_SAMPLES_CLADES = "data/ncov_global/samples_clades_genbank.json"
+
 PATH_F_DICT = "data/ncov_global/f_word_dictionaries.json"
 PATH_R_DICT = "data/ncov_global/r_word_dictionaries.json"
-PATH_ALL_SAMPLES_CLADES = "data/ncov_global/samples_clades.json"
+
 PATH_CLADE_EMERGENCE_DATES = "data/ncov_global/clade_emergence_dates.tsv"
 amino_acid_codes = "QNKWFPYLMTEIARGHSDVC"
 
 
 def get_galaxy_samples_clades(path_seq_clades):
     ncov_global_df = pd.read_csv(path_seq_clades, sep="\t")
+    print(ncov_global_df)
     samples_clades = dict()
     for idx in range(len(ncov_global_df)):
         sample_row = ncov_global_df.take([idx])
         s_name = sample_row["seqName"].values[0]
+        # only for genbank dataset, comment for GISAID
+        s_name = utils.fix_genbank_samplename(s_name, True)
         clade_name = sample_row["clade"].values[0]
         if sample_row["qc.overallStatus"].values[0] and sample_row["qc.overallStatus"].values[0] == "good":
             clade_name = utils.format_clade_name(clade_name)
             samples_clades[s_name] = clade_name
+        if idx == 100:
+            break
     utils.save_as_json(PATH_ALL_SAMPLES_CLADES, samples_clades)
     return samples_clades
 
 
 def preprocess_seq_galaxy_clades(fasta_file, samples_clades, LEN_AA):
     encoded_samples = list()
-    aa_chars = utils.get_all_possible_words(amino_acid_codes)
-    f_word_dictionaries, r_word_dictionaries = utils.get_words_indices(aa_chars)
-    all_sample_names = list(samples_clades.keys()) 
+    # for GISAID dataset
+    #aa_chars = utils.get_all_possible_words(amino_acid_codes)
+    #f_word_dictionaries, r_word_dictionaries = utils.get_words_indices(aa_chars)
+    # for genbank
+    f_word_dictionaries, r_word_dictionaries = utils.get_all_possible_words(amino_acid_codes)
+    #print(f_word_dictionaries, r_word_dictionaries)
+    all_sample_names = list(samples_clades.keys())
+    print(all_sample_names)
     for sequence_obj in SeqIO.parse(fasta_file, "fasta"):
         row = list()
+        print(sequence_obj)
+        print("----")
         seq_id = sequence_obj.id
         sequence = str(sequence_obj.seq)
         sequence = sequence.replace("*", '')
+        # only for genbank dataset, comment for GISAID
+        seq_id = utils.fix_genbank_samplename(sequence_obj)
+        print(seq_id)
         if "X" not in sequence and all_sample_names.count(seq_id) > 0 and len(sequence) == LEN_AA:
             row.append(seq_id)
             clade_name = samples_clades[seq_id]
